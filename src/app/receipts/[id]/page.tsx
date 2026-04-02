@@ -1,0 +1,650 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { Button, Badge } from "@penkey/ui";
+import { formatCurrency } from "@penkey/ui";
+import { 
+  ArrowLeft, 
+  Printer, 
+  Mail,
+  RotateCcw,
+  Receipt, 
+  Calendar,
+  User,
+  CreditCard,
+  Hash,
+  Clock,
+  Store,
+  Monitor,
+  ShoppingBag,
+  Eye,
+  Pencil,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  CheckCircle,
+  AlertCircle,
+  XCircle
+} from "lucide-react";
+import { RefundDialog } from "./refund-dialog";
+import { EmailDialog } from "./email-dialog";
+import { useToast } from "@/lib/hooks/use-toast";
+import { ToastContainer } from "@/components/toast-container";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+
+interface ReceiptLine {
+  id: string;
+  item_id?: string;
+  variant_id?: string | null;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  discount_amount: number;
+  tax_rate: number;
+  tax_amount: number;
+  line_total: number;
+  modifiers: any;
+  notes: string | null;
+}
+
+interface ReceiptDetail {
+  id: string;
+  receipt_number: string;
+  created_at: string;
+  dining_option: string;
+  customer_name: string | null;
+  table_number: string | null;
+  subtotal: number;
+  discount_total: number;
+  tax_total: number;
+  tip_total: number;
+  total: number;
+  paid_amount: number;
+  change_amount: number;
+  refunded_amount: number;
+  status: string;
+  member: {
+    first_name: string;
+    last_name: string;
+  };
+  store: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+  };
+  register: {
+    name: string;
+  };
+  payments: Array<{
+    id: string;
+    method: string;
+    amount: number;
+    tip_amount: number;
+    reference: string | null;
+  }>;
+  lines: ReceiptLine[];
+}
+
+export default function TransactionDetailsPage() {
+  const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const { toasts, showToast, dismissToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [receipt, setReceipt] = useState<ReceiptDetail | null>(null);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [showItems, setShowItems] = useState(false);
+  const [showTransactionInfo, setShowTransactionInfo] = useState(false);
+  const [showPayments, setShowPayments] = useState(false);
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+
+  const [orgId, setOrgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sessionData = sessionStorage.getItem("pos_session");
+    if (!sessionData) {
+      router.push("/lock");
+      return;
+    }
+
+    if (params.id) {
+      fetchReceiptDetail(params.id as string);
+    }
+    try {
+      const parsed = JSON.parse(sessionData);
+      setOrgId(parsed.org_id);
+    } catch {}
+  }, [params.id, router]);
+
+  // Auto-open refund dialog if requested
+  useEffect(() => {
+    const action = searchParams?.get("action");
+    if (action === "refund") {
+      setRefundDialogOpen(true);
+    }
+  }, [searchParams]);
+
+  const fetchReceiptDetail = async (receiptId: string) => {
+    try {
+      setLoading(true);
+      
+      // Check IndexedDB first (for temp receipts and offline access)
+      try {
+        const { getDB } = await import("@/lib/idb/db");
+        const db = await getDB();
+        const localReceipt = await db.get("receipts", receiptId);
+        
+        if (localReceipt) {
+          console.log("[ReceiptDetail] Found receipt in IndexedDB:", receiptId);
+          
+          // Fetch receipt lines from IndexedDB too
+          const tx = db.transaction('receipt_lines', 'readonly');
+          const linesStore = tx.objectStore('receipt_lines');
+          const linesIndex = linesStore.index('by_receipt');
+          const lines = await linesIndex.getAll(receiptId);
+          
+          // Combine receipt with lines
+          const receiptWithLines = {
+            ...localReceipt,
+            lines: lines || []
+          };
+          
+          console.log("[ReceiptDetail] Loaded receipt with", lines?.length || 0, "lines from IndexedDB");
+          setReceipt(receiptWithLines as any);
+          setLoading(false);
+          return; // Use local data, don't fetch from API
+        }
+      } catch (idbError) {
+        console.warn("[ReceiptDetail] IndexedDB lookup failed:", idbError);
+        // Continue to API fetch
+      }
+      
+      // If not in IndexedDB, fetch from API
+      const response = await fetch(`/api/receipts/${receiptId}`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch receipt");
+      }
+
+      const data = await response.json();
+      setReceipt(data.receipt);
+      
+      // Save to IndexedDB for future offline access
+      try {
+        const { getDB } = await import("@/lib/idb/db");
+        const db = await getDB();
+        await db.put("receipts", data.receipt);
+      } catch (idbError) {
+        console.warn("[ReceiptDetail] Failed to save to IndexedDB:", idbError);
+      }
+    } catch (error) {
+      console.error("Error fetching receipt:", error);
+      showToast("Failed to load transaction details", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    router.push(`/receipts/${params.id}/template?print=1`);
+  };
+
+  const handleEmail = async (email: string) => {
+    try {
+      const sessionData = sessionStorage.getItem("pos_session");
+      if (!sessionData) {
+        showToast("Session expired. Please log in again.", "error");
+        return;
+      }
+      const resp = await fetch(`/api/receipts/${params.id}/email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pos-session": sessionData,
+        },
+        body: JSON.stringify({ email }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json();
+        throw new Error(data.error || "Failed to send email");
+      }
+      showToast(`Receipt sent to ${email}`, "success");
+    } catch (e: any) {
+      console.error(e);
+      showToast(e.message || "Failed to send email", "error");
+    }
+  };
+
+  const handleRefund = async (amount: number, reason: string, selectedItems?: string[]) => {
+    if (!receipt) return;
+    
+    try {
+      const sessionData = sessionStorage.getItem("pos_session");
+      if (!sessionData) {
+        showToast("Session expired. Please log in again.", "error");
+        return;
+      }
+
+      const session = JSON.parse(sessionData);
+      
+      const response = await fetch(`/api/receipts/${params.id}/refund`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount,
+          reason,
+          selectedItems,
+          memberId: session.employee.id,
+          orgId: session.org_id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to process refund");
+      }
+
+      const refundType = selectedItems ? "partial" : "full";
+      showToast(`${refundType} refund of ${formatCurrency(amount)} processed successfully`, "success");
+      
+      // Refresh receipt data
+      fetchReceiptDetail(params.id as string);
+    } catch (error) {
+      console.error("Error processing refund:", error);
+      showToast(error instanceof Error ? error.message : "Failed to process refund", "error");
+    }
+  };
+
+  const handleViewReceipt = () => {
+    router.push(`/receipts/${params.id}/template`);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-500";
+      case "partially_refunded":
+        return "bg-yellow-500";
+      case "fully_refunded":
+        return "bg-red-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="h-6 w-6 text-green-500" />;
+      case "partially_refunded":
+        return <AlertCircle className="h-6 w-6 text-yellow-500" />;
+      case "fully_refunded":
+        return <XCircle className="h-6 w-6 text-red-500" />;
+      default:
+        return <CheckCircle className="h-6 w-6 text-green-500" />;
+    }
+  };
+
+  const canRefund = receipt && receipt.status !== "fully_refunded" && (receipt.total - receipt.refunded_amount) > 0;
+  const refundableAmount = receipt ? receipt.total - receipt.refunded_amount : 0;
+
+  
+
+  const handleVoid = async () => {
+    if (!receipt) return;
+    await handleRefund(refundableAmount, "Void receipt", undefined);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-penkey-orange mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading transaction...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!receipt) {
+    return (
+      <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center">
+        <div className="text-center">
+          <Receipt className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-400 text-lg">Transaction not found</p>
+          <Button
+            onClick={() => router.push("/receipts")}
+            className="mt-4 bg-penkey-orange hover:bg-penkey-orange/90"
+          >
+            Back to Receipts
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#2d2d2d] flex flex-col">
+      {/* Header */}
+      <header className="bg-[#3d3d3d] text-white px-3 sm:px-4 py-3 flex items-center justify-between border-b border-gray-700">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-white hover:bg-white/10 flex-shrink-0"
+            onClick={() => router.push("/receipts")}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="min-w-0">
+            <h1 className="font-semibold text-base sm:text-lg truncate">Transaction Details</h1>
+            <p className="text-xs sm:text-sm text-gray-400 truncate">{receipt.receipt_number}</p>
+          </div>
+        </div>
+        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getStatusColor(receipt.status)}`} />
+      </header>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto pb-32">
+        <div className="p-3 sm:p-4 max-w-4xl mx-auto space-y-3">
+          {/* Total Amount - Large and Prominent */}
+          <div className="bg-[#3d3d3d] rounded-lg p-6 border border-gray-700 text-center">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <h2 className="text-4xl sm:text-5xl font-bold text-white">
+                {formatCurrency(receipt.total)}
+              </h2>
+              {getStatusIcon(receipt.status)}
+            </div>
+            <p className="text-gray-400 text-sm">
+              {new Date(receipt.created_at).toLocaleString('en-GB', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-4 gap-2">
+            <Button
+              onClick={handleViewReceipt}
+              className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12"
+            >
+              <Eye className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">View</span>
+            </Button>
+            <Button
+              onClick={handlePrint}
+              className="bg-purple-600 hover:bg-purple-700 text-white border-0 text-xs sm:text-sm h-12"
+            >
+              <Printer className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Print</span>
+            </Button>
+            <Button
+              onClick={() => setEmailDialogOpen(true)}
+              className="bg-green-600 hover:bg-green-700 text-white border-0 text-xs sm:text-sm h-12"
+            >
+              <Mail className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Email</span>
+            </Button>
+            <Button
+              onClick={() => setVoidConfirmOpen(true)}
+              disabled={!canRefund}
+              className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs sm:text-sm h-12 disabled:opacity-50"
+            >
+              Void
+            </Button>
+          </div>
+
+          {/* Summary Card */}
+          <div className="bg-[#3d3d3d] rounded-lg p-4 border border-gray-700">
+            {receipt.refunded_amount > 0 && (
+              <div className="bg-red-900/20 border border-red-700 rounded-lg p-3 mb-3">
+                <p className="text-red-400 text-sm">
+                  <strong>Refunded:</strong> {formatCurrency(receipt.refunded_amount)}
+                </p>
+                {canRefund && (
+                  <p className="text-red-400 text-sm mt-1">
+                    <strong>Remaining:</strong> {formatCurrency(refundableAmount)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Breakdown */}
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Subtotal</span>
+                <span className="text-white">{formatCurrency(receipt.subtotal)}</span>
+              </div>
+              {receipt.discount_total > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Discount</span>
+                  <span className="text-red-400">-{formatCurrency(receipt.discount_total)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-400">Tax</span>
+                <span className="text-white">{formatCurrency(receipt.tax_total)}</span>
+              </div>
+              {receipt.tip_total > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Tip</span>
+                  <span className="text-green-400">{formatCurrency(receipt.tip_total)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Items - Collapsible */}
+          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700">
+            <button
+              onClick={() => setShowItems(!showItems)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-gray-400" />
+                <h3 className="text-base font-bold text-white">Items ({receipt.lines.length})</h3>
+              </div>
+              {showItems ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </button>
+            {showItems && (
+              <div className="px-4 pb-4 space-y-2 border-t border-gray-700 pt-3">
+                {receipt.lines.map((line) => (
+                <div key={line.id} className="flex justify-between items-start pb-3 border-b border-gray-700 last:border-0">
+                  <div className="flex-1">
+                    <p className="text-white font-medium">{line.name}</p>
+                    {line.modifiers && Array.isArray(line.modifiers) && line.modifiers.length > 0 && (
+                      <div className="text-sm text-gray-400 ml-4 mt-1">
+                        {line.modifiers.map((mod: any, idx: number) => (
+                          <div key={idx}>
+                            + {mod.name}
+                            {mod.price > 0 && ` (${formatCurrency(mod.price)})`}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {line.notes && (
+                      <p className="text-sm text-gray-500 italic mt-1">
+                        Note: {line.notes}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-400 mt-1">
+                      {line.quantity} × {formatCurrency(line.unit_price)}
+                    </p>
+                  </div>
+                  <p className="text-white font-medium ml-4">
+                    {formatCurrency(line.line_total)}
+                  </p>
+                </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Transaction Info - Collapsible */}
+          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700">
+            <button
+              onClick={() => setShowTransactionInfo(!showTransactionInfo)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-gray-400" />
+                <h3 className="text-base font-bold text-white">Transaction Info</h3>
+              </div>
+              {showTransactionInfo ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </button>
+            {showTransactionInfo && (
+              <div className="px-4 pb-4 space-y-3 border-t border-gray-700 pt-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Store className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-400">Store:</span>
+                  <span className="text-white">{receipt.store.name}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Monitor className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-400">Register:</span>
+                  <span className="text-white">{receipt.register.name}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <ShoppingBag className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-400">Type:</span>
+                  <Badge variant={receipt.dining_option === "eat-in" ? "default" : "secondary"} className="text-xs">
+                    {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
+                  </Badge>
+                </div>
+                {receipt.customer_name && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-400">Customer:</span>
+                    <span className="text-white">{receipt.customer_name}</span>
+                  </div>
+                )}
+                {receipt.table_number && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Hash className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-400">Table:</span>
+                    <span className="text-white">{receipt.table_number}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Payments - Collapsible */}
+          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700">
+            <button
+              onClick={() => setShowPayments(!showPayments)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-gray-400" />
+                <h3 className="text-base font-bold text-white">Payments ({receipt.payments.length})</h3>
+              </div>
+              {showPayments ? (
+                <ChevronUp className="h-5 w-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-400" />
+              )}
+            </button>
+            {showPayments && (
+              <div className="px-4 pb-4 space-y-2 border-t border-gray-700 pt-3">
+                {receipt.payments.map((payment) => (
+                  <div key={payment.id} className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      {payment.method === "card" ? (
+                        <CreditCard className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <div className="w-4 h-4 flex items-center justify-center text-gray-400 font-bold text-xs">
+                          £
+                        </div>
+                      )}
+                      <span className="text-white capitalize">{payment.method}</span>
+                      {payment.reference && (
+                        <span className="text-xs text-gray-500">({payment.reference})</span>
+                      )}
+                    </div>
+                    <span className="text-white font-medium">
+                      {formatCurrency(payment.amount)}
+                    </span>
+                  </div>
+                ))}
+                {receipt.change_amount > 0 && (
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-700 text-sm">
+                    <span className="text-gray-400">Change Given</span>
+                    <span className="text-white font-medium">
+                      {formatCurrency(receipt.change_amount)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed Refund Button at Bottom */}
+      {canRefund && (
+        <div className="fixed bottom-0 left-0 right-0 bg-[#3d3d3d] border-t border-gray-700 p-4 z-20">
+          <Button
+            onClick={() => setRefundDialogOpen(true)}
+            className="w-full bg-red-600 hover:bg-red-700 text-white text-base sm:text-lg h-14 font-bold"
+          >
+            <RotateCcw className="h-5 w-5 mr-2" />
+            Refund {formatCurrency(refundableAmount)}
+          </Button>
+        </div>
+      )}
+
+      {/* Dialogs */}
+      <RefundDialog
+        open={refundDialogOpen}
+        onClose={() => setRefundDialogOpen(false)}
+        onRefund={handleRefund}
+        maxAmount={refundableAmount}
+        receiptNumber={receipt.receipt_number}
+        items={receipt.lines}
+      />
+
+      <EmailDialog
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        onSend={handleEmail}
+        receiptNumber={receipt.receipt_number}
+      />
+
+      
+
+      {/* Void Confirmation */}
+      <ConfirmDialog
+        open={voidConfirmOpen}
+        onClose={() => setVoidConfirmOpen(false)}
+        onConfirm={handleVoid}
+        title="Void receipt?"
+        message="This will fully refund the receipt and cannot be undone. Are you sure you want to proceed?"
+        confirmText={`Void for ${formatCurrency(refundableAmount)}`}
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </div>
+  );
+}

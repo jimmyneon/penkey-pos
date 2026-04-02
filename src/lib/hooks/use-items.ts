@@ -1,0 +1,115 @@
+import { useState, useEffect } from "react";
+import { dataCache } from "@/lib/services/data-cache";
+import { getAll, putMany } from "@/lib/idb/db";
+import { SyncManager } from "@/lib/services/sync-manager";
+
+export interface Item {
+  id: string;
+  name: string;
+  category_id: string | null;
+  has_variants: boolean;
+  base_price: number | null;
+  image_url: string | null;
+  is_active: boolean;
+  sku: string | null;
+  description: string | null;
+  categories: {
+    name: string;
+    color: string;
+  } | null;
+  item_variants: Array<{
+    id: string;
+    name: string;
+    price: number;
+    is_default: boolean;
+  }>;
+}
+
+export function useItems(orgId: string, categoryId?: string, forceRefresh: boolean = false) {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+
+  useEffect(() => {
+    console.log("[useItems] orgId:", orgId, "categoryId:", categoryId, "forceRefresh:", forceRefresh);
+    if (orgId && orgId !== "skip") {
+      loadItems(forceRefresh);
+    } else {
+      console.log("[useItems] Skipping load - invalid orgId");
+      setLoading(false);
+    }
+  }, [orgId, categoryId, forceRefresh]);
+
+  const loadItems = async (skipCache: boolean = false) => {
+    try {
+      setLoading(true);
+      setFromCache(false);
+
+      // Always load from IDB first for instant display
+      try {
+        const all = (await getAll("items")) as any[];
+        const filtered = all.filter((it) => it.org_id === orgId);
+        const byCategory = categoryId ? filtered.filter((it) => it.category_id === categoryId) : filtered;
+        if (byCategory.length) {
+          console.log("[useItems] IDB hit:", byCategory.length);
+          setItems(byCategory);
+          setFromCache(true);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("[useItems] IDB error:", e);
+      }
+
+      // Check if we should sync from network
+      const shouldSync = await SyncManager.shouldSync(orgId, 'ITEMS', skipCache);
+      
+      if (!shouldSync) {
+        console.log("[useItems] Cache is fresh, skipping network sync");
+        return;
+      }
+
+      // If offline, don't attempt network call
+      if (!SyncManager.isOnline()) {
+        console.log("[useItems] Offline, using cached data only");
+        return;
+      }
+
+      // Fetch from network
+      let url = `/api/items?org_id=${orgId}`;
+      if (categoryId) url += `&category_id=${categoryId}`;
+      
+      const doFetch = async () => {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("Failed to fetch items");
+        const data: Item[] = await resp.json();
+        console.log("[useItems] Loaded items from API:", data.length);
+        setItems(data);
+        setError(null);
+
+        // Upsert into IDB with org scope
+        try {
+          const withOrg = data.map((x: any) => ({ ...x, org_id: orgId }));
+          await putMany("items", withOrg);
+          await SyncManager.markSynced(orgId, 'ITEMS');
+        } catch (e) {
+          console.error("[useItems] Failed to cache items:", e);
+        }
+      };
+
+      if (fromCache) {
+        // Fire-and-forget background refresh
+        doFetch().catch(() => {});
+      } else {
+        await doFetch();
+      }
+    } catch (err: any) {
+      console.error("Failed to load items:", err);
+      if (!fromCache) setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { items, loading, error, fromCache, reload: loadItems };
+}

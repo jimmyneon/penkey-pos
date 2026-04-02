@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate PWA Icons</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      text-align: center;
+    }
+    canvas {
+      border: 2px solid #ddd;
+      margin: 20px;
+      border-radius: 8px;
+    }
+    button {
+      background: #f97316;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px;
+    }
+    button:hover {
+      background: #ea580c;
+    }
+    h1 { color: #f97316; }
+  </style>
+</head>
+<body>
+  <h1>🏪 Penkey POS Icon Generator</h1>
+  <p>Click the buttons to download your PWA icons</p>
+  
+  <div>
+    <canvas id="icon192" width="192" height="192"></canvas>
+    <canvas id="icon512" width="512" height="512"></canvas>
+  </div>
+  
+  <div>
+    <button onclick="download(192)">Download 192x192</button>
+    <button onclick="download(512)">Download 512x512</button>
+  </div>
+
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      
+      // Background
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(0, 0, size, size);
+      
+      // Store icon
+      const scale = size / 192;
+      const iconSize = 96 * scale;
+      const x = (size - iconSize) / 2;
+      const y = (size - iconSize) / 2;
+      
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4 * scale;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Draw store shape
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(iconSize / 24, iconSize / 24);
+      
+      // Roof
+      ctx.beginPath();
+      ctx.moveTo(3, 9);
+      ctx.lineTo(12, 2);
+      ctx.lineTo(21, 9);
+      ctx.lineTo(21, 20);
+      ctx.arc(19, 20, 2, 0, Math.PI / 2);
+      ctx.lineTo(5, 22);
+      ctx.arc(5, 20, 2, Math.PI / 2, Math.PI);
+      ctx.lineTo(3, 9);
+      ctx.stroke();
+      
+      // Door
+      ctx.beginPath();
+      ctx.moveTo(9, 22);
+      ctx.lineTo(9, 12);
+      ctx.lineTo(15, 12);
+      ctx.lineTo(15, 22);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
+    function download(size) {
+      const canvas = document.getElementById(`icon${size}`);
+      const link = document.createElement('a');
+      link.download = `icon-${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    // Generate on load
+    drawIcon(document.getElementById('icon192'));
+    drawIcon(document.getElementById('icon512'));
+  </script>
+</body>
+</html>
