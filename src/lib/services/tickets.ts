@@ -3,7 +3,7 @@
  * Manages saved/parked tickets with database storage and realtime sync
  */
 
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 
 export interface TicketLine {
   id: string;

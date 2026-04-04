@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Badge } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
 import { Check, Plus, Minus } from "lucide-react";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { getItemModifiersFromCache } from "@/lib/services/modifier-cache";

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { Eye, EyeOff, CheckCircle, Lock } from "lucide-react";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 
 export default function ResetPasswordPage() {
   const router = useRouter();

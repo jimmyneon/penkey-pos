@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@penkey/database";
+import { createSupabaseServerClient } from "@/lib/database";
 import { isAuthRateLimited, recordAuthFailure, recordAuthSuccess, getAuthRateLimitRemaining } from "@/lib/api/auth-ratelimit";
 
 export async function POST(request: NextRequest) {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { ArrowLeft, Mail, CheckCircle } from "lucide-react";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();

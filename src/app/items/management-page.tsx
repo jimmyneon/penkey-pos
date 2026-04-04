@@ -19,7 +19,7 @@ import { QuickEditModifierDialog } from "./quick-edit-modifier-dialog";
 import { CategorySelectorDialog } from "../sell/category-selector-dialog";
 import { dataCache } from "@/lib/services/data-cache";
 import { invalidateAllModifiers } from "@/lib/services/modifier-cache";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 import { SyncManager } from "@/lib/services/sync-manager"; // Added SyncManager import
 
 interface Session {

@@ -14,7 +14,7 @@ import { QuickEditItemDialog } from "./quick-edit-dialog";
 import { CategorySelectorDialog } from "../sell/category-selector-dialog";
 import { PageHeader } from "@/components/page-header";
 import { dataCache } from "@/lib/services/data-cache";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 import { SelectModifierGroupDialog } from "./select-modifier-group-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 

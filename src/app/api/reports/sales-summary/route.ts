@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@penkey/database";
+import { createSupabaseServerClient } from "@/lib/database";
 import { validatePOSSession, unauthorizedResponse } from "@/lib/api/auth";
 import { ratelimit } from "@/lib/ratelimit";
 

@@ -3,7 +3,7 @@
  * Manages POS register-specific settings with database sync
  */
 
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 
 export interface RegisterSettings {
   // Display preferences

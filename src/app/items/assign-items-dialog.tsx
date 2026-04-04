@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
 import { Loader2, Check } from "lucide-react";
 

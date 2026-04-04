@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@penkey/database";
+import { createSupabaseServerClient } from "@/lib/database";
 import { generateCSRFToken } from "@/lib/utils/csrf";
 import { isAuthRateLimited, recordAuthFailure, recordAuthSuccess, getAuthRateLimitRemaining } from "@/lib/api/auth-ratelimit";
 

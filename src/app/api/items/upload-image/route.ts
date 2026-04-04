@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@penkey/database';
+import { createSupabaseServerClient } from '@/lib/database';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
 import { compressImage, validateImageFile } from '@/lib/services/image-compression';
 import { uploadToR2 } from '@/lib/services/r2-upload';

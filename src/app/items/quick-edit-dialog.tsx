@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Input, Label } from "@penkey/ui";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 import { hapticSuccess, hapticButtonPress, hapticDelete } from "@/lib/utils/haptics";
 import { Loader2, Upload, Trash2, Camera } from "lucide-react";
 import { SelectModifierGroupDialog } from "./select-modifier-group-dialog";

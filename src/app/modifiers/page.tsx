@@ -14,7 +14,7 @@ import { addCSRFToken } from "@/lib/utils/csrf-client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { PageHeader } from "@/components/page-header";
-import { createSupabaseClient } from "@penkey/database";
+import { createSupabaseClient } from "@/lib/database";
 
 interface Session {
   employee: { id: string; name: string; role: string };
