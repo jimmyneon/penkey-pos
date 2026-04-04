@@ -5,7 +5,7 @@ import { Button, Badge, Card, CardContent, CardDescription, CardHeader, CardTitl
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@penkey/ui";
 import { Input } from "@penkey/ui";
 import { Label } from "@penkey/ui";
-import { Alert, AlertDescription } from "@penkey/ui";
+import { Alert, AlertDescription } from "@/components/alert";
 import { Loader2, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 
 interface Terminal {

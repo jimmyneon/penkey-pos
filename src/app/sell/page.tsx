@@ -22,7 +22,7 @@ import { SaveTicketDialog } from "./save-ticket-dialog";
 import { OpenTicketsDialog } from "./open-tickets-dialog";
 import { PriceInputDialog } from "./price-input-dialog";
 import { CategorySelectorDialog } from "./category-selector-dialog";
-import { EnhancedAssignTicketDialog } from "./enhanced-assign-ticket-dialog";
+// import { EnhancedAssignTicketDialog } from "./enhanced-assign-ticket-dialog"; // TODO: Fix perks integration
 import { MergeTicketsDialog } from "./merge-tickets-dialog";
 import { SplitTicketDialog } from "./split-ticket-dialog";
 import { PenkeyPromptsBar } from "./penkey-prompts-bar";
@@ -1275,12 +1275,12 @@ export default function SellPage() {
       />
 
       {/* Enhanced Assign Ticket Dialog */}
-      <EnhancedAssignTicketDialog
+      {/* <EnhancedAssignTicketDialog
         open={assignTicketOpen}
         onClose={() => setAssignTicketOpen(false)}
         onAssign={handleAssignTicket}
         storeId="store-123" // TODO: Get from store settings
-      />
+      /> */}
 
       {/* Merge Tickets Dialog */}
       <MergeTicketsDialog
