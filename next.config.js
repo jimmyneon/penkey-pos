@@ -148,7 +148,7 @@ const nextConfig = {
   images: {
     domains: ["localhost", "pub-2b39d98666004da3968c296f9fcf52d4.r2.dev"],
   },
-  outputFileTracingRoot: require('path').join(__dirname, '../../'),
+  outputFileTracingRoot: __dirname,
   typescript: {
     // Skip type checking during build - types are checked in development
     ignoreBuildErrors: true,
