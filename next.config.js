@@ -104,6 +104,40 @@ const nextConfig = {
     // Add the root node_modules directory to the resolve loader path
     config.resolveLoader.modules.push(path.resolve(__dirname, '../../node_modules'));
 
+    // Force all @radix-ui packages to resolve from penkey-pos/node_modules.
+    // This prevents @penkey/ui's nested node_modules copies from being used,
+    // which lack transitive dependencies like @radix-ui/primitive.
+    const radixPackages = [
+      '@radix-ui/primitive',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-label',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-compose-refs',
+      '@radix-ui/react-context',
+      '@radix-ui/react-id',
+      '@radix-ui/react-presence',
+      '@radix-ui/react-primitive',
+      '@radix-ui/react-use-controllable-state',
+      '@radix-ui/react-use-previous',
+      '@radix-ui/react-use-size',
+      '@radix-ui/react-dismissable-layer',
+      '@radix-ui/react-focus-scope',
+      '@radix-ui/react-portal',
+      '@radix-ui/react-popper',
+      '@radix-ui/react-arrow',
+      '@radix-ui/react-direction',
+    ];
+
+    radixPackages.forEach((pkg) => {
+      try {
+        config.resolve.alias[pkg] = require.resolve(pkg);
+      } catch (e) {
+        // Package not installed locally — skip alias
+      }
+    });
+
     return config;
   },
   reactStrictMode: true,
