@@ -101,8 +101,11 @@ const nextConfig = {
     return `build-${Date.now()}`;
   },
   webpack: (config, { isServer }) => {
-    // Add the root node_modules directory to the resolve loader path
-    config.resolveLoader.modules.push(path.resolve(__dirname, '../../node_modules'));
+    // Add the root node_modules directory to the resolve loader path (monorepo only)
+    const rootNodeModules = path.resolve(__dirname, '../../node_modules');
+    if (require('fs').existsSync(rootNodeModules)) {
+      config.resolveLoader.modules.push(rootNodeModules);
+    }
 
     // Force all @radix-ui packages to resolve from penkey-pos/node_modules.
     // This prevents @penkey/ui's nested node_modules copies from being used,
