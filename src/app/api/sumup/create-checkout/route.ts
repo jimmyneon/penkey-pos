@@ -1,84 +1,83 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 
-const SUMUP_API_BASE = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-const SUMUP_API_KEY = process.env.SUMUP_API_KEY;
-const SUMUP_MERCHANT_CODE = process.env.SUMUP_MERCHANT_CODE;
-
+// SumUp Cloud API: POST /v0.1/merchants/{code}/readers/{id}/checkout
+// Docs: https://developer.sumup.com/terminal-payments/cloud-api
 export async function POST(request: NextRequest) {
   try {
-    if (!SUMUP_API_KEY || !SUMUP_MERCHANT_CODE) {
+    const apiKey = process.env.SUMUP_API_KEY;
+    const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+    const affiliateKey = process.env.SUMUP_AFFILIATE_KEY;
+    const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
+
+    if (!apiKey || !merchantCode) {
       return NextResponse.json(
         { error: 'SumUp API credentials not configured' },
         { status: 500 }
       );
     }
 
-    const { amount, currency, reader_id, description, pay_to_email } = await request.json();
+    const { amount, currency = 'GBP', reader_id, description } = await request.json();
 
-    if (!amount || !currency || !reader_id || !description) {
+    if (!amount || !reader_id) {
       return NextResponse.json(
-        { error: 'Amount, currency, reader_id, and description are required' },
+        { error: 'amount and reader_id are required' },
         { status: 400 }
       );
     }
 
-    // Call SumUp API to create checkout
+    // Convert amount to minor units (pence/cents)
+    const minorUnitAmount = Math.round(amount * 100);
+
+    const body: Record<string, any> = {
+      total_amount: {
+        currency,
+        minor_unit: 2,
+        value: minorUnitAmount,
+      },
+    };
+
+    if (description) body.description = description;
+    if (affiliateKey) body.affiliate = { app_id: affiliateKey };
+
+    // Correct SumUp Cloud API endpoint for reader-initiated checkout
     const sumupResponse = await fetch(
-      `${SUMUP_API_BASE}/v0.1/merchants/${SUMUP_MERCHANT_CODE}/checkouts`,
+      `${apiBase}/v0.1/merchants/${merchantCode}/readers/${reader_id}/checkout`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${SUMUP_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: Math.round(amount * 100), // Convert to cents/pence
-          currency,
-          description,
-          reader_id,
-          pay_to_email: pay_to_email || 'merchant@example.com',
-        }),
+        body: JSON.stringify(body),
       }
     );
 
     if (!sumupResponse.ok) {
-      const errorData = await sumupResponse.json();
-      console.error('SumUp checkout error:', errorData);
-      
-      if (sumupResponse.status === 400) {
-        return NextResponse.json(
-          { error: 'Invalid checkout parameters or terminal not available' },
-          { status: 400 }
-        );
-      }
-      
-      return NextResponse.json(
-        { error: 'Failed to create checkout with SumUp' },
-        { status: sumupResponse.status }
-      );
+      let errorData: any = {};
+      try { errorData = await sumupResponse.json(); } catch {}
+      console.error('[SumUp] Checkout error:', sumupResponse.status, errorData);
+
+      const message =
+        sumupResponse.status === 409
+          ? 'Terminal is busy – another checkout is in progress'
+          : sumupResponse.status === 404
+          ? 'Terminal not found – please re-pair the reader'
+          : errorData?.message || 'Failed to start checkout on terminal';
+
+      return NextResponse.json({ error: message }, { status: sumupResponse.status });
     }
 
     const checkoutData = await sumupResponse.json();
-    const checkoutId = checkoutData.id;
-
-    if (!checkoutId) {
-      return NextResponse.json(
-        { error: 'Checkout ID not received from SumUp' },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      checkout_id: checkoutId,
+      checkout_id: checkoutData.id,
       checkout: checkoutData,
     });
 
   } catch (error) {
-    console.error('Create checkout error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('[SumUp] Create checkout error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

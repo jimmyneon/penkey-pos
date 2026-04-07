@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
 import { generateReceiptText, type ReceiptTemplateData } from "@penkey/print-adapters";

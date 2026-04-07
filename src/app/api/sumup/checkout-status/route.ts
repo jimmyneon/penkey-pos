@@ -1,12 +1,13 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 
-const SUMUP_API_BASE = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-const SUMUP_API_KEY = process.env.SUMUP_API_KEY;
-const SUMUP_MERCHANT_CODE = process.env.SUMUP_MERCHANT_CODE;
-
 export async function GET(request: NextRequest) {
+  const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
+  const apiKey = process.env.SUMUP_API_KEY;
+  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+
   try {
-    if (!SUMUP_API_KEY || !SUMUP_MERCHANT_CODE) {
+    if (!apiKey || !merchantCode) {
       return NextResponse.json(
         { error: 'SumUp API credentials not configured' },
         { status: 500 }
@@ -24,12 +25,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Call SumUp API to get checkout status
+    // GET /v0.1/merchants/{code}/readers/{reader_id}/checkout/{checkout_id}
+    const readerId = searchParams.get('reader_id');
+    const endpoint = readerId
+      ? `${apiBase}/v0.1/merchants/${merchantCode}/readers/${readerId}/checkout/${checkoutId}`
+      : `${apiBase}/v0.1/merchants/${merchantCode}/readers/checkout/${checkoutId}`;
+
     const sumupResponse = await fetch(
-      `${SUMUP_API_BASE}/v0.1/merchants/${SUMUP_MERCHANT_CODE}/checkouts/${checkoutId}`,
+      endpoint,
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${SUMUP_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
       }

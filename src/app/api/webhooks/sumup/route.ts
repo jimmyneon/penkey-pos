@@ -1,11 +1,13 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,6 +78,7 @@ async function handlePaymentSuccessful(payload: any) {
   
   try {
     // Update receipt with payment details
+    const supabase = getSupabase();
     const { error } = await supabase
       .from("receipts")
       .update({
@@ -103,6 +106,7 @@ async function handlePaymentFailed(payload: any) {
   
   try {
     // Update receipt with failed payment status
+    const supabase = getSupabase();
     const { error } = await supabase
       .from("receipts")
       .update({
@@ -129,6 +133,7 @@ async function handleRefundSuccessful(payload: any) {
   
   try {
     // Create refund record
+    const supabase = getSupabase();
     const { error } = await supabase
       .from("refunds")
       .insert({
@@ -155,6 +160,7 @@ async function handleRefundFailed(payload: any) {
   
   try {
     // Create failed refund record
+    const supabase = getSupabase();
     const { error } = await supabase
       .from("refunds")
       .insert({
