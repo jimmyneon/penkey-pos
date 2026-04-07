@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Printer, PrintJob, PrinterType, ConnectionType, PrinterStatus, PrintJobType, PrintJobPriority, PrintJobStatus } from "@penkey/database";
 
 // Define your database types here or import from a generated file
 export interface Database {
@@ -58,6 +59,25 @@ export interface Database {
           updated_at?: string;
         };
       };
+      printers: {
+        Row: Printer;
+        Insert: Omit<Printer, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Printer>;
+      };
+      print_jobs: {
+        Row: PrintJob;
+        Insert: Omit<PrintJob, 'id' | 'created_at' | 'updated_at' | 'attempts'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          attempts?: number;
+        };
+        Update: Partial<PrintJob>;
+      };
       // Add other tables as needed
     };
     Views: {
@@ -67,7 +87,12 @@ export interface Database {
       [_ in never]: never;
     };
     Enums: {
-      [_ in never]: never;
+      printer_type: PrinterType;
+      connection_type: ConnectionType;
+      printer_status: PrinterStatus;
+      print_job_type: PrintJobType;
+      print_job_priority: PrintJobPriority;
+      print_job_status: PrintJobStatus;
     };
   };
 }
