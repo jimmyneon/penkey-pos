@@ -9,8 +9,7 @@ out/
 build/
 dist/
 
-# Package manager lock files (let Vercel install fresh)
-package-lock.json
+# Package manager lock files
 yarn.lock
 pnpm-lock.yaml
 
