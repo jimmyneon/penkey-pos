@@ -14,10 +14,12 @@ export async function POST(request: NextRequest) {
 
     // 1. Try DB-stored credentials (persisted across devices)
     const dbCreds = await getStoredSumUpCredentials(session.org_id);
+    console.log('[SumUp Checkout] DB creds:', dbCreds);
     // 2. Fall back to request headers (client localStorage) then env vars
     const apiKey = dbCreds?.api_key || request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
     const merchantCode = dbCreds?.merchant_code || request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
     const affiliateKey = dbCreds?.affiliate_key || request.headers.get('x-sumup-affiliate-key') || process.env.SUMUP_AFFILIATE_KEY || '';
+    console.log('[SumUp Checkout] Affiliate key:', affiliateKey);
 
     if (!apiKey || !merchantCode) {
       return NextResponse.json(
@@ -47,8 +49,8 @@ export async function POST(request: NextRequest) {
     };
 
     if (description) body.description = description;
-    // Always send affiliate field (SumUp requires it, even if empty)
-    body.affiliate = { app_id: affiliateKey || '' };
+    // Only send affiliate field if there's an actual value (SumUp rejects blank affiliate keys)
+    if (affiliateKey) body.affiliate = { app_id: affiliateKey };
 
     // Correct SumUp Cloud API endpoint for reader-initiated checkout
     const sumupResponse = await fetch(
