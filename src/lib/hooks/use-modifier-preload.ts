@@ -24,12 +24,8 @@ export function useModifierPreload(itemIds: string[] | undefined) {
       }
     };
 
-    // Use requestIdleCallback if available for non-blocking preload
-    if (typeof requestIdleCallback !== "undefined") {
-      requestIdleCallback(() => preloadAsync());
-    } else {
-      // Fallback to setTimeout for browsers without requestIdleCallback
-      setTimeout(() => preloadAsync(), 100);
-    }
+    // Start immediately in a microtask so it doesn't block the current render
+    // but also doesn't wait until the browser is "idle" (which can be seconds away)
+    Promise.resolve().then(() => preloadAsync());
   }, [itemIds]);
 }

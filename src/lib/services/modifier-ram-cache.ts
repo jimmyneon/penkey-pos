@@ -74,22 +74,21 @@ class ModifierRAMCache {
    */
   async preload(itemIds: string[]): Promise<void> {
     const { getByKey } = await import('@/lib/idb/db');
-    
-    for (const itemId of itemIds) {
-      // Skip if already in RAM
-      if (this.cache.has(itemId)) {
-        continue;
-      }
-
-      try {
-        const row: any = await getByKey('item_modifier_groups', itemId as any);
-        if (row?.groups) {
-          this.set(itemId, row.groups);
+    const uncached = itemIds.filter(id => !this.cache.has(id));
+    if (uncached.length === 0) return;
+    // Parallel IDB reads — much faster than sequential for large catalogs
+    await Promise.all(
+      uncached.map(async (itemId) => {
+        try {
+          const row: any = await getByKey('item_modifier_groups', itemId as any);
+          if (row?.groups) {
+            this.set(itemId, row.groups);
+          }
+        } catch (err) {
+          console.log(`[ModifierRAMCache] Failed to preload item ${itemId}:`, err);
         }
-      } catch (err) {
-        console.log(`[ModifierRAMCache] Failed to preload item ${itemId}:`, err);
-      }
-    }
+      })
+    );
   }
 
   /**

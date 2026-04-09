@@ -127,21 +127,27 @@ export default function SellPage() {
     }
   }, []);
 
-  // Periodic background sync every 30 seconds
+  // Periodic background sync every 15 seconds — sync pending + reset failed items
   useEffect(() => {
     if (!session) return;
-    
+
     const syncInterval = setInterval(async () => {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         try {
-          await OutboxSyncService.syncOutbox();
-          console.log('[Sell] Background sync completed');
+          // Retry any permanently-failed items before normal sync
+          const { failed } = await OutboxSyncService.getOutboxCount();
+          if (failed > 0) {
+            console.log(`[Sell] Resetting ${failed} failed outbox items to retry`);
+            await OutboxSyncService.retryFailed();
+          } else {
+            await OutboxSyncService.syncOutbox();
+          }
         } catch (err) {
           console.error('[Sell] Background sync failed:', err);
         }
       }
-    }, 30000); // 30 seconds
-    
+    }, 15000); // 15 seconds
+
     return () => clearInterval(syncInterval);
   }, [session]);
 

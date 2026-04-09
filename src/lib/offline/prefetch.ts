@@ -32,10 +32,17 @@ function isoDaysAgo(days: number) {
   return d.toISOString();
 }
 
+// Modifier TTL: 4 hours — skip re-fetching per-item modifiers if recently done
+const MODIFIER_GROUPS_TTL = 4 * 60 * 60 * 1000;
+
 export async function prefetchOrgData(orgId: string, registerId?: string) {
   console.log('[Prefetch] Starting data prefetch for org:', orgId);
   const startTime = Date.now();
   const tasks: Promise<any>[] = [];
+
+  // Fetch items once and reuse for both caching and modifier fetching
+  // This avoids a duplicate /api/items network request
+  const itemsPromise = fetchWithTimeout<any[]>(`/api/items?org_id=${orgId}`);
 
   // Categories
   tasks.push(
@@ -48,9 +55,9 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
     }).catch(() => {})
   );
 
-  // Items (with prices embedded or separate depending on API)
+  // Items
   tasks.push(
-    fetchWithTimeout<any[]>(`/api/items?org_id=${orgId}`).then(async (rows) => {
+    itemsPromise.then(async (rows) => {
       if (rows && rows.length) {
         await putMany("items", rows.map((x) => ({ ...x, org_id: orgId })));
         console.log(`[Prefetch] ✓ Cached ${rows.length} items`);
@@ -59,7 +66,7 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
     }).catch(() => {})
   );
 
-  // Modifiers (and groups/options if provided by API)
+  // Modifiers list
   tasks.push(
     fetchWithTimeout<any[]>(`/api/modifiers?org_id=${orgId}`).then(async (rows) => {
       if (rows && rows.length) {
@@ -70,63 +77,43 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
     }).catch(() => {})
   );
 
-  // Item -> Modifiers associations for offline modifier dialog
-  // IMPORTANT: Fetch ALL items' modifiers, not just first 50
+  // Item -> Modifier groups: reuse items promise, skip if recently cached
   tasks.push(
-    fetchWithTimeout<any[]>(`/api/items?org_id=${orgId}`).then(async (items) => {
+    itemsPromise.then(async (items) => {
       if (!items || !items.length) return;
-      const fullGroups: any[] = [];
-      let itemsWithModifiers = 0;
-      let itemsWithoutModifiers = 0;
-      
-      // Fetch ALL items' modifiers in parallel batches (not just first 50)
-      const batchSize = 20;
-      console.log(`[Prefetch] Fetching modifiers for ${items.length} items in batches of ${batchSize}`);
-      
-      for (let i = 0; i < items.length; i += batchSize) {
-        const batch = items.slice(i, i + batchSize);
-        console.log(`[Prefetch] Fetching batch ${Math.floor(i / batchSize) + 1} (items ${i}-${Math.min(i + batchSize, items.length)})`);
-        
-        await Promise.all(
-          batch.map(async (it) => {
-            try {
-              // Fetch full modifier groups for this item
-              const groups = await fetchWithTimeout<any[]>(`/api/items/${it.id}/modifiers/full`, 3000);
-              
-              // Store entry for EVERY item, even if no modifiers
-              // This prevents cache misses for items without modifiers
-              fullGroups.push({ 
-                item_id: it.id, 
-                groups: groups || [], 
-                org_id: orgId, 
-                ts: Date.now() 
-              });
-              
-              if (groups && groups.length > 0) {
-                itemsWithModifiers++;
-              } else {
-                itemsWithoutModifiers++;
-              }
-            } catch (err) {
-              console.log(`[Prefetch] Failed to fetch modifiers for item ${it.id}:`, err);
-              // Still store entry with empty groups on error
-              fullGroups.push({ 
-                item_id: it.id, 
-                groups: [], 
-                org_id: orgId, 
-                ts: Date.now() 
-              });
-              itemsWithoutModifiers++;
-            }
-          })
-        );
+
+      // Skip if modifier groups were fetched recently (TTL guard)
+      const lastTs = await import('@/lib/idb/db').then(m => m.getMeta<number>(`item_modifiers_${orgId}_ts`));
+      if (lastTs && (Date.now() - lastTs) < MODIFIER_GROUPS_TTL) {
+        console.log(`[Prefetch] Modifier groups fresh (${Math.round((Date.now() - lastTs) / 60000)}m old), skipping re-fetch`);
+        return;
       }
-      
+
+      const fullGroups: any[] = [];
+      let withModifiers = 0;
+      let withoutModifiers = 0;
+      const now = Date.now();
+
+      // Fetch all items' modifiers in parallel (no sequential batching)
+      console.log(`[Prefetch] Fetching modifier groups for ${items.length} items in parallel`);
+      await Promise.all(
+        items.map(async (it) => {
+          try {
+            const groups = await fetchWithTimeout<any[]>(`/api/items/${it.id}/modifiers/full`, 4000);
+            fullGroups.push({ item_id: it.id, groups: groups || [], org_id: orgId, ts: now });
+            if (groups && groups.length > 0) withModifiers++; else withoutModifiers++;
+          } catch {
+            fullGroups.push({ item_id: it.id, groups: [], org_id: orgId, ts: now });
+            withoutModifiers++;
+          }
+        })
+      );
+
       if (fullGroups.length) {
         await putMany("item_modifier_groups", fullGroups);
-        console.log(`[Prefetch] ✓ Cached modifier groups for ${fullGroups.length} items (${itemsWithModifiers} with modifiers, ${itemsWithoutModifiers} without)`);
+        console.log(`[Prefetch] ✓ Modifier groups cached: ${withModifiers} with, ${withoutModifiers} without`);
       }
-      await setMeta(`item_modifiers_${orgId}_ts`, Date.now());
+      await import('@/lib/idb/db').then(m => m.setMeta(`item_modifiers_${orgId}_ts`, now));
     }).catch((err) => {
       console.error('[Prefetch] Failed to cache modifier groups:', err);
     })

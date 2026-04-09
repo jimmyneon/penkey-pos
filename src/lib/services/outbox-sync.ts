@@ -425,16 +425,20 @@ export class OutboxSyncService {
   static setupAutoSync(): void {
     if (typeof window === 'undefined') return;
 
-    window.addEventListener('online', () => {
-      console.log('[Outbox] Network reconnected, syncing...');
-      this.syncOutbox().catch(console.error);
-    });
-
-    // Also sync periodically when online
-    setInterval(() => {
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
-        this.syncOutbox().catch(console.error);
+    window.addEventListener('online', async () => {
+      console.log('[Outbox] Network reconnected - syncing pending and retrying failed items...');
+      // Reset any failed items back to pending so they get another chance
+      try {
+        const failed = await this.getFailedItems();
+        if (failed.length > 0) {
+          console.log(`[Outbox] Resetting ${failed.length} failed items to pending on reconnect`);
+          await this.retryFailed();
+        } else {
+          await this.syncOutbox();
+        }
+      } catch (err) {
+        console.error('[Outbox] Reconnect sync error:', err);
       }
-    }, 60000); // Every minute
+    });
   }
 }

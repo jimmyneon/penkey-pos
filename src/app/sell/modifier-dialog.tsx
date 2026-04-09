@@ -12,7 +12,13 @@ import { getByKey } from "@/lib/idb/db";
 import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 
 // Request deduplication cache to prevent duplicate API calls
+// Cleared after 5s so stale promises don't block future loads
 const modifierRequestCache = new Map<string, Promise<any[]>>();
+function cacheRequest(itemId: string, promise: Promise<any[]>): Promise<any[]> {
+  modifierRequestCache.set(itemId, promise);
+  promise.finally(() => setTimeout(() => modifierRequestCache.delete(itemId), 5000));
+  return promise;
+}
 
 interface ModifierOption {
   id: string;
@@ -72,28 +78,28 @@ export function ModifierDialog({
 
   const loadModifiers = async () => {
     try {
+      // 1) Try RAM cache first (fastest - <1ms) — no loading state needed
+      const ramGroups = modifierRAMCache.get(itemId);
+      if (ramGroups) {
+        console.log('[ModifierDialog] ⚡ RAM cache hit for item:', itemId);
+        setModifierGroups(ramGroups);
+        setSelectedModifiersDefaults(ramGroups);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      
+
       // Get org_id from session
       const sessionData = sessionStorage.getItem("pos_session");
       const orgId = sessionData ? JSON.parse(sessionData).org_id : null;
-      
+
       if (!orgId) {
         console.error('[ModifierDialog] No org_id found in session');
         setModifierGroups([]);
         return;
       }
-      
-      // 1) Try RAM cache first (fastest - <1ms)
-      let groups = modifierRAMCache.get(itemId);
-      if (groups) {
-        console.log('[ModifierDialog] ⚡ Using RAM cache for item:', itemId);
-        setModifierGroups(groups);
-        setSelectedModifiersDefaults(groups);
-        setLoading(false);
-        return;
-      }
-      
+
       // 2) Check if request already in flight (deduplication)
       if (modifierRequestCache.has(itemId)) {
         console.log('[ModifierDialog] Reusing in-flight request for item:', itemId);
@@ -103,7 +109,7 @@ export function ModifierDialog({
         setLoading(false);
         return;
       }
-      
+
       // 3) Load from IndexedDB and cache in RAM
       const loadPromise = (async () => {
         try {
@@ -160,8 +166,8 @@ export function ModifierDialog({
         }
       })();
       
-      // Cache the promise to deduplicate requests
-      modifierRequestCache.set(itemId, loadPromise);
+      // Cache the promise to deduplicate requests (auto-clears after 5s)
+      cacheRequest(itemId, loadPromise);
       const loadedGroups = await loadPromise;
       
       setModifierGroups(loadedGroups);
