@@ -76,6 +76,34 @@ export default function PaymentTerminalsPage() {
     }
   };
 
+  const handleUnpairAll = async () => {
+    if (!confirm('Unpair ALL readers from SumUp and delete all local terminals? This will reset everything.')) return;
+    try {
+      // Unpair all from SumUp API
+      for (const reader of sumUpReaders) {
+        try {
+          await fetch(`/api/sumup/readers?reader_id=${reader.id}`, { method: 'DELETE' });
+        } catch {
+          // Continue even if one fails
+        }
+      }
+
+      // Delete all from local DB
+      for (const terminal of terminals) {
+        try {
+          await fetch(`/api/sumup/terminals?id=${terminal.id}`, { method: 'DELETE' });
+        } catch {
+          // Continue even if one fails
+        }
+      }
+
+      fetchSumUpReaders();
+      fetchTerminals();
+    } catch {
+      alert('Network error. Please try again.');
+    }
+  };
+
   const handlePair = async (e: FormEvent) => {
     e.preventDefault();
     setPairingLoading(true);
@@ -148,6 +176,14 @@ export default function PaymentTerminalsPage() {
           >
             <RefreshCw className={`w-4 h-4 ${loadingReaders ? 'animate-spin' : ''}`} />
             Refresh
+          </button>
+          <button
+            onClick={handleUnpairAll}
+            disabled={sumUpReaders.length === 0 && terminals.length === 0}
+            className="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 text-red-400 font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Reset All
           </button>
           <button
             onClick={() => { setPairingError(''); setShowModal(true); }}
