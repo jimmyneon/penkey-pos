@@ -277,7 +277,7 @@ export default function PaymentPage() {
         return;
       }
 
-      showToast(`Sending payment to ${onlineTerminal.name}...`, "info");
+      showToast(`Sending payment request to ${onlineTerminal.name}...`, "info");
 
       // Create checkout on the reader (server reads credentials from DB)
       const checkoutRes = await fetch("/api/sumup/create-checkout", {
@@ -313,11 +313,12 @@ export default function PaymentPage() {
 
           console.log('[Payment] Checkout status:', status, 'Attempt:', attempts);
 
+          // Handle all possible SumUp status values
           if (status === "PAID" || status === "SUCCESSFUL") {
             clearInterval(poll);
             showToast("Card payment successful!", "success");
             await completeCardPayment({ checkoutId, status });
-          } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED") {
+          } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED" || status === "EXPIRED") {
             clearInterval(poll);
             showToast("Card payment failed or cancelled.", "error");
             setProcessing(false);
