@@ -4,32 +4,16 @@ import { createSupabaseServerClient } from '@/lib/database';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
 
 /**
- * Credentials are stored in registers.sumup_api_key / sumup_merchant_code / sumup_affiliate_key
- * columns (added via migration below), scoped to the org via the register.
- * Fallback: store in register_settings.additional_settings JSON if columns don't exist yet.
- *
- * SQL migration to run in Supabase dashboard (SQL editor):
- *
- *   ALTER TABLE registers
- *     ADD COLUMN IF NOT EXISTS sumup_api_key       TEXT,
- *     ADD COLUMN IF NOT EXISTS sumup_merchant_code TEXT,
- *     ADD COLUMN IF NOT EXISTS sumup_affiliate_key TEXT;
- *
- * Until then, this route uses register_settings.additional_settings as the store.
+ * Credentials are stored in register_settings.additional_settings using a synthetic
+ * org-scoped register_id (org_${orgId}). This works even if no active registers exist yet,
+ * avoiding the chicken-and-egg problem of needing a register to save credentials.
  */
 
 const SETTINGS_KEY = 'sumup_credentials';
 
-/** Helper: get the first register_id for this org */
-async function getRegisterForOrg(supabase: any, orgId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('registers')
-    .select('id')
-    .eq('org_id', orgId)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle();
-  return data?.id ?? null;
+/** Helper: get synthetic org-scoped register_id (works even with no active registers) */
+function getOrgScopedRegisterId(orgId: string): string {
+  return `org_${orgId}`;
 }
 
 /** Helper: read additional_settings for a register */
@@ -55,8 +39,7 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = await getRegisterForOrg(supabase, session.org_id);
-  if (!registerId) return NextResponse.json({ configured: false });
+  const registerId = getOrgScopedRegisterId(session.org_id);
 
   const settings = await getAdditionalSettings(supabase, registerId);
   const creds = settings[SETTINGS_KEY];
@@ -91,10 +74,7 @@ export async function POST(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = await getRegisterForOrg(supabase, session.org_id);
-  if (!registerId) {
-    return NextResponse.json({ error: 'No register found for this org' }, { status: 404 });
-  }
+  const registerId = getOrgScopedRegisterId(session.org_id);
 
   const existing = await getAdditionalSettings(supabase, registerId);
   const updated = {
@@ -136,14 +116,12 @@ export async function DELETE(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = await getRegisterForOrg(supabase, session.org_id);
-  if (registerId) {
-    const existing = await getAdditionalSettings(supabase, registerId);
-    const { [SETTINGS_KEY]: _removed, ...rest } = existing;
-    await supabase
-      .from('register_settings')
-      .upsert({ register_id: registerId, additional_settings: rest } as any, { onConflict: 'register_id' });
-  }
+  const registerId = getOrgScopedRegisterId(session.org_id);
+  const existing = await getAdditionalSettings(supabase, registerId);
+  const { [SETTINGS_KEY]: _removed, ...rest } = existing;
+  await supabase
+    .from('register_settings')
+    .upsert({ register_id: registerId, additional_settings: rest } as any, { onConflict: 'register_id' });
 
   return NextResponse.json({ success: true });
 }
@@ -162,8 +140,7 @@ export async function getStoredSumUpCredentials(orgId: string): Promise<{
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = await getRegisterForOrg(supabase, orgId);
-  if (!registerId) return null;
+  const registerId = getOrgScopedRegisterId(orgId);
 
   const settings = await getAdditionalSettings(supabase, registerId);
   const creds = settings[SETTINGS_KEY];
