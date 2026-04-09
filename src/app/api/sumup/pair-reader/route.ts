@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Database error:', error);
       return NextResponse.json(
-        { error: 'Failed to save terminal to database' },
+        { error: `Failed to save terminal to database: ${error.message || JSON.stringify(error)}` },
         { status: 500 }
       );
     }
