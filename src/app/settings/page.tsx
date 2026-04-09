@@ -750,6 +750,21 @@ export default function SettingsPage() {
                 </SettingRow>
 
                 <SettingRow
+                  label="Payment Terminals"
+                  description="Pair and manage SumUp Solo card readers"
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push("/settings/payment-terminals")}
+                    className="min-h-[44px] border-gray-600 text-white hover:bg-white/10"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Manage
+                  </Button>
+                </SettingRow>
+
+                <SettingRow
                   label="Disconnect"
                   description="Remove SumUp connection from this POS"
                 >

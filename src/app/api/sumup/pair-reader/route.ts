@@ -1,15 +1,22 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
+import { getStoredSumUpCredentials } from '../credentials/route';
 
 export async function POST(request: NextRequest) {
+  const session = await validatePOSSession(request);
+  if (!session) return unauthorizedResponse();
+
   const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
 
   try {
     const { pairingCode, name, apiKey: bodyApiKey, merchantCode: bodyMerchantCode } = await request.json();
 
-    const SUMUP_API_KEY = request.headers.get('x-sumup-api-key') || bodyApiKey || process.env.SUMUP_API_KEY;
-    const SUMUP_MERCHANT_CODE = request.headers.get('x-sumup-merchant-code') || bodyMerchantCode || process.env.SUMUP_MERCHANT_CODE;
+    // Read credentials from DB first, fall back to headers/env vars
+    const dbCreds = await getStoredSumUpCredentials(session.org_id);
+    const SUMUP_API_KEY = dbCreds?.api_key || request.headers.get('x-sumup-api-key') || bodyApiKey || process.env.SUMUP_API_KEY;
+    const SUMUP_MERCHANT_CODE = dbCreds?.merchant_code || request.headers.get('x-sumup-merchant-code') || bodyMerchantCode || process.env.SUMUP_MERCHANT_CODE;
 
     if (!SUMUP_API_KEY || !SUMUP_MERCHANT_CODE) {
       return NextResponse.json(
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
         name,
         reader_id: readerId,
         status: 'offline',
-      })
+      } as any)
       .select()
       .single();
 
