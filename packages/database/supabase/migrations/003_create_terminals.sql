@@ -22,6 +22,12 @@ CREATE TRIGGER update_terminals_updated_at
 -- Enable RLS
 ALTER TABLE terminals ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Authenticated users can read terminals" ON terminals;
+DROP POLICY IF EXISTS "Authenticated users can insert terminals" ON terminals;
+DROP POLICY IF EXISTS "Authenticated users can delete terminals" ON terminals;
+DROP POLICY IF EXISTS "Service role full access" ON terminals;
+
 -- Policy: authenticated users can read terminals
 CREATE POLICY "Authenticated users can read terminals" ON terminals
     FOR SELECT
