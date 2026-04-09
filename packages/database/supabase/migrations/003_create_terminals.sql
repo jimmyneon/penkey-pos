@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS terminals (
 CREATE INDEX IF NOT EXISTS idx_terminals_reader_id ON terminals(reader_id);
 
 -- Create trigger to update updated_at
+DROP TRIGGER IF EXISTS update_terminals_updated_at ON terminals;
 CREATE TRIGGER update_terminals_updated_at
     BEFORE UPDATE ON terminals
     FOR EACH ROW
