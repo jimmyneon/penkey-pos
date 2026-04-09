@@ -34,7 +34,8 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { upsellLearningEngine } from "@/lib/services/upsell-learning-engine";
 import { useRegisterSettings } from "@/lib/hooks/use-register-settings";
-import { getAll } from "@/lib/idb/db";
+import { getAll, getByKey } from "@/lib/idb/db";
+import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 
 interface Session {
@@ -380,37 +381,55 @@ export default function SellPage() {
 
   const checkAndShowModifiers = async (item: any, variant: any) => {
     try {
-      // Try IDB-first: find item->modifier associations and load modifiers from IDB
-      let associated: any[] = [];
-      try {
-        const assoc = await getAll("item_modifiers");
-        associated = (assoc as any[]).filter(a => a.item_id === item.id);
-      } catch {}
-
-      if (associated.length > 0) {
-        const modIds = new Set(associated.map(a => a.modifier_id));
-        let allMods: any[] = [];
-        try {
-          allMods = (await getAll("modifiers")) as any[];
-        } catch {}
-        const mods = allMods.filter(m => modIds.has(m.id));
-        if (mods.length > 0) {
+      // 1) RAM cache — O(1), synchronous, no awaits
+      const ramGroups = modifierRAMCache.get(item.id);
+      if (ramGroups !== null) {
+        if (ramGroups && ramGroups.length > 0) {
           setSelectedItem(item);
           setSelectedVariant(variant);
           setModifierDialogOpen(true);
-          return;
+        } else {
+          // Confirmed no modifiers — add directly (same path as the fallback below)
+          const price = variant ? variant.price : item.base_price;
+          addLine({ item_id: item.id, item_name: item.name, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
+          debouncedUpsellSuggestions(item);
+          setSelectedItem(null);
         }
+        return;
       }
 
-      // Fallback to API when online
-      const response = await fetch(`/api/items/${item.id}/modifiers`);
-      if (response.ok) {
-        const modifiers = await response.json();
-        if (modifiers && modifiers.length > 0) {
-          setSelectedItem(item);
-          setSelectedVariant(variant);
-          setModifierDialogOpen(true);
-          return;
+      // 2) item_modifier_groups IDB key (single keyed lookup, no full-table scan)
+      try {
+        const row: any = await getByKey('item_modifier_groups', item.id as any);
+        if (row) {
+          const hasGroups = row.groups?.some((g: any) => g?.modifier_options?.length > 0);
+          if (hasGroups) {
+            setSelectedItem(item);
+            setSelectedVariant(variant);
+            setModifierDialogOpen(true);
+            return;
+          } else {
+            modifierRAMCache.set(item.id, []);
+            const price = variant ? variant.price : item.base_price;
+            addLine({ item_id: item.id, item_name: item.name, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
+            debouncedUpsellSuggestions(item);
+            setSelectedItem(null);
+            return;
+          }
+        }
+      } catch {}
+
+      // 3) API fallback (first-time, not yet prefetched)
+      if (navigator.onLine) {
+        const response = await fetch(`/api/items/${item.id}/modifiers`);
+        if (response.ok) {
+          const modifiers = await response.json();
+          if (modifiers && modifiers.length > 0) {
+            setSelectedItem(item);
+            setSelectedVariant(variant);
+            setModifierDialogOpen(true);
+            return;
+          }
         }
       }
     } catch (err) {
