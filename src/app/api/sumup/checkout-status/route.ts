@@ -66,6 +66,8 @@ export async function GET(request: NextRequest) {
     }
 
     const checkoutData = await sumupResponse.json();
+    console.log('[SumUp Checkout Status] Status:', checkoutData.status);
+    console.log('[SumUp Checkout Status] Full response:', JSON.stringify(checkoutData, null, 2));
 
     return NextResponse.json({
       success: true,

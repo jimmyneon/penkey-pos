@@ -311,11 +311,13 @@ export default function PaymentPage() {
           const statusData = await statusRes.json();
           const status = statusData.status || statusData.checkout?.status;
 
+          console.log('[Payment] Checkout status:', status, 'Attempt:', attempts);
+
           if (status === "PAID" || status === "SUCCESSFUL") {
             clearInterval(poll);
             showToast("Card payment successful!", "success");
             await completeCardPayment({ checkoutId, status });
-          } else if (status === "FAILED" || status === "CANCELLED") {
+          } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED") {
             clearInterval(poll);
             showToast("Card payment failed or cancelled.", "error");
             setProcessing(false);
