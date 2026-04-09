@@ -11,6 +11,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { putMany } from "@/lib/idb/db";
+import { getSumUpCredentials, hasSumUpCredentials } from "@/lib/services/sumup-credentials";
 
 interface Session {
   employee: {
@@ -36,44 +37,22 @@ export default function PaymentPage() {
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; customer?: any; name: string } | null>(null);
   const { lines, getTotal, clearCart } = useCartStore();
   
-  // Check SumUp OAuth configuration
+  // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
-  const [sumUpConnectionStatus, setSumUpConnectionStatus] = useState<{
-    online: boolean;
-    authenticated: boolean;
-    method: "oauth" | "api_key" | "none";
-  }>({ online: false, authenticated: false, method: "none" });
-  
+  const [isOnline, setIsOnline] = useState(true);
+
   useEffect(() => {
-    // Check if SumUp OAuth is configured
-    const checkSumUpConfig = async () => {
-      const { OfflineSumUpClient } = await import("@penkey/sumup");
-      const sumUpClient = new OfflineSumUpClient({
-        clientId: process.env.NEXT_PUBLIC_SUMUP_CLIENT_ID || "",
-        clientSecret: "",
-        redirectUri: `${window.location.origin}/api/auth/sumup/callback`,
-        environment: "production",
-      });
-      
-      const hasTokens = sumUpClient.loadTokens();
-      setSumUpConfigured(hasTokens);
-      setSumUpConnectionStatus(sumUpClient.getConnectionStatus());
-      
-      // Listen for connection changes
-      const updateStatus = () => {
-        setSumUpConnectionStatus(sumUpClient.getConnectionStatus());
-      };
-      
-      window.addEventListener("online", updateStatus);
-      window.addEventListener("offline", updateStatus);
-      
-      return () => {
-        window.removeEventListener("online", updateStatus);
-        window.removeEventListener("offline", updateStatus);
-      };
+    setSumUpConfigured(hasSumUpCredentials());
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
-    
-    checkSumUpConfig();
   }, []);
 
   useEffect(() => {
@@ -249,110 +228,93 @@ export default function PaymentPage() {
   const handleCardPayment = async () => {
     if (!session) return;
 
+    const creds = getSumUpCredentials();
+    if (!creds?.apiKey || !creds?.merchantCode) {
+      showToast("SumUp not configured. Go to Settings → SumUp Payments and connect first.", "error");
+      return;
+    }
+
+    if (!navigator.onLine) {
+      showToast("Cannot process card payments while offline.", "error");
+      return;
+    }
+
     setProcessing(true);
-    showToast("Processing card payment...", "info");
 
     try {
-      // Import offline SumUp client
-      const { OfflineSumUpClient } = await import("@penkey/sumup");
-      
-      // Create SumUp client with OAuth
-      const client = new OfflineSumUpClient({
-        clientId: process.env.NEXT_PUBLIC_SUMUP_CLIENT_ID || "",
-        clientSecret: "",
-        redirectUri: `${window.location.origin}/api/auth/sumup/callback`,
-        environment: "production",
+      // Fetch paired terminals from database
+      const terminalsRes = await fetch("/api/sumup/terminals");
+      const terminalsData = await terminalsRes.json();
+      const terminals: any[] = terminalsData.terminals || [];
+      const onlineTerminal = terminals.find((t: any) => t.status === "online") || terminals[0];
+
+      if (!onlineTerminal) {
+        showToast("No card readers paired. Go to Settings → Payment Terminals to pair a reader.", "error");
+        setProcessing(false);
+        return;
+      }
+
+      showToast(`Sending payment to ${onlineTerminal.name}...`, "info");
+
+      // Build SumUp credential headers
+      const sumupHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-sumup-api-key": creds.apiKey,
+        "x-sumup-merchant-code": creds.merchantCode,
+      };
+      if (creds.affiliateKey) sumupHeaders["x-sumup-affiliate-key"] = creds.affiliateKey;
+
+      // Create checkout on the reader
+      const checkoutRes = await fetch("/api/sumup/create-checkout", {
+        method: "POST",
+        headers: sumupHeaders,
+        body: JSON.stringify({
+          amount: total,
+          currency: "GBP",
+          reader_id: onlineTerminal.reader_id,
+          description: "Penkey POS Purchase",
+        }),
       });
 
-      // Check connection status
-      const status = client.getConnectionStatus();
-      if (!status.online) {
-        showToast("Cannot process card payments while offline. Please check internet connection.", "error");
+      const checkoutData = await checkoutRes.json();
+      if (!checkoutData.success) {
+        showToast(checkoutData.error || "Failed to start card payment", "error");
         setProcessing(false);
         return;
       }
 
-      // Load OAuth tokens
-      const hasTokens = client.loadTokens();
-      if (!hasTokens) {
-        showToast("SumUp not connected. Please connect in settings.", "error");
-        setProcessing(false);
-        return;
-      }
+      const checkoutId = checkoutData.checkout_id;
+      showToast("Please present card to the reader...", "info");
 
-      // Get available readers
-      const readers = await client.getReaders();
-      
-      if (readers.length === 0) {
-        showToast("No SumUp readers found. Please check your reader connection.", "error");
-        setProcessing(false);
-        return;
-      }
+      // Poll for payment completion (up to 90 seconds)
+      const maxAttempts = 45;
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}`, {
+            headers: sumupHeaders,
+          });
+          const statusData = await statusRes.json();
+          const status = statusData.status || statusData.checkout?.status;
 
-      // Use the first online reader
-      const onlineReader = readers.find(r => r.status === "online");
-      if (!onlineReader) {
-        showToast("No online SumUp readers available", "error");
-        setProcessing(false);
-        return;
-      }
-
-      // Create payment intent
-      const receiptId = `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const result = await client.createReaderCheckout({
-        id: receiptId,
-        amount: total,
-        currency: "GBP", // TODO: Make configurable
-        description: "Penkey POS Purchase",
-        foreignTransactionId: receiptId,
-        readerId: onlineReader.id,
-      });
-
-      if (result.success) {
-        showToast("Please present card to the reader", "info");
-        
-        // Poll for payment completion
-        const pollPayment = async () => {
-          const maxAttempts = 30; // 30 seconds timeout
-          let attempts = 0;
-          
-          const poll = setInterval(async () => {
-            attempts++;
-            
-            try {
-              const paymentStatus = client.getConnectionStatus();
-              if (!paymentStatus.online) {
-                clearInterval(poll);
-                showToast("Connection lost. Please check internet and try again.", "error");
-                setProcessing(false);
-                return;
-              }
-
-              const status = await client.getCheckoutStatus(result.transactionId!);
-              
-              if (status.success) {
-                clearInterval(poll);
-                showToast("Card payment successful!", "success");
-                
-                // Create receipt with card payment
-                await completeCardPayment(status);
-              } else if (attempts >= maxAttempts) {
-                clearInterval(poll);
-                showToast("Payment timeout. Please try again.", "error");
-                setProcessing(false);
-              }
-            } catch (error) {
-              console.error("Error polling payment:", error);
-            }
-          }, 1000);
-        };
-        
-        pollPayment();
-      } else {
-        showToast(`Payment failed: ${result.error?.message}`, "error");
-        setProcessing(false);
-      }
+          if (status === "PAID" || status === "SUCCESSFUL") {
+            clearInterval(poll);
+            showToast("Card payment successful!", "success");
+            await completeCardPayment({ checkoutId, status });
+          } else if (status === "FAILED" || status === "CANCELLED") {
+            clearInterval(poll);
+            showToast("Card payment failed or cancelled.", "error");
+            setProcessing(false);
+          } else if (attempts >= maxAttempts) {
+            clearInterval(poll);
+            showToast("Payment timeout. Please check the reader and try again.", "error");
+            setProcessing(false);
+          }
+        } catch (err) {
+          console.error("[Payment] Status poll error:", err);
+        }
+      }, 2000);
     } catch (error) {
       console.error("Card payment error:", error);
       showToast(`Card payment failed: ${(error as Error).message}`, "error");
@@ -363,17 +325,16 @@ export default function PaymentPage() {
   const completeCardPayment = async (paymentResult: any) => {
     if (!session) return;
 
+    const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const receiptData = {
-      lines: lines,
+      id: tempReceiptId,
+      lines,
       payment_method: "card",
-      card_type: paymentResult.cardType,
-      card_last4: paymentResult.cardLast4,
-      transaction_id: paymentResult.transactionId,
+      transaction_id: paymentResult.checkoutId,
       employee_id: session.employee.id,
       register_id: session.register.id,
       store_id: session.register.store_id,
       org_id: session.org_id,
-      // Customer data from ticket assignment
       customer_id: ticketAssignment?.customer?.id || null,
       customer_name: ticketAssignment?.name || null,
       customer_email: ticketAssignment?.customer?.email || null,
@@ -382,30 +343,21 @@ export default function PaymentPage() {
     };
 
     try {
-      // Save receipt to database
-      const response = await fetch("/api/receipts/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(receiptData),
-      });
+      // Save locally first (offline-first)
+      await putMany("receipts", [{
+        ...receiptData,
+        created_at: new Date().toISOString(),
+        total,
+        offline: true,
+      }]);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("[Payment] Card payment receipt created:", data.receipt_id);
-        
-        // Clear cart and mark payment complete
-        clearCart();
-        setPaymentCompleted(true);
-        
-        // Navigate to sell page after a short delay
-        setTimeout(() => {
-          router.push("/sell");
-        }, 2000);
-      } else {
-        throw new Error("Failed to save receipt");
-      }
+      // Queue for server sync
+      await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
+
+      clearCart();
+      sessionStorage.removeItem("pos_ticket_assignment");
+      setPaymentCompleted(true);
+      router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0&offline=true`);
     } catch (error) {
       console.error("Failed to complete card payment:", error);
       showToast("Failed to save receipt", "error");
@@ -468,21 +420,22 @@ export default function PaymentPage() {
             {/* Card Payment Button */}
             <button
               onClick={handleCardPayment}
-              disabled={processing || !sumUpConfigured || !sumUpConnectionStatus.online}
-              className={`${sumUpConfigured && sumUpConnectionStatus.online
-                ? "bg-[#5d5d5d] hover:bg-[#6d6d6d]" 
-                : "bg-[#4d4d4d] text-gray-500 opacity-50 cursor-not-allowed"
-              } disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]`}
+              disabled={processing || !sumUpConfigured || !isOnline}
+              className={`${
+                sumUpConfigured && isOnline
+                  ? "bg-[#5d5d5d] hover:bg-[#6d6d6d]"
+                  : "bg-[#4d4d4d] text-gray-500 cursor-not-allowed"
+              } text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]`}
             >
               <CreditCard className="h-16 w-16" />
               <span className="text-2xl font-bold">Card</span>
               {!sumUpConfigured && (
-                <span className="text-sm opacity-75">Not configured</span>
+                <span className="text-sm opacity-75">Connect SumUp in Settings</span>
               )}
-              {sumUpConfigured && !sumUpConnectionStatus.online && (
+              {sumUpConfigured && !isOnline && (
                 <span className="text-sm opacity-75">Offline</span>
               )}
-              {sumUpConfigured && sumUpConnectionStatus.online && (
+              {sumUpConfigured && isOnline && (
                 <span className="text-sm opacity-75">Ready</span>
               )}
             </button>
