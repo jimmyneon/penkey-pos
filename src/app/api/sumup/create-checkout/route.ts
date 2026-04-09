@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
           ? 'Terminal is busy – another checkout is in progress'
           : sumupResponse.status === 404
           ? 'Terminal not found – please re-pair the reader'
-          : errorData?.message || 'Failed to start checkout on terminal';
+          : errorData?.message || errorData?.error_message || JSON.stringify(errorData) || 'Failed to start checkout on terminal';
 
       return NextResponse.json({ error: message }, { status: sumupResponse.status });
     }
