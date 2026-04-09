@@ -547,8 +547,8 @@ export default function PaymentPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-[#3d3d3d] rounded-lg p-8 text-center">
             <Loader2 className="h-16 w-16 text-penkey-orange animate-spin mx-auto mb-4" />
-            <p className="text-xl font-bold text-white mb-2">Processing Payment...</p>
-            <p className="text-gray-400">Please wait</p>
+            <p className="text-xl font-bold text-white mb-2">Please wait...</p>
+            <p className="text-gray-400">Processing payment</p>
           </div>
         </div>
       )}
