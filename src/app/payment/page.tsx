@@ -307,7 +307,7 @@ export default function PaymentPage() {
       const poll = setInterval(async () => {
         attempts++;
         try {
-          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}`);
+          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}&reader_id=${onlineTerminal.reader_id}`);
           const statusData = await statusRes.json();
           const status = statusData.status || statusData.checkout?.status;
 
