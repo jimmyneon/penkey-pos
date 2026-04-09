@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
       .select('*')
       .order('created_at', { ascending: false });
 
+    console.log('[Terminals GET] Fetched terminals:', terminals);
+    console.log('[Terminals GET] Error:', error);
+
     if (error) {
       console.error('Database error:', error);
       return NextResponse.json(
