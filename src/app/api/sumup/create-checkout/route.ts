@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
     };
 
     if (description) body.description = description;
-    // Always send affiliate field with value from DB (confirmed to exist)
+    // Try sending affiliate key at top level (SumUp may expect this format)
     if (affiliateKey && affiliateKey.trim() !== '') {
-      body.affiliate = { app_id: affiliateKey };
+      body.affiliate_key = affiliateKey;
     }
 
     console.log('[SumUp Checkout] Request body:', JSON.stringify(body, null, 2));
