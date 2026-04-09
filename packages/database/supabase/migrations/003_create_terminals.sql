@@ -27,6 +27,18 @@ CREATE POLICY "Authenticated users can read terminals" ON terminals
     TO authenticated
     USING (true);
 
+-- Policy: authenticated users can insert terminals
+CREATE POLICY "Authenticated users can insert terminals" ON terminals
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Policy: authenticated users can delete terminals
+CREATE POLICY "Authenticated users can delete terminals" ON terminals
+    FOR DELETE
+    TO authenticated
+    USING (true);
+
 -- Policy: service role has full access
 CREATE POLICY "Service role full access" ON terminals
     TO service_role
