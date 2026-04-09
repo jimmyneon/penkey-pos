@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
-import { Loader2, Plus, Trash2, Wifi, WifiOff, CreditCard, X, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, Trash2, Wifi, WifiOff, CreditCard, X, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -13,16 +13,28 @@ interface Terminal {
   updated_at: string;
 }
 
+interface SumUpReader {
+  id: string;
+  name: string;
+  status: string;
+  serial_number?: string;
+}
+
 export default function PaymentTerminalsPage() {
   const [terminals, setTerminals] = useState<Terminal[]>([]);
+  const [sumUpReaders, setSumUpReaders] = useState<SumUpReader[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingReaders, setLoadingReaders] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [pairingLoading, setPairingLoading] = useState(false);
   const [pairingError, setPairingError] = useState('');
   const [terminalName, setTerminalName] = useState('');
   const [pairingCode, setPairingCode] = useState('');
 
-  useEffect(() => { fetchTerminals(); }, []);
+  useEffect(() => {
+    fetchTerminals();
+    fetchSumUpReaders();
+  }, []);
 
   const fetchTerminals = async () => {
     try {
@@ -33,6 +45,34 @@ export default function PaymentTerminalsPage() {
       console.error('Failed to fetch terminals', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSumUpReaders = async () => {
+    try {
+      setLoadingReaders(true);
+      const res = await fetch('/api/sumup/readers');
+      const data = await res.json();
+      if (data.success) setSumUpReaders(data.readers || []);
+    } catch (e) {
+      console.error('Failed to fetch SumUp readers', e);
+    } finally {
+      setLoadingReaders(false);
+    }
+  };
+
+  const handleUnpairFromSumUp = async (readerId: string) => {
+    if (!confirm('Unpair this reader from SumUp? This will allow you to generate a new pairing code on the device.')) return;
+    try {
+      const res = await fetch(`/api/sumup/readers?reader_id=${readerId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        fetchSumUpReaders();
+      } else {
+        alert(data.error || 'Failed to unpair reader');
+      }
+    } catch {
+      alert('Network error. Please try again.');
     }
   };
 
@@ -100,14 +140,54 @@ export default function PaymentTerminalsPage() {
           <h1 className="text-2xl font-bold text-white">Payment Terminals</h1>
           <p className="text-zinc-400 mt-1">Manage your SumUp Solo card readers</p>
         </div>
-        <button
-          onClick={() => { setPairingError(''); setShowModal(true); }}
-          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Pair New Reader
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchSumUpReaders}
+            disabled={loadingReaders}
+            className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingReaders ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => { setPairingError(''); setShowModal(true); }}
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Pair New Reader
+          </button>
+        </div>
       </div>
+
+      {/* SumUp API Readers (for recovery when pairing fails locally) */}
+      {sumUpReaders.length > 0 && (
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-5 h-5 text-orange-400" />
+            <h2 className="font-semibold text-white">Readers paired on SumUp (not in local DB)</h2>
+          </div>
+          <p className="text-sm text-orange-200/80 mb-4">
+            These readers are paired on your SumUp account but not saved locally. Unpair them to generate a new pairing code on your device.
+          </p>
+          <div className="space-y-2">
+            {sumUpReaders.map((reader) => (
+              <div key={reader.id} className="rounded-lg bg-zinc-800/50 p-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-white">{reader.name}</p>
+                  <p className="text-xs text-zinc-400">ID: {reader.id}</p>
+                </div>
+                <button
+                  onClick={() => handleUnpairFromSumUp(reader.id)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-medium transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Unpair
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
