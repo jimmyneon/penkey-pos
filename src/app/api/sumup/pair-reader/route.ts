@@ -2,20 +2,21 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-const SUMUP_API_BASE = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-const SUMUP_API_KEY = process.env.SUMUP_API_KEY;
-const SUMUP_MERCHANT_CODE = process.env.SUMUP_MERCHANT_CODE;
-
 export async function POST(request: NextRequest) {
+  const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
+
   try {
+    const { pairingCode, name, apiKey: bodyApiKey, merchantCode: bodyMerchantCode } = await request.json();
+
+    const SUMUP_API_KEY = request.headers.get('x-sumup-api-key') || bodyApiKey || process.env.SUMUP_API_KEY;
+    const SUMUP_MERCHANT_CODE = request.headers.get('x-sumup-merchant-code') || bodyMerchantCode || process.env.SUMUP_MERCHANT_CODE;
+
     if (!SUMUP_API_KEY || !SUMUP_MERCHANT_CODE) {
       return NextResponse.json(
-        { error: 'SumUp API credentials not configured' },
-        { status: 500 }
+        { error: 'SumUp API credentials not configured. Please connect SumUp in Settings first.' },
+        { status: 400 }
       );
     }
-
-    const { pairingCode, name } = await request.json();
 
     if (!pairingCode || !name) {
       return NextResponse.json(
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Call SumUp API to pair reader
     const sumupResponse = await fetch(
-      `${SUMUP_API_BASE}/v0.1/merchants/${SUMUP_MERCHANT_CODE}/readers`,
+      `${apiBase}/v0.1/merchants/${SUMUP_MERCHANT_CODE}/readers`,
       {
         method: 'POST',
         headers: {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import { getSumUpCredentials, hasSumUpCredentials } from '@/lib/services/sumup-credentials';
 import { Loader2, Plus, Trash2, Wifi, WifiOff, CreditCard, X, AlertCircle } from 'lucide-react';
 
 interface Terminal {
@@ -40,10 +41,22 @@ export default function PaymentTerminalsPage() {
     e.preventDefault();
     setPairingLoading(true);
     setPairingError('');
+
+    const creds = getSumUpCredentials();
+    if (!creds?.apiKey || !creds?.merchantCode) {
+      setPairingError('SumUp is not connected. Go to Settings → SumUp Payments and connect first.');
+      setPairingLoading(false);
+      return;
+    }
+
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (creds.apiKey) headers['x-sumup-api-key'] = creds.apiKey;
+      if (creds.merchantCode) headers['x-sumup-merchant-code'] = creds.merchantCode;
+
       const res = await fetch('/api/sumup/pair-reader', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ pairingCode: pairingCode.trim(), name: terminalName.trim() }),
       });
       const data = await res.json();

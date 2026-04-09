@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { CheckCircle, Printer, Home, StopCircle } from "lucide-react";
+import { CheckCircle, Printer, Home, StopCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { useCartStore } from "@/lib/store/cart-store";
 import { dataCache } from "@/lib/services/data-cache";
+import { registerSettings } from "@/lib/services/register-settings";
 
 function PaymentSuccessContent() {
   console.log("[PaymentSuccessContent] Function body execution start");
@@ -22,6 +23,8 @@ function PaymentSuccessContent() {
 
   const receiptId = searchParams.get("receipt_id");
   const change = parseFloat(searchParams.get("change") || "0");
+  const [printing, setPrinting] = useState(false);
+  const [printQueued, setPrintQueued] = useState(false);
   
   console.log(`[PaymentSuccessContent] Initial render values - receiptId: ${receiptId}, change: ${change}, countdown: ${countdown}, mounted: ${mounted}`);
   
@@ -40,6 +43,25 @@ function PaymentSuccessContent() {
       clearCart();
     }
   }, [clearCart]);
+
+  // Auto-print based on register settings
+  useEffect(() => {
+    if (!mounted || !receiptId) return;
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    if (!sessionData) return;
+    try {
+      const session = JSON.parse(sessionData);
+      const regId = session.register?.id;
+      if (!regId) return;
+      registerSettings.get(regId).then((s) => {
+        if (s.print_behaviour === "always") {
+          handlePrintReceipt(true);
+        }
+        // "ask" = do nothing (button shown), "never" = do nothing
+      }).catch(() => {});
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, receiptId]);
 
   const redirect = useCallback(() => {
     console.log("[PaymentSuccess] REDIRECTING to /sell");
@@ -72,8 +94,13 @@ function PaymentSuccessContent() {
     };
   }, [mounted, countdownActive, redirect]);
 
-  const handlePrintReceipt = async () => {
+  const handlePrintReceipt = useCallback(async (silent = false) => {
     if (!receiptId) return;
+    if (printing) return;
+
+    setPrinting(true);
+    // Pause the auto-redirect countdown while printing
+    setCountdownActive(false);
 
     try {
       const response = await fetch("/api/receipts/print", {
@@ -88,44 +115,39 @@ function PaymentSuccessContent() {
         throw new Error(data.error || "Failed to print");
       }
 
-      // For now, show receipt in new window (browser print)
-      // In production, this would send to Epson printer
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Receipt #${receiptId.slice(0, 8)}</title>
-              <style>
-                body {
-                  font-family: 'Courier New', monospace;
-                  font-size: 12px;
-                  max-width: 300px;
-                  margin: 20px auto;
-                  padding: 10px;
-                }
-                pre {
-                  white-space: pre-wrap;
-                  word-wrap: break-word;
-                }
-              </style>
-            </head>
-            <body>
-              <pre>${data.receipt_text}</pre>
-              <script>
-                window.onload = function() {
-                  window.print();
-                };
-              </script>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
+      if (data.queued) {
+        // Sent to print queue on the Raspberry Pi
+        setPrintQueued(true);
+        if (!silent) showToast("Receipt sent to printer", "success");
+      } else if (data.receipt_text) {
+        // Fallback: no printer configured — open browser print dialog
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Receipt #${receiptId.slice(0, 8)}</title>
+                <style>
+                  body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 300px; margin: 20px auto; padding: 10px; }
+                  pre { white-space: pre-wrap; word-wrap: break-word; }
+                </style>
+              </head>
+              <body>
+                <pre>${data.receipt_text}</pre>
+                <script>window.onload = function() { window.print(); };<\/script>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
+        if (!silent) showToast("Receipt opened for printing", "info");
       }
     } catch (err: any) {
       showToast(err.message || "Failed to print receipt", "error");
+    } finally {
+      setPrinting(false);
     }
-  };
+  }, [receiptId, printing, showToast]);
 
   const handleNewSale = () => {
     console.log("[PaymentSuccess] 'New Sale' button clicked. Redirecting to /sell.");
@@ -171,11 +193,22 @@ function PaymentSuccessContent() {
           </Button>
           <Button
             size="lg"
-            className="flex flex-col items-center justify-center h-32 w-32 bg-[#5d5d5d] hover:bg-[#6d6d6d] text-white border-0 p-2 aspect-square"
-            onClick={handlePrintReceipt}
+            className={`flex flex-col items-center justify-center h-32 w-32 text-white border-0 p-2 aspect-square transition-colors ${
+              printQueued
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-[#5d5d5d] hover:bg-[#6d6d6d]"
+            }`}
+            onClick={() => handlePrintReceipt(false)}
+            disabled={printing}
           >
-            <Printer className="h-8 w-8 mb-2" />
-            <span className="text-sm text-center">Print Receipt</span>
+            {printing ? (
+              <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+            ) : (
+              <Printer className="h-8 w-8 mb-2" />
+            )}
+            <span className="text-sm text-center">
+              {printing ? "Sending..." : printQueued ? "Sent ✓" : "Print Receipt"}
+            </span>
           </Button>
         </div>
 

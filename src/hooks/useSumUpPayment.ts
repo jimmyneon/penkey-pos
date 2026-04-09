@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { getSumUpCredentials } from '@/lib/services/sumup-credentials';
 
 interface PaymentRequest {
   amount: number;
@@ -18,6 +19,15 @@ export function useSumUpPayment() {
   const [error, setError] = useState<string | null>(null);
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
 
+  const getSumUpHeaders = useCallback((): Record<string, string> => {
+    const creds = getSumUpCredentials();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (creds?.apiKey) headers['x-sumup-api-key'] = creds.apiKey;
+    if (creds?.merchantCode) headers['x-sumup-merchant-code'] = creds.merchantCode;
+    if (creds?.affiliateKey) headers['x-sumup-affiliate-key'] = creds.affiliateKey;
+    return headers;
+  }, []);
+
   const createCheckout = useCallback(async (paymentRequest: PaymentRequest) => {
     setLoading(true);
     setError(null);
@@ -25,9 +35,7 @@ export function useSumUpPayment() {
     try {
       const response = await fetch('/api/sumup/create-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getSumUpHeaders(),
         body: JSON.stringify(paymentRequest),
       });
 
@@ -50,7 +58,9 @@ export function useSumUpPayment() {
 
   const checkPaymentStatus = useCallback(async (checkoutId: string): Promise<PaymentStatus | null> => {
     try {
-      const response = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}`);
+      const response = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}`, {
+        headers: getSumUpHeaders(),
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -99,6 +109,7 @@ export function useSumUpPayment() {
     checkPaymentStatus,
     pollPaymentStatus,
     reset,
+    getSumUpHeaders,
     loading,
     error,
     checkoutId,

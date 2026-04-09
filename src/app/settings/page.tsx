@@ -23,12 +23,22 @@ import {
   Lock,
   Key,
   Clock,
-  CreditCard
+  CreditCard,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  WifiOff
 } from "lucide-react";
 import { registerSettings, RegisterSettings, DEFAULT_SETTINGS } from "@/lib/services/register-settings";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
+import {
+  storeSumUpCredentials,
+  getSumUpCredentials,
+  clearSumUpCredentials,
+  validateStoredCredentials,
+} from "@/lib/services/sumup-credentials";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -47,6 +57,33 @@ export default function SettingsPage() {
   const [sumUpConnected, setSumUpConnected] = useState(false);
   const [sumUpMerchantCode, setSumUpMerchantCode] = useState("");
   const [connectingSumUp, setConnectingSumUp] = useState(false);
+
+  // Printer status
+  const [printerStatus, setPrinterStatus] = useState<"unknown" | "online" | "offline" | "checking">("unknown");
+  const [printerCount, setPrinterCount] = useState(0);
+
+  const checkPrinterStatus = async () => {
+    setPrinterStatus("checking");
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const resp = await fetch("/api/printers", {
+        headers: sessionData ? { "x-pos-session": sessionData } : {},
+      });
+      if (!resp.ok) throw new Error("Failed to fetch printers");
+      const data = await resp.json();
+      const printers: any[] = data.printers || [];
+      setPrinterCount(printers.length);
+      const anyOnline = printers.some((p: any) => p.status === "online");
+      setPrinterStatus(printers.length === 0 ? "offline" : anyOnline ? "online" : "offline");
+    } catch {
+      setPrinterStatus("offline");
+    }
+  };
+  const [showSumUpForm, setShowSumUpForm] = useState(false);
+  const [sumUpApiKey, setSumUpApiKey] = useState("");
+  const [sumUpMerchantCodeInput, setSumUpMerchantCodeInput] = useState("");
+  const [sumUpAffiliateKey, setSumUpAffiliateKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -82,26 +119,14 @@ export default function SettingsPage() {
       console.log("[Settings] Loaded settings:", loadedSettings);
       setSettings(loadedSettings);
 
-      // Load SumUp API key configuration
-      const { OfflineSumUpClient } = await import("@penkey/sumup");
-      const sumUpClient = new OfflineSumUpClient({
-        // OAuth fields (required by type but empty for API key auth)
-        clientId: "",
-        clientSecret: "",
-        redirectUri: "",
-        environment: "production",
-        // API key fields
-        apiKey: process.env.SUMUP_API_KEY || "",
-        merchantCode: process.env.SUMUP_MERCHANT_CODE || "",
-        affiliateKey: process.env.SUMUP_AFFILIATE_KEY || "",
-        appId: process.env.SUMUP_APP_ID || "com.penkey.pos",
-      });
-      
-      const isValid = await sumUpClient.validateCredentials();
-      setSumUpConnected(isValid);
-      
-      if (isValid) {
-        setSumUpMerchantCode(process.env.SUMUP_MERCHANT_CODE || "");
+      // Load SumUp API key configuration from stored credentials
+      const storedCreds = getSumUpCredentials();
+      if (storedCreds?.apiKey && storedCreds?.merchantCode) {
+        const validation = await validateStoredCredentials();
+        setSumUpConnected(validation.valid);
+        if (validation.valid) {
+          setSumUpMerchantCode(storedCreds.merchantCode);
+        }
       }
 
       // Handle OAuth callback from URL params
@@ -195,6 +220,12 @@ export default function SettingsPage() {
     hapticButtonPress();
 
     try {
+      // Validate input
+      if (!sumUpApiKey.trim() || !sumUpMerchantCodeInput.trim()) {
+        showToast("API Key and Merchant Code are required", "error");
+        return;
+      }
+
       // Validate API key credentials
       const { OfflineSumUpClient } = await import("@penkey/sumup");
       const sumUpClient = new OfflineSumUpClient({
@@ -204,20 +235,30 @@ export default function SettingsPage() {
         redirectUri: "",
         environment: "production",
         // API key fields
-        apiKey: process.env.SUMUP_API_KEY || "",
-        merchantCode: process.env.SUMUP_MERCHANT_CODE || "",
-        affiliateKey: process.env.SUMUP_AFFILIATE_KEY || "",
-        appId: process.env.SUMUP_APP_ID || "com.penkey.pos",
+        apiKey: sumUpApiKey.trim(),
+        merchantCode: sumUpMerchantCodeInput.trim(),
+        affiliateKey: sumUpAffiliateKey.trim(),
+        appId: "com.penkey.pos",
       });
 
       const isValid = await sumUpClient.validateCredentials();
-      
+
       if (isValid) {
+        // Store credentials securely
+        storeSumUpCredentials({
+          apiKey: sumUpApiKey.trim(),
+          merchantCode: sumUpMerchantCodeInput.trim(),
+          affiliateKey: sumUpAffiliateKey.trim(),
+          appId: "com.penkey.pos",
+          environment: "production",
+        });
+
         setSumUpConnected(true);
-        setSumUpMerchantCode(process.env.SUMUP_MERCHANT_CODE || "");
-        showToast("SumUp API key validated successfully!", "success");
+        setSumUpMerchantCode(sumUpMerchantCodeInput.trim());
+        setShowSumUpForm(false);
+        showToast("SumUp connected successfully!", "success");
       } else {
-        showToast("Invalid SumUp API credentials. Please check your environment variables.", "error");
+        showToast("Invalid SumUp API credentials. Please check your API key and merchant code.", "error");
       }
     } catch (error) {
       console.error("Failed to validate SumUp credentials:", error);
@@ -229,10 +270,14 @@ export default function SettingsPage() {
 
   const disconnectSumUp = async () => {
     try {
-      // For API key auth, just clear the connection status
+      // Clear stored credentials
+      clearSumUpCredentials();
       setSumUpConnected(false);
       setSumUpMerchantCode("");
-      
+      setSumUpApiKey("");
+      setSumUpMerchantCodeInput("");
+      setSumUpAffiliateKey("");
+
       showToast("SumUp disconnected", "info");
     } catch (error) {
       console.error("Failed to disconnect SumUp:", error);
@@ -557,13 +602,22 @@ export default function SettingsPage() {
           {/* Receipt Settings */}
           <SettingsSection title="Receipt Settings" icon={Receipt}>
             <SettingRow
-              label="Auto-print Receipts"
-              description="Automatically print after payment"
+              label="Print Behaviour"
+              description="When to print receipts after payment"
             >
-              <ToggleSwitch
-                checked={settings.auto_print_receipt}
-                onChange={(checked) => updateSetting("auto_print_receipt", checked)}
-              />
+              <div className="flex gap-2 flex-wrap">
+                {(["always", "ask", "never"] as const).map((val) => (
+                  <Button
+                    key={val}
+                    size="sm"
+                    variant={settings.print_behaviour === val ? "default" : "outline"}
+                    onClick={() => updateSetting("print_behaviour", val)}
+                    className={`min-h-[44px] capitalize ${settings.print_behaviour === val ? "bg-penkey-orange" : ""}`}
+                  >
+                    {val === "always" ? "Always Print" : val === "ask" ? "Always Ask" : "Never Print"}
+                  </Button>
+                ))}
+              </div>
             </SettingRow>
 
             <SettingRow
@@ -579,6 +633,66 @@ export default function SettingsPage() {
                 <option value="2">2 copies</option>
                 <option value="3">3 copies</option>
               </select>
+            </SettingRow>
+          </SettingsSection>
+
+          {/* Printer Status */}
+          <SettingsSection title="Printer Status" icon={Printer}>
+            <SettingRow
+              label="Print Server"
+              description="Check if the Raspberry Pi print server is online and printers are ready"
+            >
+              <div className="flex items-center gap-3">
+                {printerStatus === "unknown" && (
+                  <div className="flex items-center gap-2">
+                    <WifiOff className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-500 text-sm">Not checked</span>
+                  </div>
+                )}
+                {printerStatus === "checking" && (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
+                    <span className="text-gray-400 text-sm">Checking...</span>
+                  </div>
+                )}
+                {printerStatus === "online" && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span className="text-green-500 text-sm">{printerCount} printer{printerCount !== 1 ? "s" : ""} online</span>
+                  </div>
+                )}
+                {printerStatus === "offline" && (
+                  <div className="flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-red-400" />
+                    <span className="text-red-400 text-sm">{printerCount === 0 ? "No printers configured" : "No printers online"}</span>
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { hapticButtonPress(); checkPrinterStatus(); }}
+                  disabled={printerStatus === "checking"}
+                  className="min-h-[44px] border-gray-600 text-white hover:bg-white/10"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${printerStatus === "checking" ? "animate-spin" : ""}`} />
+                  Check
+                </Button>
+              </div>
+            </SettingRow>
+
+            <SettingRow
+              label="Manage Printers"
+              description="Add, remove, or configure receipt printers"
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push("/settings/printers")}
+                className="min-h-[44px] border-gray-600 text-white hover:bg-white/10"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Manage
+              </Button>
             </SettingRow>
           </SettingsSection>
 
@@ -631,30 +745,99 @@ export default function SettingsPage() {
                   </div>
                 </SettingRow>
 
-                <SettingRow
-                  label="Connect SumUp"
-                  description="Connect your SumUp account to accept card payments"
-                >
-                  <Button
-                    size="sm"
-                    onClick={connectSumUp}
-                    disabled={connectingSumUp}
-                    className="min-h-[44px] bg-penkey-orange hover:bg-orange-600"
+                {showSumUpForm ? (
+                  <>
+                    <SettingRow
+                      label="API Key"
+                      description="Your SumUp API key from developer portal"
+                    >
+                      <div className="flex gap-2">
+                        <input
+                          type={showApiKey ? "text" : "password"}
+                          value={sumUpApiKey}
+                          onChange={(e) => setSumUpApiKey(e.target.value)}
+                          placeholder="sup_xxxxxxxxxx"
+                          className="flex-1 bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="min-h-[44px] border-gray-600"
+                        >
+                          {showApiKey ? "Hide" : "Show"}
+                        </Button>
+                      </div>
+                    </SettingRow>
+
+                    <SettingRow
+                      label="Merchant Code"
+                      description="Your SumUp merchant code"
+                    >
+                      <input
+                        type="text"
+                        value={sumUpMerchantCodeInput}
+                        onChange={(e) => setSumUpMerchantCodeInput(e.target.value)}
+                        placeholder="MCXXXXXX"
+                        className="w-full bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                      />
+                    </SettingRow>
+
+                    <SettingRow
+                      label="Affiliate Key (Optional)"
+                      description="Your SumUp affiliate key if applicable"
+                    >
+                      <input
+                        type="text"
+                        value={sumUpAffiliateKey}
+                        onChange={(e) => setSumUpAffiliateKey(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                      />
+                    </SettingRow>
+
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        onClick={connectSumUp}
+                        disabled={connectingSumUp}
+                        className="flex-1 min-h-[44px] bg-penkey-orange hover:bg-orange-600"
+                      >
+                        {connectingSumUp ? (
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        ) : (
+                          "Connect SumUp"
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => setShowSumUpForm(false)}
+                        variant="outline"
+                        className="min-h-[44px] border-gray-600"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <SettingRow
+                    label="Connect SumUp"
+                    description="Connect your SumUp account to accept card payments"
                   >
-                    {connectingSumUp ? (
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    ) : (
-                      "Connect SumUp"
-                    )}
-                  </Button>
-                </SettingRow>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowSumUpForm(true)}
+                      className="min-h-[44px] bg-penkey-orange hover:bg-orange-600"
+                    >
+                      Connect SumUp
+                    </Button>
+                  </SettingRow>
+                )}
 
                 <div className="mt-4 p-4 bg-[#2d2d2d] rounded-lg border border-gray-600">
                   <h4 className="font-semibold text-white mb-2">How to connect:</h4>
                   <ol className="text-gray-300 text-sm space-y-1 list-decimal list-inside">
-                    <li>Click "Connect SumUp" above</li>
-                    <li>Sign in to your SumUp account</li>
-                    <li>Grant permission to Penkey POS</li>
+                    <li>Get your API key from <a href="https://developer.sumup.com" target="_blank" className="text-penkey-orange hover:underline">SumUp Developer Portal</a></li>
+                    <li>Find your Merchant Code in your SumUp dashboard</li>
+                    <li>Enter credentials above and click Connect</li>
                     <li>Start accepting card payments!</li>
                   </ol>
                 </div>

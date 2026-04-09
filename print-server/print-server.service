@@ -1,0 +1,28 @@
+[Unit]
+Description=Penkey POS Print Server
+After=network.target cups.service
+Wants=cups.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/penkey-print-server
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/penkey-print-server/venv/bin/python /home/pi/penkey-print-server/print_server.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=penkey-print-server
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/tmp /var/log /home/pi/penkey-print-server
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

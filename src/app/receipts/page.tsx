@@ -13,7 +13,8 @@ import {
   X,
   Eye,
   Printer,
-  Mail
+  Mail,
+  Loader2
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { getAllByIndexRange, putMany } from "@/lib/idb/db";
@@ -73,7 +74,37 @@ export default function ReceiptsPage() {
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printingId, setPrintingId] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+
+  const handlePrint = async (receiptId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (printingId) return;
+    setPrintingId(receiptId);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session");
+      const response = await fetch("/api/receipts/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(sessionData ? { "x-pos-session": sessionData } : {}) },
+        body: JSON.stringify({ receipt_id: receiptId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to print");
+      if (data.queued) {
+        // success — printer will handle it
+      } else if (data.receipt_text) {
+        const win = window.open("", "_blank");
+        if (win) {
+          win.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;max-width:300px;margin:20px auto}pre{white-space:pre-wrap}</style></head><body><pre>${data.receipt_text}</pre><script>window.onload=function(){window.print()}<\/script></body></html>`);
+          win.document.close();
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to print");
+    } finally {
+      setPrintingId(null);
+    }
+  };
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session");
@@ -510,9 +541,24 @@ export default function ReceiptsPage() {
                             </div>
                           </div>
 
-                          {/* Receipt Number - Right Side */}
-                          <div className="flex-shrink-0 text-right">
+                          {/* Receipt Number + Print - Right Side */}
+                          <div className="flex-shrink-0 flex flex-col items-end gap-1">
                             <span className="text-xs text-gray-500">{receipt.receipt_number}</span>
+                            {!selectionMode && (
+                              <button
+                                onClick={(e) => handlePrint(receipt.id, e)}
+                                disabled={!!printingId}
+                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/10 active:scale-95 disabled:opacity-50"
+                                title="Print receipt"
+                              >
+                                {printingId === receipt.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Printer className="h-3.5 w-3.5" />
+                                )}
+                                <span>{printingId === receipt.id ? "Sending..." : "Print"}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -577,11 +623,25 @@ export default function ReceiptsPage() {
           <Button
             size="sm"
             className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={() => {
-              // Print each selected receipt by opening template in new tab with auto print
-              Array.from(selectedIds).forEach((id) => {
-                window.open(`/receipts/${id}/template?print=1`, '_blank');
-              });
+            onClick={async () => {
+              const sessionData = sessionStorage.getItem("pos_session");
+              for (const id of Array.from(selectedIds)) {
+                try {
+                  const resp = await fetch("/api/receipts/print", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", ...(sessionData ? { "x-pos-session": sessionData } : {}) },
+                    body: JSON.stringify({ receipt_id: id }),
+                  });
+                  const data = await resp.json();
+                  if (data.receipt_text && !data.queued) {
+                    const win = window.open("", "_blank");
+                    if (win) {
+                      win.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;max-width:300px;margin:20px auto}pre{white-space:pre-wrap}</style></head><body><pre>${data.receipt_text}</pre><script>window.onload=function(){window.print()}<\/script></body></html>`);
+                      win.document.close();
+                    }
+                  }
+                } catch {}
+              }
             }}
           >
             Print

@@ -3,14 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+  const apiKey = request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
+  const merchantCode = request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
 
   try {
     if (!apiKey || !merchantCode) {
       return NextResponse.json(
-        { error: 'SumUp API credentials not configured' },
-        { status: 500 }
+        { error: 'SumUp API credentials not configured. Please connect SumUp in Settings.' },
+        { status: 400 }
       );
     }
 

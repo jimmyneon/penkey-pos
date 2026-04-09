@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/database";
 import { generateReceiptText, type ReceiptTemplateData } from "@penkey/print-adapters";
 import { validatePOSSession, unauthorizedResponse } from "@/lib/api/auth";
 import { ratelimit } from "@/lib/ratelimit";
+import { createReceiptPrintJob, getPrinters } from "@/lib/services/print-queue";
 
 export async function POST(request: NextRequest) {
   // ✅ SECURITY: Validate session first
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { receipt_id } = await request.json();
+    const { receipt_id, printer_id } = await request.json();
 
     if (!receipt_id) {
       return NextResponse.json(
@@ -30,10 +31,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client
-    const supabase = createSupabaseServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabase = createSupabaseServerClient(supabaseUrl, supabaseKey);
 
     // Fetch receipt with all details
     const { data: receipt, error: receiptError } = await supabase
@@ -73,35 +73,68 @@ export async function POST(request: NextRequest) {
       register_name: (receipt as any).registers?.name || "Main Till",
       lines: (receipt as any).receipt_lines.map((line: any) => ({
         quantity: line.quantity,
-        item_name: line.name, // Use name snapshot from receipt_lines
-        variant_name: null, // Not stored separately
+        item_name: line.name,
+        variant_name: null,
         modifiers: line.modifiers || [],
         line_total: line.line_total,
       })),
       subtotal: (receipt as any).subtotal,
-      tax: (receipt as any).tax_total, // Column is tax_total not tax
+      tax: (receipt as any).tax_total,
       total: (receipt as any).total,
-      payment_method: (receipt as any).payments?.[0]?.method || "cash", // Column is method not payment_method
-      cash_tendered: (receipt as any).paid_amount, // Use paid_amount from receipt
-      cash_change: (receipt as any).change_amount, // Use change_amount from receipt
+      payment_method: (receipt as any).payments?.[0]?.method || "cash",
+      cash_tendered: (receipt as any).paid_amount,
+      cash_change: (receipt as any).change_amount,
     };
 
-    // Generate receipt text
-    const receiptText = generateReceiptText(receiptData);
+    let selectedPrinterId = printer_id;
+    
+    // If no printer specified, try to find default printer for this register
+    if (!selectedPrinterId) {
+      const registerId = (receipt as any).register_id;
+      const printers = await getPrinters(supabaseUrl, supabaseKey, { 
+        register_id: registerId,
+        status: 'online'
+      });
+      
+      if (printers.length > 0) {
+        selectedPrinterId = printers[0].id;
+      }
+    }
 
-    // TODO: Send to printer
-    // For now, return the receipt text for browser printing
-    // In production, this would send to Epson printer via ePOS-Print API
+    if (!selectedPrinterId) {
+      // No printer available - return receipt for browser printing
+      const receiptText = generateReceiptText(receiptData);
+      
+      return NextResponse.json({
+        success: true,
+        queued: false,
+        message: "No printer configured - use browser print",
+        receipt_text: receiptText,
+        receipt_data: receiptData,
+      });
+    }
+
+    // Create print job in queue
+    const printJob = await createReceiptPrintJob(
+      supabaseUrl,
+      supabaseKey,
+      selectedPrinterId,
+      receiptData,
+      receipt_id
+    );
 
     return NextResponse.json({
       success: true,
-      receipt_text: receiptText,
+      queued: true,
+      job_id: printJob.id,
+      printer_id: selectedPrinterId,
+      message: "Receipt queued for printing",
       receipt_data: receiptData,
     });
   } catch (error: any) {
-    console.error("Failed to print receipt:", error);
+    console.error("Failed to queue receipt print:", error);
     return NextResponse.json(
-      { error: "Failed to print receipt" },
+      { error: "Failed to queue receipt for printing" },
       { status: 500 }
     );
   }

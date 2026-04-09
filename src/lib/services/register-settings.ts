@@ -19,6 +19,7 @@ export interface RegisterSettings {
 
   // Operational preferences
   auto_print_receipt: boolean;
+  print_behaviour: "always" | "ask" | "never";
   receipt_copies: number;
   default_dining_option: "eat-in" | "takeaway";
   require_customer_name: boolean;
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: RegisterSettings = {
   penkey_auto_dismiss_seconds: 3,
   penkey_show_popular: true,
   auto_print_receipt: true,
+  print_behaviour: "always",
   receipt_copies: 1,
   default_dining_option: "eat-in",
   require_customer_name: false,

@@ -5,15 +5,16 @@ import { NextRequest, NextResponse } from 'next/server';
 // Docs: https://developer.sumup.com/terminal-payments/cloud-api
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.SUMUP_API_KEY;
-    const merchantCode = process.env.SUMUP_MERCHANT_CODE;
-    const affiliateKey = process.env.SUMUP_AFFILIATE_KEY;
+    // Credentials are passed from the browser via headers (stored in localStorage)
+    const apiKey = request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
+    const merchantCode = request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
+    const affiliateKey = request.headers.get('x-sumup-affiliate-key') || process.env.SUMUP_AFFILIATE_KEY || '';
     const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
 
     if (!apiKey || !merchantCode) {
       return NextResponse.json(
-        { error: 'SumUp API credentials not configured' },
-        { status: 500 }
+        { error: 'SumUp API credentials not configured. Please connect SumUp in Settings.' },
+        { status: 400 }
       );
     }
 

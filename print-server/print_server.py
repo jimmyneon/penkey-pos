@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""
+Penkey POS Print Server
+Primary: Supabase Realtime (postgres_changes) for instant job delivery
+Fallback: Periodic poll to catch any jobs missed during reconnect/downtime
+"""
+
+import os
+import sys
+import time
+import threading
+import signal
+import logging
+from typing import Optional, Dict, Any
+from datetime import datetime
+from dotenv import load_dotenv
+
+from supabase import create_client, Client
+from printer import EpsonPrinter
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('/var/log/penkey-print-server.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+class PrintServer:
+    """
+    Print server with dual-mode job detection:
+      1. Supabase Realtime channel  — fires immediately when a new pending job is
+         inserted for this printer (primary, near-zero latency)
+      2. Fallback poll              — runs every POLL_INTERVAL seconds to catch
+         any jobs that arrived while the realtime socket was reconnecting
+    """
+
+    def __init__(self):
+        self.supabase_url = os.getenv('SUPABASE_URL')
+        self.supabase_key = os.getenv('SUPABASE_KEY')
+        self.printer_id = os.getenv('PRINTER_ID')
+        self.cups_printer_name = os.getenv('CUPS_PRINTER_NAME', 'epson-tm-t20')
+        self.poll_interval = int(os.getenv('POLL_INTERVAL', '30'))  # fallback only
+
+        self.supabase: Optional[Client] = None
+        self.printer: Optional[EpsonPrinter] = None
+        self.running = False
+
+        # Mutex so realtime + fallback poll never process the same job twice
+        self._job_lock = threading.Lock()
+        # Track jobs currently being processed to avoid double-dispatch
+        self._processing: set = set()
+
+        if not all([self.supabase_url, self.supabase_key, self.printer_id]):
+            raise ValueError(
+                "Missing required environment variables. "
+                "Check SUPABASE_URL, SUPABASE_KEY, and PRINTER_ID"
+            )
+
+    # ------------------------------------------------------------------
+    # Connection
+    # ------------------------------------------------------------------
+
+    def connect(self) -> None:
+        """Connect to Supabase and initialise printer"""
+        self.supabase = create_client(self.supabase_url, self.supabase_key)
+        self.printer = EpsonPrinter(self.cups_printer_name)
+        logger.info(f"Connected to Supabase and printer '{self.cups_printer_name}'")
+
+    # ------------------------------------------------------------------
+    # Realtime subscription
+    # ------------------------------------------------------------------
+
+    def _subscribe_realtime(self) -> None:
+        """
+        Subscribe to INSERT events on print_jobs filtered to this printer.
+        The callback fires immediately when the POS queues a new job.
+        """
+        def on_insert(payload):
+            record = payload.get('data', {}).get('record') or payload.get('record', {})
+            if not record:
+                logger.warning(f"[Realtime] Received payload with no record: {payload}")
+                return
+
+            job_id = record.get('id')
+            status = record.get('status')
+
+            if status != 'pending':
+                return  # only care about fresh pending jobs
+
+            logger.info(f"[Realtime] New job received: {job_id}")
+            self._dispatch_job(record)
+
+        def on_subscribe(status, err=None):
+            if status == 'SUBSCRIBED':
+                logger.info("[Realtime] Successfully subscribed to print_jobs channel")
+            elif status in ('CHANNEL_ERROR', 'TIMED_OUT'):
+                logger.warning(f"[Realtime] Channel issue ({status}): {err} — fallback poll active")
+            else:
+                logger.debug(f"[Realtime] Channel status: {status}")
+
+        channel = (
+            self.supabase
+            .channel(f"print-jobs-{self.printer_id}")
+            .on_postgres_changes(
+                event="INSERT",
+                schema="public",
+                table="print_jobs",
+                filter=f"printer_id=eq.{self.printer_id}",
+                callback=on_insert,
+            )
+            .subscribe(on_subscribe)
+        )
+
+        self._realtime_channel = channel
+        logger.info("[Realtime] Subscribed to print_jobs INSERT events")
+
+    def _unsubscribe_realtime(self) -> None:
+        """Gracefully unsubscribe from the realtime channel"""
+        try:
+            channel = getattr(self, '_realtime_channel', None)
+            if channel:
+                self.supabase.remove_channel(channel)
+                logger.info("[Realtime] Unsubscribed from channel")
+        except Exception as e:
+            logger.warning(f"[Realtime] Error unsubscribing: {e}")
+
+    # ------------------------------------------------------------------
+    # Database helpers
+    # ------------------------------------------------------------------
+
+    def update_printer_status(self, status: str, error: Optional[str] = None) -> None:
+        """Update printer heartbeat + status in Supabase"""
+        try:
+            updates: Dict[str, Any] = {
+                'status': status,
+                'last_seen_at': datetime.utcnow().isoformat()
+            }
+            if error:
+                updates['last_error'] = error
+
+            self.supabase.table('printers') \
+                .update(updates) \
+                .eq('id', self.printer_id) \
+                .execute()
+        except Exception as e:
+            logger.error(f"Failed to update printer status: {e}")
+
+    def get_pending_jobs(self) -> list:
+        """Fetch all pending jobs for this printer (fallback poll)"""
+        try:
+            response = self.supabase.table('print_jobs') \
+                .select('*') \
+                .eq('printer_id', self.printer_id) \
+                .eq('status', 'pending') \
+                .order('created_at') \
+                .execute()
+            return response.data or []
+        except Exception as e:
+            logger.error(f"Failed to fetch pending jobs: {e}")
+            return []
+
+    def update_job_status(self, job_id: str, status: str, error: Optional[str] = None) -> None:
+        """Update a job's status, incrementing attempts when moving to 'printing'"""
+        try:
+            updates: Dict[str, Any] = {'status': status}
+
+            if status == 'printing':
+                resp = self.supabase.table('print_jobs') \
+                    .select('attempts') \
+                    .eq('id', job_id) \
+                    .single() \
+                    .execute()
+                current = resp.data.get('attempts', 0) if resp.data else 0
+                updates['attempts'] = current + 1
+
+            elif status == 'completed':
+                updates['printed_at'] = datetime.utcnow().isoformat()
+
+            if error:
+                updates['error_message'] = error
+
+            self.supabase.table('print_jobs') \
+                .update(updates) \
+                .eq('id', job_id) \
+                .execute()
+
+            logger.info(f"Job {job_id} → {status}")
+        except Exception as e:
+            logger.error(f"Failed to update job {job_id} status: {e}")
+
+    # ------------------------------------------------------------------
+    # Job dispatch (shared by realtime + fallback poll)
+    # ------------------------------------------------------------------
+
+    def _dispatch_job(self, job: Dict[str, Any]) -> None:
+        """
+        Thread-safe entry point for processing a job.
+        Skips jobs already being processed (prevents double-print when
+        both realtime and the fallback poll fire for the same row).
+        """
+        job_id = job.get('id')
+        if not job_id:
+            return
+
+        with self._job_lock:
+            if job_id in self._processing:
+                logger.debug(f"Job {job_id} already in flight, skipping")
+                return
+            self._processing.add(job_id)
+
+        try:
+            self.process_job(job)
+        finally:
+            with self._job_lock:
+                self._processing.discard(job_id)
+
+    def process_job(self, job: Dict[str, Any]) -> bool:
+        """Process a single print job end-to-end"""
+        job_id = job['id']
+        job_type = job['job_type']
+        data = job.get('data', {})
+        attempts = job.get('attempts', 0)
+        max_attempts = job.get('max_attempts', 3)
+
+        logger.info(f"Processing job {job_id} (type={job_type}, attempt {attempts + 1}/{max_attempts})")
+
+        if attempts >= max_attempts:
+            logger.error(f"Job {job_id} exceeded max attempts")
+            self.update_job_status(job_id, 'failed', 'Exceeded maximum retry attempts')
+            return False
+
+        self.update_job_status(job_id, 'printing')
+
+        try:
+            if job_type == 'receipt':
+                success = self._print_receipt(data)
+            elif job_type == 'test':
+                success = self.printer.test_print()
+            elif job_type == 'report':
+                success = self.printer.print_text(data.get('report_text', ''))
+            else:
+                logger.warning(f"Unknown job type: {job_type}")
+                success = False
+
+            if success:
+                self.update_job_status(job_id, 'completed')
+                return True
+            else:
+                raise Exception("Print command returned failure")
+
+        except Exception as e:
+            err = str(e)
+            logger.error(f"Job {job_id} failed: {err}")
+            next_status = 'failed' if (attempts + 1 >= max_attempts) else 'pending'
+            self.update_job_status(job_id, next_status, err)
+            return False
+
+    # ------------------------------------------------------------------
+    # Print helpers
+    # ------------------------------------------------------------------
+
+    def _print_receipt(self, data: Dict[str, Any]) -> bool:
+        receipt_text = data.get('receipt_text') or self._format_receipt(data)
+        return self.printer.print_receipt(receipt_text)
+
+    def _format_receipt(self, data: Dict[str, Any]) -> str:
+        """Fallback formatter when receipt_text is not pre-built"""
+        lines = [
+            "Penkey Delicaf & Gifts",
+            "------------------------",
+            f"Receipt #{data.get('receipt_number', 'N/A')}",
+            f"Date: {data.get('date', '')} {data.get('time', '')}",
+            f"Served by: {data.get('employee_name', 'Staff')}",
+            "",
+            "------------------------",
+        ]
+        for line in data.get('lines', []):
+            lines.append(f"{line.get('quantity', 1)}x {line.get('item_name', 'Item')}")
+            for mod in line.get('modifiers', []):
+                lines.append(f"  + {mod.get('name', '')}")
+            lines.append(f"            \u00a3{line.get('line_total', 0):.2f}")
+            lines.append("")
+        lines += [
+            "------------------------",
+            f"Subtotal:       \u00a3{data.get('subtotal', 0):.2f}",
+            f"Tax:            \u00a3{data.get('tax', 0):.2f}",
+            "------------------------",
+            f"TOTAL:          \u00a3{data.get('total', 0):.2f}",
+            "------------------------",
+            "",
+            "Thank you for your custom!",
+            "Please visit again soon",
+            "", "",
+        ]
+        return "\n".join(lines)
+
+    # ------------------------------------------------------------------
+    # Main run loop
+    # ------------------------------------------------------------------
+
+    def run(self) -> None:
+        """
+        Start realtime subscription then enter a lightweight heartbeat loop.
+        The fallback poll runs every POLL_INTERVAL seconds to catch any jobs
+        that arrived while the websocket was reconnecting.
+        """
+        logger.info("Starting Penkey print server (realtime + fallback poll)...")
+        self.running = True
+
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
+
+        self.connect()
+        self.update_printer_status('online')
+
+        # Start realtime subscription (runs on supabase-py's internal thread)
+        self._subscribe_realtime()
+
+        # Process any jobs that were queued before we started (startup drain)
+        logger.info("Draining any jobs queued before startup...")
+        for job in self.get_pending_jobs():
+            self._dispatch_job(job)
+
+        last_poll = time.monotonic()
+
+        while self.running:
+            try:
+                now = time.monotonic()
+
+                # Fallback poll — catches anything missed during realtime downtime
+                if now - last_poll >= self.poll_interval:
+                    logger.debug("[Fallback] Polling for missed pending jobs...")
+                    for job in self.get_pending_jobs():
+                        self._dispatch_job(job)
+                    # Heartbeat: keep printer status fresh
+                    self.update_printer_status('online')
+                    last_poll = now
+
+                time.sleep(1)  # tight sleep so shutdown is responsive
+
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}")
+                try:
+                    self.update_printer_status('error', str(e))
+                except Exception:
+                    pass
+                time.sleep(5)
+
+        logger.info("Print server stopped")
+
+    def _signal_handler(self, signum, frame) -> None:
+        logger.info(f"Received signal {signum}, shutting down...")
+        self.running = False
+        self._unsubscribe_realtime()
+        try:
+            self.update_printer_status('offline')
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # Test mode
+    # ------------------------------------------------------------------
+
+    def test_mode(self) -> None:
+        """Print a test page and exercise the job pipeline"""
+        logger.info("Running in test mode...")
+        self.connect()
+
+        logger.info("Printing hardware test page...")
+        self.printer.test_print()
+
+        logger.info("Simulating a test job through the pipeline...")
+        self.process_job({
+            'id': 'test-job',
+            'job_type': 'test',
+            'template': 'test',
+            'data': {},
+            'attempts': 0,
+            'max_attempts': 3,
+        })
+
+
+def main():
+    if '--test' in sys.argv:
+        PrintServer().test_mode()
+        return
+
+    PrintServer().run()
+
+
+if __name__ == '__main__':
+    main()
