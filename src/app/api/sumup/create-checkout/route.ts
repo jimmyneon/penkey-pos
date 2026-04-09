@@ -49,8 +49,10 @@ export async function POST(request: NextRequest) {
     };
 
     if (description) body.description = description;
-    // Only send affiliate field if there's an actual value (SumUp rejects blank affiliate keys)
-    if (affiliateKey) body.affiliate = { app_id: affiliateKey };
+    // Always send affiliate field with value from DB (confirmed to exist)
+    if (affiliateKey && affiliateKey.trim() !== '') {
+      body.affiliate = { app_id: affiliateKey };
+    }
 
     // Correct SumUp Cloud API endpoint for reader-initiated checkout
     const sumupResponse = await fetch(
