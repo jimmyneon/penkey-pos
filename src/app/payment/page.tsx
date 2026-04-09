@@ -316,6 +316,7 @@ export default function PaymentPage() {
           // Handle all possible SumUp status values
           if (status === "PAID" || status === "SUCCESSFUL") {
             clearInterval(poll);
+            setProcessing(false);
             showToast("Card payment successful!", "success");
             await completeCardPayment({ checkoutId, status });
           } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED" || status === "EXPIRED") {
