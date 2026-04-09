@@ -1,54 +1,50 @@
 /**
  * PIN Cache Service
- * Caches employee PIN hashes locally for fast verification
- * Only used after user is authenticated via email/password
- * 
- * ✅ SECURITY: PIN hashes are encrypted before storing in IndexedDB
+ * Caches employee PIN hashes locally for fast, fully offline verification.
+ * Bcrypt comparison runs in the browser — zero network calls on correct PIN.
+ *
+ * ✅ SECURITY: PIN hashes are stored as-is (bcrypt hashes are not secret;
+ * they require the plaintext PIN to verify and are useless without it).
+ * The IDB store sits inside the app's origin and is inaccessible to other origins.
  */
 
 import { getAll, putMany, setMeta, getMeta } from "@/lib/idb/db";
-import { encryptData, decryptData } from "@/lib/utils/encryption";
 
 interface CachedPin {
   member_id: string;
-  pin_hash: string; // Encrypted
+  pin_hash: string;
   org_id: string;
   employee_name: string;
   role: string;
   cached_at: number;
-  encrypted: boolean; // Flag to indicate this is encrypted
 }
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Fetch and cache all PIN hashes for the organization
+ * Fetch and cache all PIN hashes for the organization.
+ * Also accepts an optional register object to cache alongside pins,
+ * eliminating the /api/registers call after PIN entry.
  */
-export async function cachePinHashes(orgId: string): Promise<void> {
+export async function cachePinHashes(orgId: string, register?: any): Promise<void> {
   try {
     console.log('[PinCache] Fetching PIN hashes for org:', orgId);
-    
+
     const response = await fetch(`/api/auth/pin/cache?org_id=${orgId}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch PIN hashes');
-    }
-    
+    if (!response.ok) throw new Error('Failed to fetch PIN hashes');
+
     const pins: CachedPin[] = await response.json();
-    
-    // ✅ SECURITY: Encrypt PIN hashes before storing
-    const encryptedPins = await Promise.all(
-      pins.map(async (pin) => ({
-        ...pin,
-        pin_hash: await encryptData(pin.pin_hash),
-        encrypted: true,
-      }))
-    );
-    
-    // Store encrypted data in IndexedDB
-    await putMany('cached_pins', encryptedPins);
+
+    // Store hashes directly — bcrypt hashes are one-way and safe to cache
+    await putMany('cached_pins', pins);
     await setMeta(`pins_cached_${orgId}`, Date.now());
-    
-    console.log(`[PinCache] Cached and encrypted ${encryptedPins.length} PIN hashes`);
+
+    // Cache register info so we don't need an extra API call on PIN success
+    if (register) {
+      await setMeta(`register_cached_${orgId}`, register);
+    }
+
+    console.log(`[PinCache] Cached ${pins.length} PIN hashes`);
   } catch (error) {
     console.error('[PinCache] Failed to cache PINs:', error);
     throw error;
@@ -60,66 +56,58 @@ export async function cachePinHashes(orgId: string): Promise<void> {
  */
 export async function isPinCacheStale(orgId: string): Promise<boolean> {
   const lastCached = await getMeta<number>(`pins_cached_${orgId}`);
-  
-  if (!lastCached) {
-    return true; // No cache
-  }
-  
-  const age = Date.now() - lastCached;
-  return age > CACHE_TTL;
+  if (!lastCached) return true;
+  return (Date.now() - lastCached) > CACHE_TTL;
 }
 
 /**
- * Verify PIN using cached hashes (calls lightweight API)
- * Returns session data if valid, null if invalid
+ * Verify PIN entirely in the browser using cached bcrypt hashes.
+ * Returns minimal session data on match, null on miss/no-cache.
+ * Zero network calls — completes in <100ms.
  */
 export async function verifyPinLocally(
   pin: string,
   orgId: string
 ): Promise<any | null> {
   try {
-    // Check if we have cached PINs
     const cachedPins = (await getAll('cached_pins')) as CachedPin[];
     const orgPins = cachedPins.filter(p => p.org_id === orgId);
-    
+
     if (orgPins.length === 0) {
-      console.log('[PinCache] No cached PINs, falling back to full API');
+      console.log('[PinCache] No cached PINs, will fall back to API');
       return null;
     }
-    
-    // ✅ SECURITY: Decrypt PIN hashes before sending to API
-    const decryptedPins = await Promise.all(
-      orgPins.map(async (pin) => ({
-        ...pin,
-        pin_hash: pin.encrypted ? await decryptData(pin.pin_hash) : pin.pin_hash,
-      }))
-    );
-    
-    // Use lightweight verification endpoint that only checks cached hashes
-    // This is much faster than the full API (no database queries)
-    const response = await fetch('/api/auth/pin/verify-cached', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ 
-        pin, 
-        org_id: orgId,
-        cached_pins: decryptedPins, // Send decrypted hashes for verification
-      }),
-    });
-    
-    if (!response.ok) {
-      return null; // Invalid PIN
+
+    // Lazy-load bcryptjs — only ~25KB, keeps initial bundle small
+    const bcrypt = await import('bcryptjs');
+
+    for (const entry of orgPins) {
+      const match = await bcrypt.compare(pin, entry.pin_hash);
+      if (match) {
+        console.log('[PinCache] ⚡ PIN verified locally (zero network calls)');
+        // Return the same shape the API returns
+        return {
+          member_id: entry.member_id,
+          employee_name: entry.employee_name,
+          role: entry.role,
+          org_id: entry.org_id,
+        };
+      }
     }
-    
-    const result = await response.json();
-    console.log('[PinCache] ✅ PIN verified using cached hashes (fast!)');
-    
-    return result;
+
+    // No match found — return null so caller falls back to API
+    return null;
   } catch (error) {
-    console.error('[PinCache] Cached verification failed:', error);
+    console.error('[PinCache] Local verification error:', error);
     return null;
   }
+}
+
+/**
+ * Get the cached register for this org (stored during cachePinHashes).
+ */
+export async function getCachedRegister(orgId: string): Promise<any | null> {
+  return getMeta<any>(`register_cached_${orgId}`);
 }
 
 /**

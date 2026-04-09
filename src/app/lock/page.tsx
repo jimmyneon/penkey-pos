@@ -8,7 +8,7 @@ import { dataCache } from "@/lib/services/data-cache";
 import { registerSettings } from "@/lib/services/register-settings";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { prefetchOrgData } from "@/lib/offline/prefetch";
-import { verifyPinLocally, cachePinHashes } from "@/lib/services/pin-cache";
+import { verifyPinLocally, cachePinHashes, getCachedRegister } from "@/lib/services/pin-cache";
 import { initializeCacheVersion } from "@/lib/utils/cache-version";
 
 export default function LockPage() {
@@ -18,6 +18,8 @@ export default function LockPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [authChecking, setAuthChecking] = useState(true);
+  // Cached at page-load — avoids a round-trip inside handleSubmit
+  const [cachedOrgId, setCachedOrgId] = useState<string | null>(null);
 
   useEffect(() => {
     // ✅ SECURITY: Check if user is authenticated via httpOnly cookie
@@ -38,14 +40,30 @@ export default function LockPage() {
           return;
         }
         
-        // Authenticated, allow PIN entry
+        // Authenticated — cache org_id now so submit needs no extra fetch
+        const authData = await response.json();
+        const orgId: string = authData.org_id;
+        setCachedOrgId(orgId);
         setAuthChecking(false);
-        
+
         // Clear any existing POS session
         sessionStorage.removeItem("pos_session");
-        
+
         // Check cache version and clear if outdated
         await initializeCacheVersion();
+
+        // Pre-warm the PIN cache if not already fresh
+        try {
+          const { isPinCacheStale } = await import("@/lib/services/pin-cache");
+          if (await isPinCacheStale(orgId)) {
+            // Also fetch + cache register info so submit is fully offline
+            const regRes = await fetch(`/api/registers?org_id=${orgId}&active=true`, { credentials: "include" });
+            const registers = regRes.ok ? await regRes.json() : [];
+            await cachePinHashes(orgId, registers[0] || null);
+          }
+        } catch (e) {
+          console.warn("[Lock] PIN pre-warm failed (will fall back to API on submit)", e);
+        }
         
         // Clear data cache (optional - forces fresh data on next login)
         // Uncomment if you want to clear cache on every lock
@@ -89,36 +107,16 @@ export default function LockPage() {
     setError("");
 
     try {
-      // ✅ SECURITY: Get org_id from httpOnly cookie via API
-      const authCheckResponse = await fetch("/api/auth/check", {
-        method: "GET",
-        credentials: "include",
-      });
-      
-      if (!authCheckResponse.ok) {
-        throw new Error("Authentication expired");
-      }
-      
-      const authData = await authCheckResponse.json();
-      const orgId = authData.org_id;
-      
       let data = null;
-      
-      // Try local verification first (instant!)
-      if (orgId) {
-        console.log('[Lock] Trying local PIN verification...');
-        const localResult = await verifyPinLocally(pin, orgId);
-        
+
+      // ⚡ Fast path: verify entirely in browser using cached bcrypt hashes
+      if (cachedOrgId) {
+        const localResult = await verifyPinLocally(pin, cachedOrgId);
+
         if (localResult) {
-          console.log('[Lock] ✅ PIN verified locally (instant!)');
-          
-          // Get register info (still need API for this)
-          const regResponse = await fetch(`/api/registers?org_id=${orgId}&active=true`, {
-            credentials: "include",
-          });
-          const registers = await regResponse.json();
-          const register = registers[0];
-          
+          console.log('[Lock] ⚡ PIN verified locally — zero network calls');
+          // Use cached register to avoid another API round-trip
+          const register = await getCachedRegister(cachedOrgId);
           data = {
             employee: {
               id: localResult.member_id,
@@ -131,10 +129,10 @@ export default function LockPage() {
           };
         }
       }
-      
-      // Fallback to API if local verification failed
+
+      // Fallback to full API (no cache, or wrong PIN that needs definitive answer)
       if (!data) {
-        console.log('[Lock] Local verification failed, using API...');
+        console.log('[Lock] Falling back to API PIN verification...');
         const response = await fetch("/api/auth/pin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

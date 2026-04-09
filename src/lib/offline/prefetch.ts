@@ -166,15 +166,21 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
       }).catch(() => {})
   );
 
-  // Cache PIN hashes for fast local verification
+  // Cache PIN hashes + register for fully-offline PIN verification on next lock
   tasks.push(
-    cachePinHashes(orgId)
-      .then(() => {
-        console.log('[Prefetch] ✓ Cached PIN hashes for fast login');
-      })
-      .catch((err) => {
-        console.error('[Prefetch] Failed to cache PIN hashes:', err);
-      })
+    (async () => {
+      let register: any = null;
+      if (registerId) {
+        try {
+          const res = await fetchWithTimeout<any[]>(`/api/registers?org_id=${orgId}&active=true`);
+          register = res?.[0] || null;
+        } catch {}
+      }
+      await cachePinHashes(orgId, register);
+      console.log('[Prefetch] ✓ Cached PIN hashes for fast local verification');
+    })().catch((err) => {
+      console.error('[Prefetch] Failed to cache PIN hashes:', err);
+    })
   );
 
   await Promise.all(tasks);
