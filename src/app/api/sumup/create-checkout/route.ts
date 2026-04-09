@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
       body.affiliate = { app_id: affiliateKey };
     }
 
+    console.log('[SumUp Checkout] Request body:', JSON.stringify(body, null, 2));
+
     // Correct SumUp Cloud API endpoint for reader-initiated checkout
     const sumupResponse = await fetch(
       `${apiBase}/v0.1/merchants/${merchantCode}/readers/${reader_id}/checkout`,
