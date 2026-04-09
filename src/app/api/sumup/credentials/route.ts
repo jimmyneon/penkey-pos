@@ -4,26 +4,20 @@ import { createSupabaseServerClient } from '@/lib/database';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
 
 /**
- * Credentials are stored in register_settings.additional_settings using a synthetic
- * org-scoped register_id (org_${orgId}). This works even if no active registers exist yet,
- * avoiding the chicken-and-egg problem of needing a register to save credentials.
+ * Credentials are stored in org_settings.settings JSON under 'sumup_credentials' key.
+ * This is org-scoped, so it works even with no registers created yet.
  */
 
 const SETTINGS_KEY = 'sumup_credentials';
 
-/** Helper: get synthetic org-scoped register_id (works even with no active registers) */
-function getOrgScopedRegisterId(orgId: string): string {
-  return `org_${orgId}`;
-}
-
-/** Helper: read additional_settings for a register */
-async function getAdditionalSettings(supabase: any, registerId: string): Promise<Record<string, any>> {
+/** Helper: read settings from org_settings */
+async function getOrgSettings(supabase: any, orgId: string): Promise<Record<string, any>> {
   const { data } = await supabase
-    .from('register_settings')
-    .select('additional_settings')
-    .eq('register_id', registerId)
+    .from('org_settings')
+    .select('settings')
+    .eq('org_id', orgId)
     .maybeSingle();
-  return (data?.additional_settings as Record<string, any>) ?? {};
+  return (data?.settings as Record<string, any>) ?? {};
 }
 
 /**
@@ -39,9 +33,7 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = getOrgScopedRegisterId(session.org_id);
-
-  const settings = await getAdditionalSettings(supabase, registerId);
+  const settings = await getOrgSettings(supabase, session.org_id);
   const creds = settings[SETTINGS_KEY];
 
   if (!creds?.api_key || !creds?.merchant_code) {
@@ -74,9 +66,7 @@ export async function POST(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = getOrgScopedRegisterId(session.org_id);
-
-  const existing = await getAdditionalSettings(supabase, registerId);
+  const existing = await getOrgSettings(supabase, session.org_id);
   const updated = {
     ...existing,
     [SETTINGS_KEY]: {
@@ -88,10 +78,10 @@ export async function POST(request: NextRequest) {
   };
 
   const { error } = await supabase
-    .from('register_settings')
+    .from('org_settings')
     .upsert(
-      { register_id: registerId, additional_settings: updated } as any,
-      { onConflict: 'register_id' }
+      { org_id: session.org_id, settings: updated } as any,
+      { onConflict: 'org_id' }
     );
 
   if (error) {
@@ -99,7 +89,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save credentials' }, { status: 500 });
   }
 
-  console.log(`[SumUp Credentials] Saved for org ${session.org_id}, register ${registerId}`);
+  console.log(`[SumUp Credentials] Saved for org ${session.org_id}`);
   return NextResponse.json({ success: true, merchant_code });
 }
 
@@ -116,12 +106,11 @@ export async function DELETE(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = getOrgScopedRegisterId(session.org_id);
-  const existing = await getAdditionalSettings(supabase, registerId);
+  const existing = await getOrgSettings(supabase, session.org_id);
   const { [SETTINGS_KEY]: _removed, ...rest } = existing;
   await supabase
-    .from('register_settings')
-    .upsert({ register_id: registerId, additional_settings: rest } as any, { onConflict: 'register_id' });
+    .from('org_settings')
+    .upsert({ org_id: session.org_id, settings: rest } as any, { onConflict: 'org_id' });
 
   return NextResponse.json({ success: true });
 }
@@ -140,9 +129,7 @@ export async function getStoredSumUpCredentials(orgId: string): Promise<{
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const registerId = getOrgScopedRegisterId(orgId);
-
-  const settings = await getAdditionalSettings(supabase, registerId);
+  const settings = await getOrgSettings(supabase, orgId);
   const creds = settings[SETTINGS_KEY];
   if (!creds?.api_key || !creds?.merchant_code) return null;
 
