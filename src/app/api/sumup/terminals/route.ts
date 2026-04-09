@@ -1,11 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
+import { getStoredSumUpCredentials } from '../credentials/route';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: terminals, error } = await supabase
       .from('terminals')
       .select('*')
@@ -34,6 +36,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const session = await validatePOSSession(request);
+  if (!session) return unauthorizedResponse();
+
   try {
     const { searchParams } = new URL(request.url);
     const terminalId = searchParams.get('id');
@@ -46,7 +51,49 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    
+
+    // Fetch terminal to get reader_id
+    const { data: terminal, error: fetchError } = await supabase
+      .from('terminals')
+      .select('reader_id')
+      .eq('id', terminalId)
+      .single() as any;
+
+    if (fetchError || !terminal) {
+      console.error('Database error fetching terminal:', fetchError);
+      return NextResponse.json(
+        { error: 'Failed to fetch terminal' },
+        { status: 500 }
+      );
+    }
+
+    // Unpair from SumUp API
+    const creds = await getStoredSumUpCredentials(session.org_id);
+    if (creds) {
+      const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
+      try {
+        const sumupResponse = await fetch(
+          `${apiBase}/v0.1/merchants/${creds.merchant_code}/readers/${terminal.reader_id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${creds.api_key}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!sumupResponse.ok) {
+          console.error('Failed to unpair from SumUp:', await sumupResponse.text());
+          // Continue with local delete even if SumUp unpair fails
+        }
+      } catch (e) {
+        console.error('Error unpairing from SumUp:', e);
+        // Continue with local delete even if SumUp unpair fails
+      }
+    }
+
+    // Delete from local database
     const { error } = await supabase
       .from('terminals')
       .delete()
@@ -62,7 +109,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Terminal deleted successfully',
+      message: 'Terminal unpaired and removed',
     });
 
   } catch (error) {
