@@ -11,7 +11,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { putMany } from "@/lib/idb/db";
-import { getSumUpCredentials, hasSumUpCredentials } from "@/lib/services/sumup-credentials";
+import { getSumUpCredentials, hasSumUpCredentials, storeSumUpCredentials } from "@/lib/services/sumup-credentials";
 
 interface Session {
   employee: {
@@ -42,13 +42,36 @@ export default function PaymentPage() {
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
-    setSumUpConfigured(hasSumUpCredentials());
     setIsOnline(navigator.onLine);
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+
+    // Check localStorage first (instant), then confirm from DB in background
+    setSumUpConfigured(hasSumUpCredentials());
+    if (navigator.onLine) {
+      fetch("/api/sumup/credentials")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.configured) {
+            // Mirror to localStorage so hasSumUpCredentials() stays true on next load
+            storeSumUpCredentials({
+              apiKey: "__db__", // sentinel — actual key lives server-side only
+              merchantCode: data.merchant_code,
+              affiliateKey: data.affiliate_key || "",
+              appId: "com.penkey.pos",
+              environment: "production",
+            });
+            setSumUpConfigured(true);
+          } else if (data && !data.configured) {
+            setSumUpConfigured(false);
+          }
+        })
+        .catch(() => {});
+    }
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -256,18 +279,10 @@ export default function PaymentPage() {
 
       showToast(`Sending payment to ${onlineTerminal.name}...`, "info");
 
-      // Build SumUp credential headers
-      const sumupHeaders: Record<string, string> = {
-        "Content-Type": "application/json",
-        "x-sumup-api-key": creds.apiKey,
-        "x-sumup-merchant-code": creds.merchantCode,
-      };
-      if (creds.affiliateKey) sumupHeaders["x-sumup-affiliate-key"] = creds.affiliateKey;
-
-      // Create checkout on the reader
+      // Create checkout on the reader (server reads credentials from DB)
       const checkoutRes = await fetch("/api/sumup/create-checkout", {
         method: "POST",
-        headers: sumupHeaders,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: total,
           currency: "GBP",
@@ -292,9 +307,7 @@ export default function PaymentPage() {
       const poll = setInterval(async () => {
         attempts++;
         try {
-          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}`, {
-            headers: sumupHeaders,
-          });
+          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}`);
           const statusData = await statusRes.json();
           const status = statusData.status || statusData.checkout?.status;
 

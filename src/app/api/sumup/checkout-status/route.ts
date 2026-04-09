@@ -1,10 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
+import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
+import { getStoredSumUpCredentials } from '@/app/api/sumup/credentials/route';
 
 export async function GET(request: NextRequest) {
+  const session = await validatePOSSession(request);
+  if (!session) return unauthorizedResponse();
+
   const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-  const apiKey = request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
-  const merchantCode = request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
+  const dbCreds = await getStoredSumUpCredentials(session.org_id);
+  const apiKey = dbCreds?.api_key || request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
+  const merchantCode = dbCreds?.merchant_code || request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
 
   try {
     if (!apiKey || !merchantCode) {

@@ -119,12 +119,24 @@ export default function SettingsPage() {
       console.log("[Settings] Loaded settings:", loadedSettings);
       setSettings(loadedSettings);
 
-      // Load SumUp API key configuration from stored credentials
-      const storedCreds = getSumUpCredentials();
-      if (storedCreds?.apiKey && storedCreds?.merchantCode) {
-        const validation = await validateStoredCredentials();
-        setSumUpConnected(validation.valid);
-        if (validation.valid) {
+      // Load SumUp connection status from DB (persists across devices)
+      try {
+        const credsRes = await fetch('/api/sumup/credentials');
+        if (credsRes.ok) {
+          const credsData = await credsRes.json();
+          if (credsData.configured) {
+            setSumUpConnected(true);
+            setSumUpMerchantCode(credsData.merchant_code || '');
+            setSumUpAffiliateKey(credsData.affiliate_key || '');
+          } else {
+            setSumUpConnected(false);
+          }
+        }
+      } catch (e) {
+        // Non-fatal - fall back to localStorage mirror
+        const storedCreds = getSumUpCredentials();
+        if (storedCreds?.apiKey && storedCreds?.merchantCode) {
+          setSumUpConnected(true);
           setSumUpMerchantCode(storedCreds.merchantCode);
         }
       }
@@ -244,21 +256,38 @@ export default function SettingsPage() {
       const isValid = await sumUpClient.validateCredentials();
 
       if (isValid) {
-        // Store credentials securely
+        // Save to DB (persists across all devices for this org)
+        const saveRes = await fetch('/api/sumup/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: sumUpApiKey.trim(),
+            merchant_code: sumUpMerchantCodeInput.trim(),
+            affiliate_key: sumUpAffiliateKey.trim(),
+          }),
+        });
+
+        if (!saveRes.ok) {
+          const saveErr = await saveRes.json();
+          showToast(saveErr.error || 'Failed to save credentials to database', 'error');
+          return;
+        }
+
+        // Also mirror to localStorage so client-side reads (payment page) are instant
         storeSumUpCredentials({
           apiKey: sumUpApiKey.trim(),
           merchantCode: sumUpMerchantCodeInput.trim(),
           affiliateKey: sumUpAffiliateKey.trim(),
-          appId: "com.penkey.pos",
-          environment: "production",
+          appId: 'com.penkey.pos',
+          environment: 'production',
         });
 
         setSumUpConnected(true);
         setSumUpMerchantCode(sumUpMerchantCodeInput.trim());
         setShowSumUpForm(false);
-        showToast("SumUp connected successfully!", "success");
+        showToast('SumUp connected successfully!', 'success');
       } else {
-        showToast("Invalid SumUp API credentials. Please check your API key and merchant code.", "error");
+        showToast('Invalid SumUp API credentials. Please check your API key and merchant code.', 'error');
       }
     } catch (error) {
       console.error("Failed to validate SumUp credentials:", error);
@@ -270,18 +299,19 @@ export default function SettingsPage() {
 
   const disconnectSumUp = async () => {
     try {
-      // Clear stored credentials
+      // Remove from DB
+      await fetch('/api/sumup/credentials', { method: 'DELETE' });
+      // Clear localStorage mirror too
       clearSumUpCredentials();
       setSumUpConnected(false);
-      setSumUpMerchantCode("");
-      setSumUpApiKey("");
-      setSumUpMerchantCodeInput("");
-      setSumUpAffiliateKey("");
-
-      showToast("SumUp disconnected", "info");
+      setSumUpMerchantCode('');
+      setSumUpApiKey('');
+      setSumUpMerchantCodeInput('');
+      setSumUpAffiliateKey('');
+      showToast('SumUp disconnected', 'info');
     } catch (error) {
-      console.error("Failed to disconnect SumUp:", error);
-      showToast("Failed to disconnect SumUp", "error");
+      console.error('Failed to disconnect SumUp:', error);
+      showToast('Failed to disconnect SumUp', 'error');
     }
   };
 
