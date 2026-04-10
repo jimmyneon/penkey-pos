@@ -383,62 +383,36 @@ export default function PaymentPage() {
       setProcessingMessage("Waiting for card...");
       showToast("Waiting for card at reader...", "info");
 
-      // Poll for payment completion (up to 3 minutes to allow for user delays)
+      // Poll reader status + transaction status (up to 3 minutes)
+      // SumUp Cloud API flow: poll reader state, then check transaction when IDLE
       const maxAttempts = 90; // 3 minutes at 2 second intervals
       let attempts = 0;
       let consecutiveErrors = 0;
-      let lastStatus = "";
+      let lastReaderState = "";
+      let idleCount = 0; // Track how many times we see IDLE to confirm payment finished
       
       const poll = setInterval(async () => {
         attempts++;
         try {
-          console.log(`[Payment] Polling attempt ${attempts}/${maxAttempts} for checkout:`, checkoutId);
           const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}&reader_id=${readerId}`);
           
           if (!statusRes.ok) {
-            if (statusRes.status === 404 && attempts < 3) {
-              // Checkout might not be ready yet, wait a bit
-              return;
-            }
             throw new Error(`Status check failed: ${statusRes.status}`);
           }
           
           const statusData = await statusRes.json();
-          const status = statusData.status || statusData.checkout?.status;
-          const checkout = statusData.checkout;
+          const status = statusData.status;
+          const readerState = statusData.reader_state;
+          const transaction = statusData.transaction;
 
-          console.log('[Payment] Checkout status:', status, 'Attempt:', attempts);
+          console.log(`[Payment] Poll ${attempts}/${maxAttempts} - status: ${status}, reader: ${readerState}`);
           
           // Reset consecutive errors on successful response
           consecutiveErrors = 0;
 
-          // Update user with status changes based on reader state
-          if (status !== lastStatus && status) {
-            lastStatus = status;
-            
-            // Update spinner message based on checkout status
-            switch (status) {
-              case "PENDING":
-                setProcessingMessage("Processing card...");
-                break;
-              case "WAITING_FOR_CARD":
-                setProcessingMessage("Waiting for card...");
-                break;
-              case "WAITING_FOR_PIN":
-                setProcessingMessage("Enter PIN on reader...");
-                break;
-              case "SELECTING_TIP":
-                setProcessingMessage("Select tip amount...");
-                break;
-              case "WAITING_FOR_SIGNATURE":
-                setProcessingMessage("Sign on reader...");
-                break;
-            }
-          }
-          
-          // Also check reader state from checkout data
-          const readerState = checkout?.reader_state || checkout?.state;
-          if (readerState && readerState !== lastStatus) {
+          // Update spinner based on reader state
+          if (readerState && readerState !== lastReaderState) {
+            lastReaderState = readerState;
             switch (readerState) {
               case "WAITING_FOR_CARD":
                 setProcessingMessage("Present card to reader...");
@@ -452,38 +426,22 @@ export default function PaymentPage() {
               case "WAITING_FOR_SIGNATURE":
                 setProcessingMessage("Sign on reader...");
                 break;
+              case "PROCESSING":
+                setProcessingMessage("Processing payment...");
+                break;
+              case "IDLE":
+                // Don't update message yet - we need to check transaction
+                break;
             }
           }
 
-          // Handle all possible SumUp status values
-          if (status === "PAID" || status === "SUCCESSFUL") {
+          // Payment completed successfully
+          if (status === "SUCCESSFUL") {
             clearInterval(poll);
             setProcessingMessage("Payment successful!");
             showToast("Payment successful!", "success");
             
-            // Verify payment was actually processed
-            const transactions = checkout?.transactions || [];
-            if (transactions.length === 0) {
-              console.error('[Payment] No transaction found in successful checkout');
-              showToast("Payment status unclear. Please verify on the reader.", "error");
-              setProcessing(false);
-              setProcessingMessage("Processing...");
-              return;
-            }
-            
-            const transaction = transactions[0];
-            const transactionId = transaction?.id || checkout?.transaction_id || checkoutId;
-            const transactionStatus = transaction?.status;
-            
-            // Double-check transaction status
-            if (transactionStatus && transactionStatus !== 'SUCCESSFUL' && transactionStatus !== 'PAID') {
-              console.error('[Payment] Transaction status mismatch:', transactionStatus);
-              showToast("Payment verification failed. Please check receipts.", "error");
-              setProcessing(false);
-              setProcessingMessage("Processing...");
-              return;
-            }
-            
+            const transactionId = transaction?.id || transaction?.transaction_code || checkoutId;
             console.log('[Payment] Payment verified - Transaction ID:', transactionId);
             setProcessingMessage("Saving receipt...");
             
@@ -491,27 +449,49 @@ export default function PaymentPage() {
               checkoutId, 
               transactionId,
               status,
-              amount: checkout?.amount || total,
-              checkout,
+              amount: transaction?.amount || total,
               transaction 
             });
-          } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED" || status === "EXPIRED") {
+            return;
+          }
+          
+          // Payment failed
+          if (status === "FAILED" || status === "CANCELLED") {
             clearInterval(poll);
-            const errorMsg = status === "CANCELLED" 
-              ? "Payment cancelled by user" 
-              : status === "DECLINED"
-              ? "Card declined"
-              : "Payment failed";
+            const errorMsg = status === "CANCELLED" ? "Payment cancelled" : "Payment failed";
             showToast(errorMsg, "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
-          } else if (attempts >= maxAttempts) {
+            return;
+          }
+
+          // Reader is IDLE - payment may have completed but transaction not yet recorded
+          if (status === "IDLE") {
+            idleCount++;
+            setProcessingMessage("Verifying payment...");
+            
+            // Give SumUp a few seconds to record the transaction
+            if (idleCount >= 5) {
+              // After 10 seconds of IDLE with no transaction, payment likely wasn't taken
+              clearInterval(poll);
+              console.log('[Payment] Reader IDLE but no transaction found after', idleCount, 'checks');
+              showToast("Payment not completed. The reader returned to idle.", "error");
+              setProcessing(false);
+              setProcessingMessage("Processing...");
+              return;
+            }
+          } else {
+            // Reader is active, reset idle counter
+            idleCount = 0;
+          }
+
+          // Timeout
+          if (attempts >= maxAttempts) {
             clearInterval(poll);
             console.log('[Payment] Timeout - checkoutId:', checkoutId, 'readerId:', readerId);
-            showToast("Payment timed out after 3 minutes. Please check the reader.", "error");
+            showToast("Payment timed out. Please check the reader.", "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
-            // State should already be set, but ensure it's set again
             if (checkoutId && readerId) {
               setPendingCheckoutId(checkoutId);
               setPendingReaderId(readerId);
@@ -522,19 +502,15 @@ export default function PaymentPage() {
           console.error("[Payment] Status poll error:", err);
           consecutiveErrors++;
           
-          // Show connection issue warning after 3 errors
           if (consecutiveErrors === 3) {
             setProcessingMessage("Connection issue - retrying...");
           }
           
-          // Only fail after 10 consecutive errors (20 seconds of no response)
           if (consecutiveErrors >= 10) {
             clearInterval(poll);
             console.error('[Payment] Connection lost - checkoutId:', checkoutId, 'readerId:', readerId);
-            console.error('[Payment] Pending state before dialog:', { pendingCheckoutId, pendingReaderId });
             setProcessing(false);
             setProcessingMessage("Processing...");
-            // State should already be set, but ensure it's set again
             if (checkoutId && readerId) {
               setPendingCheckoutId(checkoutId);
               setPendingReaderId(readerId);

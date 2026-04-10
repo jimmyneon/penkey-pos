@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
         console.log('[SumUp] Reader busy - attempting to terminate pending checkout');
         try {
           const terminateRes = await fetch(
-            `${apiBase}/v0.1/merchants/${merchantCode}/readers/${reader_id}/checkout`,
+            `${apiBase}/v0.1/merchants/${merchantCode}/readers/${reader_id}/terminate`,
             {
-              method: 'DELETE',
+              method: 'POST',
               headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
