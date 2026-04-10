@@ -269,12 +269,38 @@ export default function PaymentPage() {
       const terminalsRes = await fetch("/api/sumup/terminals");
       const terminalsData = await terminalsRes.json();
       const terminals: any[] = terminalsData.terminals || [];
-      const onlineTerminal = terminals.find((t: any) => t.status === "online") || terminals[0];
-
-      if (!onlineTerminal) {
+      
+      if (!terminals || terminals.length === 0) {
         showToast("No card readers paired. Go to Settings → Payment Terminals to pair a reader.", "error");
         setProcessing(false);
         return;
+      }
+
+      // Prefer online terminal, fallback to first available
+      const onlineTerminal = terminals.find((t: any) => t.status === "online") || terminals[0];
+      
+      // Check reader status before attempting payment
+      try {
+        const readerStatusRes = await fetch(`/api/sumup/reader-status?reader_id=${onlineTerminal.reader_id}`);
+        if (readerStatusRes.ok) {
+          const readerStatus = await readerStatusRes.json();
+          console.log('[Payment] Reader status:', readerStatus);
+          
+          if (readerStatus.device_status === 'OFFLINE') {
+            showToast("Card reader is offline. Please ensure it's powered on and connected.", "error");
+            setProcessing(false);
+            return;
+          }
+          
+          if (readerStatus.state === 'UPDATING_FIRMWARE') {
+            showToast("Card reader is updating. Please wait and try again.", "error");
+            setProcessing(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[Payment] Could not check reader status, proceeding anyway:', err);
+        // Continue - reader status check is optional
       }
 
       showToast(`Sending payment request to ${onlineTerminal.name}...`, "info");
@@ -338,14 +364,36 @@ export default function PaymentPage() {
             clearInterval(poll);
             showToast("Payment successful!", "success");
             
-            // Get full transaction details
-            const transactionId = checkout?.transactions?.[0]?.id || checkout?.transaction_id || checkoutId;
+            // Verify payment was actually processed
+            const transactions = checkout?.transactions || [];
+            if (transactions.length === 0) {
+              console.error('[Payment] No transaction found in successful checkout');
+              showToast("Payment status unclear. Please verify on the reader.", "error");
+              setProcessing(false);
+              return;
+            }
+            
+            const transaction = transactions[0];
+            const transactionId = transaction?.id || checkout?.transaction_id || checkoutId;
+            const transactionStatus = transaction?.status;
+            
+            // Double-check transaction status
+            if (transactionStatus && transactionStatus !== 'SUCCESSFUL' && transactionStatus !== 'PAID') {
+              console.error('[Payment] Transaction status mismatch:', transactionStatus);
+              showToast("Payment verification failed. Please check receipts.", "error");
+              setProcessing(false);
+              return;
+            }
+            
+            console.log('[Payment] Payment verified - Transaction ID:', transactionId);
+            
             await completeCardPayment({ 
               checkoutId, 
               transactionId,
               status,
               amount: checkout?.amount || total,
-              checkout 
+              checkout,
+              transaction 
             });
           } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED" || status === "EXPIRED") {
             clearInterval(poll);
@@ -363,9 +411,10 @@ export default function PaymentPage() {
           }
         } catch (err) {
           console.error("[Payment] Status poll error:", err);
-          if (attempts >= 3) {
+          // Only fail after multiple consecutive errors
+          if (attempts >= 5) {
             clearInterval(poll);
-            showToast("Unable to check payment status. Please verify on the reader.", "error");
+            showToast("Lost connection to payment system. Please check the reader and verify payment status.", "error");
             setProcessing(false);
           }
         }
