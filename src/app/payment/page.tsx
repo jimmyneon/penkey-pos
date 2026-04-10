@@ -165,12 +165,53 @@ export default function PaymentPage() {
       return;
     }
 
-    // Use cached data immediately - no re-fetch needed since page mount already checked status
+    // Use cached data immediately
     if (cachedTerminals.length > 0 && availableTerminals.length === 0) {
       setAvailableTerminals(cachedTerminals);
       console.log('[Payment] Using cached terminal data from page mount:', cachedTerminals);
     }
-  }, [terminalDialogOpen, cachedTerminals]);
+
+    // Backup: Check status once as backup to ensure we have fresh data
+    const checkTerminalStatus = async () => {
+      try {
+        const sourceTerminals = cachedTerminals.length > 0 ? cachedTerminals : availableTerminals;
+
+        if (sourceTerminals.length === 0) {
+          // If no cached data, fetch from API
+          const terminalsRes = await fetch("/api/sumup/terminals");
+          const terminalsData = await terminalsRes.json();
+          const terminals: any[] = terminalsData.terminals || [];
+          if (terminals.length > 0) {
+            sourceTerminals.push(...terminals);
+          }
+        }
+
+        const updatedTerminals = await Promise.all(
+          sourceTerminals.map(async (terminal) => {
+            try {
+              const res = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
+              if (res.ok) {
+                const data = await res.json();
+                return {
+                  ...terminal,
+                  status: data.reader_online === 'ONLINE' ? 'online' : 'offline',
+                  battery_level: data.battery_level,
+                };
+              }
+              return terminal;
+            } catch {
+              return terminal;
+            }
+          })
+        );
+        setAvailableTerminals(updatedTerminals);
+      } catch (error) {
+        console.error("[Payment] Failed to check terminal status:", error);
+      }
+    };
+
+    checkTerminalStatus();
+  }, [terminalDialogOpen, cachedTerminals, availableTerminals]);
 
   // Wake up terminals on page mount by polling their status
   useEffect(() => {
