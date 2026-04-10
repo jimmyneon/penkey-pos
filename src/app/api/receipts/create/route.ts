@@ -80,30 +80,32 @@ export async function POST(request: NextRequest) {
     console.log('[Receipt Create] Employee validated:', employee_id);
 
     // ✅ DUPLICATE PREVENTION: Check idempotency key before creating
-    // TEMPORARILY DISABLED TO DEBUG 500 ERROR
-    // if (id) {
-    //   console.log("[Receipt Create] Checking idempotency key:", id);
-    //   try {
-    //     const { data: existingReceipt } = await supabase
-    //       .from("receipts")
-    //       .select("id, receipt_number")
-    //       .eq("idempotency_key", id)
-    //       .maybeSingle();
+    if (id) {
+      console.log("[Receipt Create] Checking idempotency key:", id);
+      try {
+        const { data: existingReceipt, error: idempotencyError } = await supabase
+          .from("receipts")
+          .select("id, receipt_number")
+          .eq("idempotency_key", id)
+          .maybeSingle();
 
-    //     if (existingReceipt) {
-    //       console.log("[Receipt Create] Duplicate detected via idempotency key, returning existing:", existingReceipt.id);
-    //       return NextResponse.json({
-    //         success: true,
-    //         receipt_id: existingReceipt.id,
-    //         receipt_number: (existingReceipt as any).receipt_number,
-    //         duplicate: true,
-    //       });
-    //     }
-    //   } catch (idempotencyError) {
-    //     console.error("[Receipt Create] Idempotency check failed (column might not exist):", idempotencyError);
-    //     // Continue without idempotency check
-    //   }
-    // }
+        if (idempotencyError) {
+          console.error("[Receipt Create] Idempotency check failed - column might not exist:", idempotencyError);
+          // Continue without idempotency check
+        } else if (existingReceipt) {
+          console.log("[Receipt Create] Duplicate detected via idempotency key, returning existing:", existingReceipt.id);
+          return NextResponse.json({
+            success: true,
+            receipt_id: existingReceipt.id,
+            receipt_number: (existingReceipt as any).receipt_number,
+            duplicate: true,
+          });
+        }
+      } catch (idempotencyError) {
+        console.error("[Receipt Create] Idempotency check exception:", idempotencyError);
+        // Continue without idempotency check
+      }
+    }
 
     // Sync customer record if provided
     if (customer_id && customer_name) {

@@ -668,6 +668,7 @@ export default function PaymentPage() {
     try {
       const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const receiptData = {
+        id: tempReceiptId,
         lines,
         payment_method: "card",
         employee_id: session.employee.id,
@@ -679,15 +680,14 @@ export default function PaymentPage() {
         customer_email: ticketAssignment?.customer?.email || null,
         customer_phone: ticketAssignment?.customer?.phone || null,
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
+        payment_provider: "sumup",
+        transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
+        checkout_id: paymentResult.checkoutId,
       };
 
       // Save locally first (offline-first)
       await putMany("receipts", [{
-        id: tempReceiptId,
         ...receiptData,
-        payment_provider: "sumup",
-        transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
-        checkout_id: paymentResult.checkoutId,
         total,
         created_at: new Date().toISOString(),
         offline: false,
