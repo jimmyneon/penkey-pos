@@ -585,24 +585,34 @@ export default function PaymentPage() {
   };
 
   const handleCancelPayment = async () => {
-    console.log('[Payment] Cancel button clicked');
-    
+    console.log('[Payment] Cancel button clicked - pendingReaderId:', pendingReaderId, 'pendingCheckoutId:', pendingCheckoutId);
+
     // Stop polling
     if (activePollRef.current) {
       clearInterval(activePollRef.current);
       activePollRef.current = null;
     }
-    
+
     // Try to terminate checkout on reader
     if (pendingReaderId) {
       try {
         setProcessingMessage("Cancelling payment...");
-        await fetch(`/api/sumup/terminate-checkout?reader_id=${pendingReaderId}`);
+        const terminateRes = await fetch(`/api/sumup/terminate-checkout?reader_id=${pendingReaderId}`);
+        console.log('[Payment] Terminate response status:', terminateRes.status);
+
+        if (!terminateRes.ok) {
+          const errorData = await terminateRes.json().catch(() => ({}));
+          console.error('[Payment] Terminate failed:', errorData);
+          showToast(`Failed to cancel on reader: ${errorData.error || 'Unknown error'}`, "error");
+        } else {
+          console.log('[Payment] Checkout terminated successfully');
+        }
       } catch (err) {
-        console.warn('[Payment] Failed to terminate checkout on reader:', err);
+        console.error('[Payment] Failed to terminate checkout on reader:', err);
+        showToast("Failed to cancel on reader. Please cancel on the reader directly.", "error");
       }
     }
-    
+
     setProcessing(false);
     setProcessingMessage("Processing...");
     setPendingCheckoutId(null);
