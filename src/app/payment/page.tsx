@@ -668,12 +668,8 @@ export default function PaymentPage() {
     try {
       const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const receiptData = {
-        id: tempReceiptId,
         lines,
         payment_method: "card",
-        payment_provider: "sumup",
-        transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
-        checkout_id: paymentResult.checkoutId,
         employee_id: session.employee.id,
         register_id: session.register.id,
         store_id: session.register.store_id,
@@ -683,68 +679,28 @@ export default function PaymentPage() {
         customer_email: ticketAssignment?.customer?.email || null,
         customer_phone: ticketAssignment?.customer?.phone || null,
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
-        total,
-        created_at: new Date().toISOString(),
-        offline: false,
       };
 
       // Save locally first (offline-first)
-      await putMany("receipts", [receiptData]);
+      await putMany("receipts", [{
+        id: tempReceiptId,
+        ...receiptData,
+        payment_provider: "sumup",
+        transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
+        checkout_id: paymentResult.checkoutId,
+        total,
+        created_at: new Date().toISOString(),
+        offline: false,
+      }]);
 
-      // Try immediate sync since we're online (just talked to SumUp)
-      let receiptId = tempReceiptId;
-      try {
-        const getCsrfToken = () => {
-          const cookies = document.cookie.split(';').map(c => c.trim());
-          for (const cookie of cookies) {
-            if (cookie.startsWith('csrf_token=')) return cookie.substring('csrf_token='.length);
-          }
-          return null;
-        };
-        const csrfToken = getCsrfToken();
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (csrfToken) headers["x-csrf-token"] = csrfToken;
-
-        const syncRes = await fetch("/api/receipts/create", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(receiptData),
-          credentials: 'include',
-        });
-
-        if (syncRes.ok) {
-          const syncData = await syncRes.json();
-          receiptId = syncData.receipt_id;
-          console.log("[Payment] Card receipt synced immediately:", receiptId);
-          
-          // Update IDB with real receipt ID
-          const { id: _tempId, ...receiptWithoutId } = receiptData;
-          await putMany("receipts", [{
-            ...receiptWithoutId,
-            id: receiptId,
-            receipt_number: syncData.receipt_number,
-            offline: false,
-          }]);
-          // Remove temp receipt from IDB
-          try {
-            const { getDB } = await import("@/lib/idb/db");
-            const db = await getDB();
-            await db.delete("receipts", tempReceiptId);
-          } catch {}
-        } else {
-          console.warn("[Payment] Immediate sync failed, falling back to outbox");
-          await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
-        }
-      } catch (syncErr) {
-        console.warn("[Payment] Immediate sync error, falling back to outbox:", syncErr);
-        await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
-      }
+      // Queue for sync via outbox (same as cash)
+      await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, false);
 
       clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
       setPaymentCompleted(true);
       setProcessing(false);
-      router.push(`/payment/success?receipt_id=${receiptId}&change=0`);
+      router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0`);
     } catch (error) {
       console.error("Failed to complete card payment:", error);
       showToast("Payment succeeded but failed to save receipt. Please check receipts.", "error");
