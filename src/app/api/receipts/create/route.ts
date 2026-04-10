@@ -4,6 +4,13 @@ import { createSupabaseServerClient } from "@/lib/database";
 import { dataCache } from "@/lib/services/data-cache";
 import { validatePOSSession, unauthorizedResponse } from "@/lib/api/auth";
 import { ratelimit } from "@/lib/ratelimit";
+
+// Helper to check if a string is a valid UUID format
+function isValidUUID(str: string | null | undefined): boolean {
+  if (!str) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
 import { validateCSRF, csrfErrorResponse } from "@/lib/api/csrf-middleware";
 
 export async function POST(request: NextRequest) {
@@ -170,7 +177,7 @@ export async function POST(request: NextRequest) {
         change_amount: payment_method === "cash" ? (cash_tendered || 0) - total : 0,
         status: "completed",
         dining_option: dining_option || "takeaway",
-        idempotency_key: id || null,
+        idempotency_key: isValidUUID(id) ? id : null,
       })
       .select()
       .single();
