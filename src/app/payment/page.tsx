@@ -138,8 +138,13 @@ export default function PaymentPage() {
 
   // Poll terminal status when selection dialog is open
   useEffect(() => {
-    if (!terminalDialogOpen || availableTerminals.length === 0) {
+    if (!terminalDialogOpen) {
       return;
+    }
+
+    // Initialize with cached data immediately
+    if (cachedTerminals.length > 0 && availableTerminals.length === 0) {
+      setAvailableTerminals(cachedTerminals);
     }
 
     const checkTerminalStatus = async () => {
@@ -176,7 +181,7 @@ export default function PaymentPage() {
     const interval = setInterval(checkTerminalStatus, 1000);
 
     return () => clearInterval(interval);
-  }, [terminalDialogOpen]);
+  }, [terminalDialogOpen, cachedTerminals]);
 
   // Wake up terminals on page mount by polling their status
   useEffect(() => {
