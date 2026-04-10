@@ -89,10 +89,24 @@ export async function POST(request: NextRequest) {
     }
 
     const checkoutData = await sumupResponse.json();
+    console.log('[SumUp Checkout] Response:', JSON.stringify(checkoutData, null, 2));
+
+    // SumUp API returns different field names depending on the endpoint
+    const checkoutId = checkoutData.id || checkoutData.checkout_id || checkoutData.client_transaction_id;
+    
+    if (!checkoutId) {
+      console.error('[SumUp Checkout] No checkout ID in response:', checkoutData);
+      return NextResponse.json({ 
+        error: 'Failed to get checkout ID from SumUp',
+        response: checkoutData 
+      }, { status: 500 });
+    }
+
+    console.log('[SumUp Checkout] Created successfully - ID:', checkoutId);
 
     return NextResponse.json({
       success: true,
-      checkout_id: checkoutData.id,
+      checkout_id: checkoutId,
       checkout: checkoutData,
     });
 

@@ -334,10 +334,13 @@ export default function PaymentPage() {
       });
 
       const checkoutData = await checkoutRes.json();
+      console.log('[Payment] Checkout response:', checkoutData);
+      
       if (!checkoutData.success) {
         const errorMsg = typeof checkoutData.error === 'string' 
           ? checkoutData.error 
           : checkoutData.error?.message || checkoutData.message || "Failed to start card payment";
+        console.error('[Payment] Checkout creation failed:', errorMsg);
         showToast(errorMsg, "error");
         setProcessing(false);
         setProcessingMessage("Processing...");
@@ -347,9 +350,18 @@ export default function PaymentPage() {
       checkoutId = checkoutData.checkout_id;
       console.log('[Payment] Checkout created:', checkoutId);
       
+      if (!checkoutId) {
+        console.error('[Payment] No checkout ID in response:', checkoutData);
+        showToast("Failed to get checkout ID from payment system", "error");
+        setProcessing(false);
+        setProcessingMessage("Processing...");
+        return;
+      }
+      
       // Save to state immediately
       setPendingCheckoutId(checkoutId);
       setPendingReaderId(readerId);
+      console.log('[Payment] Saved to state - checkoutId:', checkoutId, 'readerId:', readerId);
       setProcessingMessage("Waiting for card...");
       showToast("Waiting for card at reader...", "info");
 
