@@ -94,6 +94,9 @@ export async function POST(
     // Get primary payment method
     const primaryPayment = payments && payments[0] ? (payments[0] as any) : { method: "cash", reference: null, metadata: null };
 
+    console.log('[Refund] Primary payment:', primaryPayment);
+    console.log('[Refund] Payment metadata:', primaryPayment.metadata);
+
     // If payment was via SumUp card, process refund through SumUp API first
     const paymentMetadata = primaryPayment.metadata || {};
     let sumupVerified = false;
