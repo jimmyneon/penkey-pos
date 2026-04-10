@@ -34,6 +34,7 @@ export default function PaymentPage() {
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
   const [terminalDialogOpen, setTerminalDialogOpen] = useState(false);
   const [availableTerminals, setAvailableTerminals] = useState<any[]>([]);
+  const [cachedTerminals, setCachedTerminals] = useState<any[]>([]); // Cache from page mount
   const [selectedTerminal, setSelectedTerminal] = useState<any | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("Processing...");
@@ -193,16 +194,29 @@ export default function PaymentPage() {
           return;
         }
 
-        // Check each terminal's status to wake them up
-        await Promise.all(
+        // Check each terminal's status to wake them up and cache the data
+        const updatedTerminals = await Promise.all(
           terminals.map(async (terminal) => {
             try {
-              await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
+              const diagRes = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
+              if (diagRes.ok) {
+                const diag = await diagRes.json();
+                return {
+                  ...terminal,
+                  status: diag.reader_online === 'ONLINE' ? 'online' : 'offline',
+                  battery_level: diag.battery_level,
+                };
+              }
+              return terminal;
             } catch (error) {
               console.warn("[Payment] Failed to wake up terminal:", terminal.name, error);
+              return terminal;
             }
           })
         );
+
+        // Cache the terminal data for dialog use
+        setCachedTerminals(updatedTerminals);
       } catch (error) {
         console.error("[Payment] Failed to fetch terminals for wake-up:", error);
       }
@@ -362,9 +376,9 @@ export default function PaymentPage() {
         return;
       }
 
-      // If multiple terminals, show selection dialog
+      // If multiple terminals, show selection dialog with cached data
       if (terminals.length > 1) {
-        setAvailableTerminals(terminals);
+        setAvailableTerminals(cachedTerminals.length > 0 ? cachedTerminals : terminals);
         setSelectedTerminal(null);
         setTerminalDialogOpen(true);
         return;
@@ -423,17 +437,53 @@ export default function PaymentPage() {
 
       setProcessingMessage(`Sending to ${onlineTerminal.name}...`);
 
-      // Create checkout on the reader (server reads credentials from DB)
-      const checkoutRes = await fetch("/api/sumup/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: total,
-          currency: "GBP",
-          reader_id: onlineTerminal.reader_id,
-          description: "Penkey POS Purchase",
-        }),
-      });
+      // Create checkout on the reader with timeout and retry logic
+      let checkoutRes: Response | null = null;
+      let retryCount = 0;
+      const maxRetries = 2;
+
+      while (retryCount <= maxRetries) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+          checkoutRes = await fetch("/api/sumup/create-checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: total,
+              currency: "GBP",
+              reader_id: onlineTerminal.reader_id,
+              description: "Penkey POS Purchase",
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (checkoutRes.ok || retryCount === maxRetries) {
+            break;
+          }
+
+          retryCount++;
+          console.log(`[Payment] Checkout creation failed, retry ${retryCount}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            console.log(`[Payment] Checkout creation timeout, retry ${retryCount + 1}/${maxRetries}`);
+            retryCount++;
+            if (retryCount <= maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
+          }
+          throw error;
+        }
+      }
+
+      if (!checkoutRes) {
+        throw new Error("Failed to create checkout after retries");
+      }
 
       const checkoutData = await checkoutRes.json();
       console.log('[Payment] Checkout response:', checkoutData);
@@ -630,7 +680,7 @@ export default function PaymentPage() {
             setConnectionLostDialog(true);
           }
         }
-      }, 2000);
+      }, 1000);
       activePollRef.current = poll;
     } catch (error) {
       console.error("Card payment error:", error);
@@ -812,17 +862,53 @@ export default function PaymentPage() {
 
       setProcessingMessage(`Sending to ${terminal.name}...`);
 
-      // Create checkout on the reader
-      const checkoutRes = await fetch("/api/sumup/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: total,
-          currency: "GBP",
-          reader_id: terminal.reader_id,
-          description: "Penkey POS Purchase",
-        }),
-      });
+      // Create checkout on the reader with timeout and retry logic
+      let checkoutRes: Response | null = null;
+      let retryCount = 0;
+      const maxRetries = 2;
+
+      while (retryCount <= maxRetries) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+          checkoutRes = await fetch("/api/sumup/create-checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: total,
+              currency: "GBP",
+              reader_id: terminal.reader_id,
+              description: "Penkey POS Purchase",
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (checkoutRes.ok || retryCount === maxRetries) {
+            break;
+          }
+
+          retryCount++;
+          console.log(`[Payment] Checkout creation failed, retry ${retryCount}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            console.log(`[Payment] Checkout creation timeout, retry ${retryCount + 1}/${maxRetries}`);
+            retryCount++;
+            if (retryCount <= maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
+          }
+          throw error;
+        }
+      }
+
+      if (!checkoutRes) {
+        throw new Error("Failed to create checkout after retries");
+      }
 
       const checkoutData = await checkoutRes.json();
       console.log('[Payment] Checkout response:', checkoutData);
@@ -1009,7 +1095,7 @@ export default function PaymentPage() {
             setConnectionLostDialog(true);
           }
         }
-      }, 2000);
+      }, 1000);
       activePollRef.current = poll;
     } catch (error) {
       console.error("Card payment error:", error);
@@ -1167,6 +1253,12 @@ export default function PaymentPage() {
               >
                 <CreditCard className="h-16 w-16" />
                 <span className="text-xl font-bold text-center">{terminal.name}</span>
+                {/* Battery level */}
+                {terminal.battery_level !== undefined && (
+                  <span className="text-sm text-gray-400">
+                    Battery: {Math.round(terminal.battery_level)}%
+                  </span>
+                )}
                 {/* Status dot */}
                 <div className={`absolute top-3 right-3 w-3 h-3 rounded-full border-2 border-[#5d5d5d] ${
                   terminal.status === 'online' ? 'bg-green-500' : 'bg-red-500'
