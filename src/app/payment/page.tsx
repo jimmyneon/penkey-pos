@@ -158,7 +158,7 @@ export default function PaymentPage() {
     }
   }, [itemsDialogOpen]);
 
-  // Poll terminal status when selection dialog is open
+  // Check terminal status once when selection dialog opens
   useEffect(() => {
     if (!terminalDialogOpen) {
       return;
@@ -171,10 +171,10 @@ export default function PaymentPage() {
 
     const checkTerminalStatus = async () => {
       try {
-        // Use availableTerminals as source for polling (so we can update battery levels)
-        const sourceTerminals = availableTerminals.length > 0 ? availableTerminals : cachedTerminals;
+        // Use cached terminals as source
+        const sourceTerminals = cachedTerminals.length > 0 ? cachedTerminals : availableTerminals;
         
-        // Check each terminal's status
+        // Check each terminal's status once
         const updatedTerminals = await Promise.all(
           sourceTerminals.map(async (terminal) => {
             try {
@@ -200,14 +200,9 @@ export default function PaymentPage() {
       }
     };
 
-    // Check immediately
+    // Check once when dialog opens
     checkTerminalStatus();
-
-    // Poll every 1 second
-    const interval = setInterval(checkTerminalStatus, 1000);
-
-    return () => clearInterval(interval);
-  }, [terminalDialogOpen, availableTerminals]);
+  }, [terminalDialogOpen, cachedTerminals]);
 
   // Wake up terminals on page mount by polling their status
   useEffect(() => {
