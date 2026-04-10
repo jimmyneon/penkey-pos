@@ -342,8 +342,8 @@ export default function PaymentPage() {
       setProcessingMessage("Waiting for card...");
       showToast("Waiting for card at reader...", "info");
 
-      // Poll for payment completion (up to 90 seconds)
-      const maxAttempts = 45;
+      // Poll for payment completion (up to 3 minutes to allow for user delays)
+      const maxAttempts = 90; // 3 minutes at 2 second intervals
       let attempts = 0;
       let consecutiveErrors = 0;
       let lastStatus = "";
@@ -366,6 +366,9 @@ export default function PaymentPage() {
           const checkout = statusData.checkout;
 
           console.log('[Payment] Checkout status:', status, 'Attempt:', attempts);
+          
+          // Reset consecutive errors on successful response
+          consecutiveErrors = 0;
 
           // Update user with status changes based on reader state
           if (status !== lastStatus && status) {
@@ -462,9 +465,12 @@ export default function PaymentPage() {
             setProcessingMessage("Processing...");
           } else if (attempts >= maxAttempts) {
             clearInterval(poll);
-            showToast("Payment timeout. Please check the reader and try again.", "error");
+            showToast("Payment timed out after 3 minutes. Please check the reader.", "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
+            // Save pending payment info for potential retry
+            setPendingCheckoutId(checkoutId);
+            setPendingReaderId(onlineTerminal.reader_id);
           }
         } catch (err) {
           console.error("[Payment] Status poll error:", err);
@@ -475,8 +481,8 @@ export default function PaymentPage() {
             setProcessingMessage("Connection issue - retrying...");
           }
           
-          // Only fail after multiple consecutive errors
-          if (consecutiveErrors >= 5) {
+          // Only fail after 10 consecutive errors (20 seconds of no response)
+          if (consecutiveErrors >= 10) {
             clearInterval(poll);
             setProcessing(false);
             setProcessingMessage("Processing...");
@@ -496,8 +502,13 @@ export default function PaymentPage() {
   };
 
   const handleRetryPaymentCheck = async () => {
-    if (!pendingCheckoutId || !pendingReaderId) return;
+    if (!pendingCheckoutId || !pendingReaderId) {
+      console.error('[Payment] Missing checkout or reader ID for retry');
+      showToast("Unable to check status - missing payment information", "error");
+      return;
+    }
     
+    console.log('[Payment] Retrying status check for:', pendingCheckoutId);
     setConnectionLostDialog(false);
     setProcessing(true);
     setProcessingMessage("Checking payment status...");
