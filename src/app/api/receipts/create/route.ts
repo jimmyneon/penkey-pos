@@ -219,13 +219,25 @@ export async function POST(request: NextRequest) {
     console.log('[Receipt Create] Lines inserted:', receiptLines.length);
 
     // Insert payment record
-    const { error: paymentError } = await supabase.from("payments").insert({
+    const paymentData: any = {
       receipt_id: (receipt as any).id,
       method: payment_method,
       amount: total,
       tip_amount: 0,
       reference: payment_method === "cash" ? `Cash tendered: ${cash_tendered}` : null,
-    });
+    };
+
+    // Store SumUp metadata in payments table for refunds
+    if (payment_method === "card") {
+      const body = await request.json();
+      paymentData.metadata = {
+        payment_provider: body.payment_provider,
+        transaction_id: body.transaction_id,
+        checkout_id: body.checkout_id,
+      };
+    }
+
+    const { error: paymentError } = await supabase.from("payments").insert(paymentData);
     if (paymentError) {
       console.error('[Receipt Create] Payment insert failed:', paymentError);
       throw paymentError;

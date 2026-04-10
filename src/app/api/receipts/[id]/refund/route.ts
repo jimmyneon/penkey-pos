@@ -29,24 +29,25 @@ export async function POST(
       );
     }
 
-    // Get receipt details including payment info
+    // Get receipt details
     const { data: receipt, error: receiptError } = await supabase
       .from("receipts")
-      .select("id, receipt_number, total, refunded_amount, status, payment_method, payment_provider, transaction_id")
+      .select("id, receipt_number, total, refunded_amount, status")
       .eq("id", receiptId)
       .single();
 
     if (receiptError || !receipt) {
+      console.error('[Refund] Receipt fetch error:', receiptError);
       return NextResponse.json(
         { error: "Receipt not found" },
         { status: 404 }
       );
     }
 
-    // Get payments
+    // Get payments (includes method, reference, and metadata for payment_provider/transaction_id)
     const { data: payments } = await supabase
       .from("payments")
-      .select("method, amount, reference")
+      .select("method, amount, reference, metadata")
       .eq("receipt_id", receiptId);
 
     // Get receipt lines
@@ -54,13 +55,6 @@ export async function POST(
       .from("receipt_lines")
       .select("id, name, quantity, line_total")
       .eq("receipt_id", receiptId);
-
-    if (receiptError || !receipt) {
-      return NextResponse.json(
-        { error: "Receipt not found" },
-        { status: 404 }
-      );
-    }
 
     // Validate refund amount
     const remainingAmount = (receipt as any).total - (receipt as any).refunded_amount;
@@ -97,14 +91,14 @@ export async function POST(
     }
 
     // Get primary payment method
-    const primaryPayment = payments && payments[0] ? (payments[0] as any) : { method: "cash", reference: null };
+    const primaryPayment = payments && payments[0] ? (payments[0] as any) : { method: "cash", reference: null, metadata: null };
 
     // If payment was via SumUp card, process refund through SumUp API first
-    const receiptData = receipt as any;
-    if (receiptData.payment_method === 'card' && receiptData.payment_provider === 'sumup' && receiptData.transaction_id) {
+    const paymentMetadata = primaryPayment.metadata || {};
+    if (primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup' && paymentMetadata.transaction_id) {
       try {
-        console.log('[Refund] Processing SumUp refund for transaction:', receiptData.transaction_id);
-        
+        console.log('[Refund] Processing SumUp refund for transaction:', paymentMetadata.transaction_id);
+
         const sumupRefundRes = await fetch(`${request.nextUrl.origin}/api/sumup/refund`, {
           method: 'POST',
           headers: {
@@ -112,8 +106,8 @@ export async function POST(
             'Cookie': request.headers.get('cookie') || '',
           },
           body: JSON.stringify({
-            transaction_id: receiptData.transaction_id,
-            amount: amount < receiptData.total ? amount : undefined, // Partial or full refund
+            transaction_id: paymentMetadata.transaction_id,
+            amount: amount < (receipt as any).total ? amount : undefined, // Partial or full refund
           }),
         });
 
