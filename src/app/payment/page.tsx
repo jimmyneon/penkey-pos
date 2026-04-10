@@ -32,6 +32,9 @@ export default function PaymentPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
+  const [terminalDialogOpen, setTerminalDialogOpen] = useState(false);
+  const [availableTerminals, setAvailableTerminals] = useState<any[]>([]);
+  const [selectedTerminal, setSelectedTerminal] = useState<any | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("Processing...");
   const [paymentCompleted, setPaymentCompleted] = useState(false);
@@ -279,7 +282,7 @@ export default function PaymentPage() {
       const terminalsRes = await fetch("/api/sumup/terminals");
       const terminalsData = await terminalsRes.json();
       const terminals: any[] = terminalsData.terminals || [];
-      
+
       if (!terminals || terminals.length === 0) {
         showToast("No card readers paired. Go to Settings → Payment Terminals to pair a reader.", "error");
         setProcessing(false);
@@ -287,7 +290,17 @@ export default function PaymentPage() {
         return;
       }
 
-      // Prefer online terminal, fallback to first available
+      // If multiple terminals, show selection dialog
+      if (terminals.length > 1) {
+        setAvailableTerminals(terminals);
+        setSelectedTerminal(null);
+        setTerminalDialogOpen(true);
+        setProcessing(false);
+        setProcessingMessage("Processing...");
+        return;
+      }
+
+      // Single terminal - use it directly
       const onlineTerminal = terminals.find((t: any) => t.status === "online") || terminals[0];
       readerId = onlineTerminal.reader_id;
       console.log('[Payment] Using reader:', readerId, onlineTerminal.name);
@@ -677,6 +690,265 @@ export default function PaymentPage() {
     setPendingReaderId(null);
   };
 
+  const handleTerminalSelect = async (terminal: any) => {
+    setSelectedTerminal(terminal);
+    setTerminalDialogOpen(false);
+    setProcessing(true);
+    setProcessingMessage("Checking card reader...");
+
+    let checkoutId: string | null = null;
+    let readerId = terminal.reader_id;
+
+    try {
+      // Diagnose reader before payment - auto-fix stuck states
+      try {
+        const diagRes = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}&fix=true`);
+        if (diagRes.ok) {
+          const diag = await diagRes.json();
+          console.log('[Payment] Reader diagnosis:', diag);
+
+          if (diag.reader_online === 'OFFLINE') {
+            showToast("Card reader is offline. Please check it's powered on and connected to Wi-Fi.", "error");
+            setProcessing(false);
+            setProcessingMessage("Processing...");
+            return;
+          }
+
+          if (diag.reader_state === 'UPDATING_FIRMWARE') {
+            showToast("Card reader is updating firmware. Please wait.", "error");
+            setProcessing(false);
+            setProcessingMessage("Processing...");
+            return;
+          }
+
+          // If we had to terminate a stuck checkout, wait a moment
+          if (diag.terminate_result?.ok) {
+            console.log('[Payment] Terminated stuck checkout, waiting for reader to reset...');
+            setProcessingMessage("Clearing previous payment...");
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+
+          // Check battery level
+          if (diag.battery_level !== undefined && diag.battery_level < 20) {
+            showToast(`Reader battery low (${Math.round(diag.battery_level)}%). Please charge soon.`, "info");
+          }
+        }
+      } catch (err) {
+        console.warn('[Payment] Diagnosis failed, proceeding anyway:', err);
+      }
+
+      setProcessingMessage(`Sending to ${terminal.name}...`);
+
+      // Create checkout on the reader
+      const checkoutRes = await fetch("/api/sumup/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          currency: "GBP",
+          reader_id: terminal.reader_id,
+          description: "Penkey POS Purchase",
+        }),
+      });
+
+      const checkoutData = await checkoutRes.json();
+      console.log('[Payment] Checkout response:', checkoutData);
+
+      if (!checkoutData.success) {
+        const errorMsg = typeof checkoutData.error === 'string'
+          ? checkoutData.error
+          : checkoutData.error?.message || checkoutData.message || "Failed to start card payment";
+        console.error('[Payment] Checkout creation failed:', errorMsg);
+
+        // If server terminated a pending checkout, retry automatically
+        if (checkoutData.retry) {
+          console.log('[Payment] Retrying after terminating pending checkout...');
+          setProcessingMessage("Clearing previous checkout, please wait...");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          handleCardPayment();
+          return;
+        }
+
+        setProcessingMessage(errorMsg);
+        setTimeout(() => {
+          setProcessing(false);
+          setProcessingMessage("Processing...");
+        }, 3000);
+        return;
+      }
+
+      checkoutId = checkoutData.checkout_id;
+      console.log('[Payment] Checkout created:', checkoutId);
+
+      if (!checkoutId) {
+        console.error('[Payment] No checkout ID in response:', checkoutData);
+        setProcessingMessage("Failed to get checkout ID from payment system");
+        setTimeout(() => {
+          setProcessing(false);
+          setProcessingMessage("Processing...");
+        }, 3000);
+        return;
+      }
+
+      // Save to state immediately
+      setPendingCheckoutId(checkoutId);
+      setPendingReaderId(readerId);
+      console.log('[Payment] Saved to state - checkoutId:', checkoutId, 'readerId:', readerId);
+      setProcessingMessage("Waiting for card...");
+
+      // Poll reader status + transaction status (up to 3 minutes)
+      const maxAttempts = 90;
+      let attempts = 0;
+      let consecutiveErrors = 0;
+      let lastReaderState = "";
+      let idleCount = 0;
+
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}&reader_id=${readerId}`);
+
+          if (!statusRes.ok) {
+            throw new Error(`Status check failed: ${statusRes.status}`);
+          }
+
+          const statusData = await statusRes.json();
+          const status = statusData.status;
+          const readerState = statusData.reader_state;
+          const readerData = statusData.reader_data;
+          const transaction = statusData.transaction;
+
+          console.log(`[Payment] Poll ${attempts}/${maxAttempts} - status: ${status}, reader: ${readerState}, readerData:`, readerData);
+
+          consecutiveErrors = 0;
+
+          if (readerState && readerState !== lastReaderState) {
+            lastReaderState = readerState;
+
+            const readerMessage = readerData?.message || readerData?.display_message || readerData?.customer_message;
+
+            if (readerMessage) {
+              setProcessingMessage(readerMessage);
+            } else {
+              switch (readerState) {
+                case "WAITING_FOR_CARD":
+                  setProcessingMessage("Present card to reader...");
+                  break;
+                case "WAITING_FOR_PIN":
+                  setProcessingMessage("Enter PIN on reader...");
+                  break;
+                case "SELECTING_TIP":
+                  setProcessingMessage("Select tip amount...");
+                  break;
+                case "WAITING_FOR_SIGNATURE":
+                  setProcessingMessage("Sign on reader...");
+                  break;
+                case "PROCESSING":
+                  setProcessingMessage("Processing payment...");
+                  break;
+                case "IDLE":
+                  break;
+              }
+            }
+          }
+
+          if (status === "SUCCESSFUL") {
+            clearInterval(poll);
+            setProcessingMessage("Payment successful!");
+
+            const transactionId = transaction?.id || transaction?.transaction_code || checkoutId;
+            console.log('[Payment] Payment verified - Transaction ID:', transactionId);
+            setProcessingMessage("Saving receipt...");
+
+            await completeCardPayment({
+              checkoutId,
+              transactionId,
+              status,
+              amount: transaction?.amount || total,
+              transaction
+            });
+            return;
+          }
+
+          if (status === "FAILED" || status === "CANCELLED") {
+            clearInterval(poll);
+            const errorMsg = status === "CANCELLED" ? "Payment cancelled" : "Payment failed";
+            setProcessingMessage(errorMsg);
+            setTimeout(() => {
+              setProcessing(false);
+              setProcessingMessage("Processing...");
+            }, 2000);
+            return;
+          }
+
+          if (status === "IDLE") {
+            idleCount++;
+            if (idleCount <= 5) {
+              setProcessingMessage("Verifying payment...");
+            } else if (idleCount <= 10) {
+              setProcessingMessage("Waiting for confirmation...");
+            } else {
+              setProcessingMessage("Still checking...");
+            }
+
+            if (idleCount >= 15) {
+              clearInterval(poll);
+              activePollRef.current = null;
+              console.log('[Payment] Reader IDLE but no transaction found after', idleCount, 'checks');
+              setProcessingMessage("Payment not confirmed. Please check the reader screen.");
+              setTimeout(() => {
+                setProcessing(false);
+                setProcessingMessage("Processing...");
+              }, 3000);
+              return;
+            }
+          } else {
+            idleCount = 0;
+          }
+
+          if (attempts >= maxAttempts) {
+            clearInterval(poll);
+            console.log('[Payment] Timeout - checkoutId:', checkoutId, 'readerId:', readerId);
+            setProcessingMessage("Payment timed out. Please check the reader.");
+            if (checkoutId && readerId) {
+              setPendingCheckoutId(checkoutId);
+              setPendingReaderId(readerId);
+            }
+            setConnectionLostDialog(true);
+          }
+        } catch (err) {
+          console.error("[Payment] Status poll error:", err);
+          consecutiveErrors++;
+
+          if (consecutiveErrors === 3) {
+            setProcessingMessage("Connection issue - retrying...");
+          }
+
+          if (consecutiveErrors >= 10) {
+            clearInterval(poll);
+            console.error('[Payment] Connection lost - checkoutId:', checkoutId, 'readerId:', readerId);
+            setProcessing(false);
+            setProcessingMessage("Processing...");
+            if (checkoutId && readerId) {
+              setPendingCheckoutId(checkoutId);
+              setPendingReaderId(readerId);
+            }
+            setConnectionLostDialog(true);
+          }
+        }
+      }, 2000);
+      activePollRef.current = poll;
+    } catch (error) {
+      console.error("Card payment error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred";
+      setProcessingMessage(errorMsg);
+      setTimeout(() => {
+        setProcessing(false);
+        setProcessingMessage("Processing...");
+      }, 3000);
+    }
+  };
+
   const completeCardPayment = async (paymentResult: any) => {
     if (!session) return;
 
@@ -801,6 +1073,54 @@ export default function PaymentPage() {
         onConfirm={handleCashPayment}
         totalDue={total}
       />
+
+      {/* Terminal Selection Dialog */}
+      <Dialog open={terminalDialogOpen} onOpenChange={setTerminalDialogOpen}>
+        <DialogContent className="max-w-md bg-[#3d3d3d] text-white border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">
+              Select Card Reader
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-4">
+            {availableTerminals.map((terminal) => (
+              <button
+                key={terminal.reader_id}
+                onClick={() => handleTerminalSelect(terminal)}
+                className={`w-full p-4 rounded-lg border-2 transition-colors ${
+                  terminal.status === 'online'
+                    ? 'border-green-600 bg-green-900/20 hover:bg-green-900/40'
+                    : 'border-gray-600 bg-gray-800 hover:bg-gray-700'
+                } text-left`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-white">{terminal.name}</p>
+                    <p className="text-sm text-gray-400">{terminal.serial_number || terminal.reader_id}</p>
+                  </div>
+                  <div className={`w-3 h-3 rounded-full ${
+                    terminal.status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
+                </div>
+                {terminal.status !== 'online' && (
+                  <p className="text-xs text-red-400 mt-2">Offline</p>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setTerminalDialogOpen(false)}
+              className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Connection Lost Dialog */}
       <Dialog open={connectionLostDialog} onOpenChange={setConnectionLostDialog}>
