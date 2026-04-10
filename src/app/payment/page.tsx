@@ -175,7 +175,7 @@ export default function PaymentPage() {
     const interval = setInterval(checkTerminalStatus, 5000);
 
     return () => clearInterval(interval);
-  }, [terminalDialogOpen, availableTerminals]);
+  }, [terminalDialogOpen]);
 
   const total = getTotal();
 
