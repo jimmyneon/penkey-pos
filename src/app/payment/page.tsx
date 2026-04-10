@@ -269,6 +269,10 @@ export default function PaymentPage() {
     setProcessing(true);
     setProcessingMessage("Checking card reader...");
 
+    // Store these at function scope so error handlers can access them
+    let checkoutId: string | null = null;
+    let readerId: string | null = null;
+
     try {
       // Fetch paired terminals from database
       const terminalsRes = await fetch("/api/sumup/terminals");
@@ -284,6 +288,8 @@ export default function PaymentPage() {
 
       // Prefer online terminal, fallback to first available
       const onlineTerminal = terminals.find((t: any) => t.status === "online") || terminals[0];
+      readerId = onlineTerminal.reader_id;
+      console.log('[Payment] Using reader:', readerId, onlineTerminal.name);
       
       // Check reader status before attempting payment
       try {
@@ -338,7 +344,12 @@ export default function PaymentPage() {
         return;
       }
 
-      const checkoutId = checkoutData.checkout_id;
+      checkoutId = checkoutData.checkout_id;
+      console.log('[Payment] Checkout created:', checkoutId);
+      
+      // Save to state immediately
+      setPendingCheckoutId(checkoutId);
+      setPendingReaderId(readerId);
       setProcessingMessage("Waiting for card...");
       showToast("Waiting for card at reader...", "info");
 
@@ -351,7 +362,8 @@ export default function PaymentPage() {
       const poll = setInterval(async () => {
         attempts++;
         try {
-          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}&reader_id=${onlineTerminal.reader_id}`);
+          console.log(`[Payment] Polling attempt ${attempts}/${maxAttempts} for checkout:`, checkoutId);
+          const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}&reader_id=${readerId}`);
           
           if (!statusRes.ok) {
             if (statusRes.status === 404 && attempts < 3) {
@@ -465,12 +477,16 @@ export default function PaymentPage() {
             setProcessingMessage("Processing...");
           } else if (attempts >= maxAttempts) {
             clearInterval(poll);
+            console.log('[Payment] Timeout - checkoutId:', checkoutId, 'readerId:', readerId);
             showToast("Payment timed out after 3 minutes. Please check the reader.", "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
-            // Save pending payment info for potential retry
-            setPendingCheckoutId(checkoutId);
-            setPendingReaderId(onlineTerminal.reader_id);
+            // State should already be set, but ensure it's set again
+            if (checkoutId && readerId) {
+              setPendingCheckoutId(checkoutId);
+              setPendingReaderId(readerId);
+            }
+            setConnectionLostDialog(true);
           }
         } catch (err) {
           console.error("[Payment] Status poll error:", err);
@@ -484,10 +500,15 @@ export default function PaymentPage() {
           // Only fail after 10 consecutive errors (20 seconds of no response)
           if (consecutiveErrors >= 10) {
             clearInterval(poll);
+            console.error('[Payment] Connection lost - checkoutId:', checkoutId, 'readerId:', readerId);
+            console.error('[Payment] Pending state before dialog:', { pendingCheckoutId, pendingReaderId });
             setProcessing(false);
             setProcessingMessage("Processing...");
-            setPendingCheckoutId(checkoutId);
-            setPendingReaderId(onlineTerminal.reader_id);
+            // State should already be set, but ensure it's set again
+            if (checkoutId && readerId) {
+              setPendingCheckoutId(checkoutId);
+              setPendingReaderId(readerId);
+            }
             setConnectionLostDialog(true);
           }
         }
@@ -502,19 +523,25 @@ export default function PaymentPage() {
   };
 
   const handleRetryPaymentCheck = async () => {
+    console.log('[Payment] Retry button clicked');
+    console.log('[Payment] Current state - checkoutId:', pendingCheckoutId, 'readerId:', pendingReaderId);
+    
     if (!pendingCheckoutId || !pendingReaderId) {
       console.error('[Payment] Missing checkout or reader ID for retry');
+      console.error('[Payment] State dump:', { pendingCheckoutId, pendingReaderId });
       showToast("Unable to check status - missing payment information", "error");
       return;
     }
     
-    console.log('[Payment] Retrying status check for:', pendingCheckoutId);
+    console.log('[Payment] Retrying status check for checkout:', pendingCheckoutId, 'reader:', pendingReaderId);
     setConnectionLostDialog(false);
     setProcessing(true);
     setProcessingMessage("Checking payment status...");
 
     try {
-      const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${pendingCheckoutId}&reader_id=${pendingReaderId}`);
+      const url = `/api/sumup/checkout-status?checkoutId=${pendingCheckoutId}&reader_id=${pendingReaderId}`;
+      console.log('[Payment] Fetching:', url);
+      const statusRes = await fetch(url);
       
       if (!statusRes.ok) {
         throw new Error('Failed to check payment status');
