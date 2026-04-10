@@ -135,6 +135,48 @@ export default function PaymentPage() {
     }
   }, [itemsDialogOpen]);
 
+  // Poll terminal status when selection dialog is open
+  useEffect(() => {
+    if (!terminalDialogOpen || availableTerminals.length === 0) {
+      return;
+    }
+
+    const checkTerminalStatus = async () => {
+      try {
+        // Check each terminal's status
+        const updatedTerminals = await Promise.all(
+          availableTerminals.map(async (terminal) => {
+            try {
+              const res = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
+              if (res.ok) {
+                const data = await res.json();
+                return {
+                  ...terminal,
+                  status: data.reader_online === 'ONLINE' ? 'online' : 'offline',
+                  battery_level: data.battery_level,
+                };
+              }
+              return terminal;
+            } catch {
+              return terminal;
+            }
+          })
+        );
+        setAvailableTerminals(updatedTerminals);
+      } catch (error) {
+        console.error("[Payment] Failed to check terminal status:", error);
+      }
+    };
+
+    // Check immediately
+    checkTerminalStatus();
+
+    // Poll every 5 seconds
+    const interval = setInterval(checkTerminalStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, [terminalDialogOpen, availableTerminals]);
+
   const total = getTotal();
 
   const handleCashPayment = async (amount: number) => {
@@ -270,9 +312,6 @@ export default function PaymentPage() {
       return;
     }
 
-    setProcessing(true);
-    setProcessingMessage("Checking card reader...");
-
     // Store these at function scope so error handlers can access them
     let checkoutId: string | null = null;
     let readerId: string | null = null;
@@ -285,8 +324,6 @@ export default function PaymentPage() {
 
       if (!terminals || terminals.length === 0) {
         showToast("No card readers paired. Go to Settings → Payment Terminals to pair a reader.", "error");
-        setProcessing(false);
-        setProcessingMessage("Processing...");
         return;
       }
 
@@ -295,12 +332,13 @@ export default function PaymentPage() {
         setAvailableTerminals(terminals);
         setSelectedTerminal(null);
         setTerminalDialogOpen(true);
-        setProcessing(false);
-        setProcessingMessage("Processing...");
         return;
       }
 
-      // Single terminal - use it directly
+      // Single terminal - proceed with payment
+      setProcessing(true);
+      setProcessingMessage("Checking card reader...");
+
       const onlineTerminal = terminals.find((t: any) => t.status === "online") || terminals[0];
       readerId = onlineTerminal.reader_id;
       console.log('[Payment] Using reader:', readerId, onlineTerminal.name);
@@ -1076,35 +1114,31 @@ export default function PaymentPage() {
 
       {/* Terminal Selection Dialog */}
       <Dialog open={terminalDialogOpen} onOpenChange={setTerminalDialogOpen}>
-        <DialogContent className="max-w-md bg-[#3d3d3d] text-white border-gray-700">
+        <DialogContent className="max-w-2xl bg-[#3d3d3d] text-white border-gray-700">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
+            <DialogTitle className="text-2xl font-bold text-white">
               Select Card Reader
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3 mt-4">
+          <div className="grid grid-cols-2 gap-4 mt-6">
             {availableTerminals.map((terminal) => (
               <button
                 key={terminal.reader_id}
                 onClick={() => handleTerminalSelect(terminal)}
-                className={`w-full p-4 rounded-lg border-2 transition-colors ${
-                  terminal.status === 'online'
-                    ? 'border-green-600 bg-green-900/20 hover:bg-green-900/40'
-                    : 'border-gray-600 bg-gray-800 hover:bg-gray-700'
-                } text-left`}
+                className={`relative bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:bg-[#4d4d4d] disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px] ${
+                  terminal.status !== 'online' ? 'opacity-50' : ''
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-white">{terminal.name}</p>
-                    <p className="text-sm text-gray-400">{terminal.serial_number || terminal.reader_id}</p>
-                  </div>
-                  <div className={`w-3 h-3 rounded-full ${
-                    terminal.status === 'online' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                </div>
+                <CreditCard className="h-16 w-16" />
+                <span className="text-xl font-bold text-center">{terminal.name}</span>
+                <span className="text-sm text-gray-400 text-center">{terminal.serial_number || terminal.reader_id}</span>
+                {/* Status dot */}
+                <div className={`absolute top-3 right-3 w-3 h-3 rounded-full border-2 border-[#5d5d5d] ${
+                  terminal.status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
                 {terminal.status !== 'online' && (
-                  <p className="text-xs text-red-400 mt-2">Offline</p>
+                  <span className="text-sm text-red-400">Offline</span>
                 )}
               </button>
             ))}
