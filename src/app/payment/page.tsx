@@ -35,6 +35,9 @@ export default function PaymentPage() {
   const [processing, setProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("Processing...");
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [connectionLostDialog, setConnectionLostDialog] = useState(false);
+  const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
+  const [pendingReaderId, setPendingReaderId] = useState<string | null>(null);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; customer?: any; name: string } | null>(null);
   const { lines, getTotal, clearCart } = useCartStore();
   
@@ -342,6 +345,7 @@ export default function PaymentPage() {
       // Poll for payment completion (up to 90 seconds)
       const maxAttempts = 45;
       let attempts = 0;
+      let consecutiveErrors = 0;
       let lastStatus = "";
       
       const poll = setInterval(async () => {
@@ -464,12 +468,21 @@ export default function PaymentPage() {
           }
         } catch (err) {
           console.error("[Payment] Status poll error:", err);
+          consecutiveErrors++;
+          
+          // Show connection issue warning after 3 errors
+          if (consecutiveErrors === 3) {
+            setProcessingMessage("Connection issue - retrying...");
+          }
+          
           // Only fail after multiple consecutive errors
-          if (attempts >= 5) {
+          if (consecutiveErrors >= 5) {
             clearInterval(poll);
-            showToast("Lost connection to payment system. Please check the reader and verify payment status.", "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
+            setPendingCheckoutId(checkoutId);
+            setPendingReaderId(onlineTerminal.reader_id);
+            setConnectionLostDialog(true);
           }
         }
       }, 2000);
@@ -480,6 +493,85 @@ export default function PaymentPage() {
       setProcessing(false);
       setProcessingMessage("Processing...");
     }
+  };
+
+  const handleRetryPaymentCheck = async () => {
+    if (!pendingCheckoutId || !pendingReaderId) return;
+    
+    setConnectionLostDialog(false);
+    setProcessing(true);
+    setProcessingMessage("Checking payment status...");
+
+    try {
+      const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${pendingCheckoutId}&reader_id=${pendingReaderId}`);
+      
+      if (!statusRes.ok) {
+        throw new Error('Failed to check payment status');
+      }
+      
+      const statusData = await statusRes.json();
+      const status = statusData.status || statusData.checkout?.status;
+      const checkout = statusData.checkout;
+
+      console.log('[Payment] Retry check - Status:', status);
+
+      if (status === "PAID" || status === "SUCCESSFUL") {
+        setProcessingMessage("Payment successful!");
+        showToast("Payment was successful!", "success");
+        
+        const transactions = checkout?.transactions || [];
+        if (transactions.length > 0) {
+          const transaction = transactions[0];
+          const transactionId = transaction?.id || checkout?.transaction_id || pendingCheckoutId;
+          
+          setProcessingMessage("Saving receipt...");
+          await completeCardPayment({ 
+            checkoutId: pendingCheckoutId, 
+            transactionId,
+            status,
+            amount: checkout?.amount || total,
+            checkout,
+            transaction 
+          });
+        } else {
+          showToast("Payment status unclear. Please check receipts.", "error");
+          setProcessing(false);
+          setProcessingMessage("Processing...");
+        }
+      } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED" || status === "EXPIRED") {
+        const errorMsg = status === "CANCELLED" 
+          ? "Payment was cancelled" 
+          : status === "DECLINED"
+          ? "Card was declined"
+          : "Payment failed";
+        showToast(errorMsg, "error");
+        setProcessing(false);
+        setProcessingMessage("Processing...");
+      } else if (status === "PENDING") {
+        showToast("Payment is still processing on the reader. Please complete it there.", "info");
+        setProcessing(false);
+        setProcessingMessage("Processing...");
+        // Re-open dialog to allow another check
+        setTimeout(() => setConnectionLostDialog(true), 1000);
+      } else {
+        showToast("Payment status unknown. Please check the reader.", "error");
+        setProcessing(false);
+        setProcessingMessage("Processing...");
+      }
+    } catch (error) {
+      console.error('[Payment] Retry check failed:', error);
+      showToast("Unable to check payment status. Please verify on the reader.", "error");
+      setProcessing(false);
+      setProcessingMessage("Processing...");
+      setConnectionLostDialog(true);
+    }
+  };
+
+  const handleCancelPendingPayment = () => {
+    setConnectionLostDialog(false);
+    setPendingCheckoutId(null);
+    setPendingReaderId(null);
+    showToast("Payment cancelled. Please verify on the reader if payment was taken.", "error");
   };
 
   const completeCardPayment = async (paymentResult: any) => {
@@ -611,6 +703,56 @@ export default function PaymentPage() {
         onConfirm={handleCashPayment}
         totalDue={total}
       />
+
+      {/* Connection Lost Dialog */}
+      <Dialog open={connectionLostDialog} onOpenChange={setConnectionLostDialog}>
+        <DialogContent className="max-w-md bg-[#3d3d3d] text-white border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">
+              Connection Lost
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-gray-300">
+              Lost connection to the payment system while processing your payment.
+            </p>
+            
+            <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-4">
+              <p className="text-yellow-200 text-sm font-semibold mb-2">
+                ⚠️ Important
+              </p>
+              <p className="text-yellow-100 text-sm">
+                The payment may have been sent to the card reader. Please check the reader display before retrying.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm text-gray-400">What would you like to do?</p>
+              <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+                <li><strong>Check Status:</strong> Verify if payment was completed</li>
+                <li><strong>Cancel:</strong> Return to payment screen (check reader first)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              onClick={handleCancelPendingPayment}
+              variant="outline"
+              className="flex-1 bg-transparent border-gray-600 text-white hover:bg-gray-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRetryPaymentCheck}
+              className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90 text-white"
+            >
+              Check Status
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Items Dialog */}
       <Dialog open={itemsDialogOpen} onOpenChange={setItemsDialogOpen}>
