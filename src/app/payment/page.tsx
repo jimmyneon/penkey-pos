@@ -292,37 +292,47 @@ export default function PaymentPage() {
       readerId = onlineTerminal.reader_id;
       console.log('[Payment] Using reader:', readerId, onlineTerminal.name);
       
-      // Check reader status before attempting payment
+      // Diagnose reader before payment - auto-fix stuck states
       try {
-        setProcessingMessage("Checking reader status...");
-        const readerStatusRes = await fetch(`/api/sumup/reader-status?reader_id=${onlineTerminal.reader_id}`);
-        if (readerStatusRes.ok) {
-          const readerStatus = await readerStatusRes.json();
-          console.log('[Payment] Reader status:', readerStatus);
+        setProcessingMessage("Checking reader...");
+        const diagRes = await fetch(`/api/sumup/diagnose?reader_id=${onlineTerminal.reader_id}&fix=true`);
+        if (diagRes.ok) {
+          const diag = await diagRes.json();
+          console.log('[Payment] Reader diagnosis:', diag);
           
-          if (readerStatus.device_status === 'OFFLINE') {
-            showToast("Card reader is offline. Please ensure it's powered on and connected.", "error");
+          if (diag.reader_online === 'OFFLINE') {
+            showToast("Card reader is offline. Please check it's powered on and connected to Wi-Fi.", "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
             return;
           }
           
-          if (readerStatus.state === 'UPDATING_FIRMWARE') {
-            showToast("Card reader is updating. Please wait and try again.", "error");
+          if (diag.reader_state === 'UPDATING_FIRMWARE') {
+            showToast("Card reader is updating firmware. Please wait.", "error");
             setProcessing(false);
             setProcessingMessage("Processing...");
             return;
           }
           
-          // Check battery level and warn if low
-          const batteryLevel = readerStatus.data?.battery_level;
-          if (batteryLevel !== undefined && batteryLevel < 20) {
-            showToast(`⚠️ Reader battery low (${Math.round(batteryLevel)}%). Please charge soon.`, "info");
+          // If we had to terminate a stuck checkout, wait a moment
+          if (diag.terminate_result?.ok) {
+            console.log('[Payment] Terminated stuck checkout, waiting for reader to reset...');
+            setProcessingMessage("Clearing previous payment...");
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+          
+          // Check battery level
+          if (diag.battery_level !== undefined && diag.battery_level < 20) {
+            showToast(`Reader battery low (${Math.round(diag.battery_level)}%). Please charge soon.`, "info");
+          }
+          
+          // Show recommendations
+          if (diag.recommendations?.length > 0) {
+            console.warn('[Payment] Recommendations:', diag.recommendations);
           }
         }
       } catch (err) {
-        console.warn('[Payment] Could not check reader status, proceeding anyway:', err);
-        // Continue - reader status check is optional
+        console.warn('[Payment] Diagnosis failed, proceeding anyway:', err);
       }
 
       setProcessingMessage(`Sending to ${onlineTerminal.name}...`);

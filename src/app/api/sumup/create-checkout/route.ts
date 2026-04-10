@@ -28,7 +28,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { amount, currency = 'GBP', reader_id, description } = await request.json();
+    if (!affiliateKey) {
+      console.error('[SumUp Checkout] Affiliate key is missing - this is REQUIRED for Cloud API');
+      return NextResponse.json(
+        { error: 'SumUp Affiliate Key is required for Cloud API. Please add it in Settings > Payment Terminals.' },
+        { status: 400 }
+      );
+    }
+
+    const { amount, currency = 'GBP', reader_id, description, return_url } = await request.json();
 
     if (!amount || !reader_id) {
       return NextResponse.json(
@@ -39,6 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Convert amount to minor units (pence/cents)
     const minorUnitAmount = Math.round(amount * 100);
+    const foreignTxId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
     const body: Record<string, any> = {
       total_amount: {
@@ -46,20 +55,19 @@ export async function POST(request: NextRequest) {
         minor_unit: 2,
         value: minorUnitAmount,
       },
-    };
-
-    if (description) body.description = description;
-    // Send affiliate field in correct format per SumUp API docs
-    if (affiliateKey && affiliateKey.trim() !== '') {
-      // Generate UUID compatible with Edge runtime
-      const foreignTxId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      body.affiliate = {
+      affiliate: {
         key: affiliateKey,
         app_id: 'com.penkey.pos',
         foreign_transaction_id: foreignTxId,
-      };
-    }
+      },
+    };
 
+    if (description) body.description = description;
+    if (return_url) body.return_url = return_url;
+
+    console.log('[SumUp Checkout] Creating checkout for reader:', reader_id);
+    console.log('[SumUp Checkout] Amount:', amount, currency, '→ minor units:', minorUnitAmount);
+    console.log('[SumUp Checkout] Affiliate key present:', !!affiliateKey);
     console.log('[SumUp Checkout] Request body:', JSON.stringify(body, null, 2));
 
     // Correct SumUp Cloud API endpoint for reader-initiated checkout
