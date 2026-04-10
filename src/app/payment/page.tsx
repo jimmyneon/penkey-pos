@@ -1222,6 +1222,15 @@ export default function PaymentPage() {
               )}
             </button>
           </div>
+
+          {/* Cancel Button - spans full width */}
+          <button
+            onClick={() => router.push('/sell')}
+            disabled={processing}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg py-4 px-8 text-xl font-bold transition-colors mt-3"
+          >
+            Cancel
+          </button>
         </div>
       </div>
 
