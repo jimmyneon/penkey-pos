@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
@@ -38,6 +38,7 @@ export default function PaymentPage() {
   const [connectionLostDialog, setConnectionLostDialog] = useState(false);
   const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
   const [pendingReaderId, setPendingReaderId] = useState<string | null>(null);
+  const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; customer?: any; name: string } | null>(null);
   const { lines, getTotal, clearCart } = useCartStore();
   
@@ -519,6 +520,7 @@ export default function PaymentPage() {
           }
         }
       }, 2000);
+      activePollRef.current = poll;
     } catch (error) {
       console.error("Card payment error:", error);
       const errorMsg = error instanceof Error ? error.message : "Unknown error occurred";
@@ -526,6 +528,32 @@ export default function PaymentPage() {
       setProcessing(false);
       setProcessingMessage("Processing...");
     }
+  };
+
+  const handleCancelPayment = async () => {
+    console.log('[Payment] Cancel button clicked');
+    
+    // Stop polling
+    if (activePollRef.current) {
+      clearInterval(activePollRef.current);
+      activePollRef.current = null;
+    }
+    
+    // Try to terminate checkout on reader
+    if (pendingReaderId) {
+      try {
+        setProcessingMessage("Cancelling payment...");
+        await fetch(`/api/sumup/terminate-checkout?reader_id=${pendingReaderId}`);
+      } catch (err) {
+        console.warn('[Payment] Failed to terminate checkout on reader:', err);
+      }
+    }
+    
+    setProcessing(false);
+    setProcessingMessage("Processing...");
+    setPendingCheckoutId(null);
+    setPendingReaderId(null);
+    showToast("Payment cancelled", "info");
   };
 
   const handleRetryPaymentCheck = async () => {
@@ -879,7 +907,15 @@ export default function PaymentPage() {
           <div className="bg-[#3d3d3d] rounded-lg p-8 text-center max-w-sm">
             <Loader2 className="h-16 w-16 text-penkey-orange animate-spin mx-auto mb-4" />
             <p className="text-xl font-bold text-white mb-2">{processingMessage}</p>
-            <p className="text-sm text-gray-400">Please do not close this window</p>
+            <p className="text-sm text-gray-400 mb-6">Please do not close this window</p>
+            <Button 
+              variant="outline" 
+              onClick={handleCancelPayment}
+              className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancel Payment
+            </Button>
           </div>
         </div>
       )}
