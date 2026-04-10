@@ -412,35 +412,45 @@ export default function PaymentPage() {
           const statusData = await statusRes.json();
           const status = statusData.status;
           const readerState = statusData.reader_state;
+          const readerData = statusData.reader_data;
           const transaction = statusData.transaction;
 
-          console.log(`[Payment] Poll ${attempts}/${maxAttempts} - status: ${status}, reader: ${readerState}`);
-          
+          console.log(`[Payment] Poll ${attempts}/${maxAttempts} - status: ${status}, reader: ${readerState}, readerData:`, readerData);
+
           // Reset consecutive errors on successful response
           consecutiveErrors = 0;
 
           // Update spinner based on reader state
           if (readerState && readerState !== lastReaderState) {
             lastReaderState = readerState;
-            switch (readerState) {
-              case "WAITING_FOR_CARD":
-                setProcessingMessage("Present card to reader...");
-                break;
-              case "WAITING_FOR_PIN":
-                setProcessingMessage("Enter PIN on reader...");
-                break;
-              case "SELECTING_TIP":
-                setProcessingMessage("Select tip amount...");
-                break;
-              case "WAITING_FOR_SIGNATURE":
-                setProcessingMessage("Sign on reader...");
-                break;
-              case "PROCESSING":
-                setProcessingMessage("Processing payment...");
-                break;
-              case "IDLE":
-                // Don't update message yet - we need to check transaction
-                break;
+
+            // Check if reader_data has a message field to display
+            const readerMessage = readerData?.message || readerData?.display_message || readerData?.customer_message;
+
+            if (readerMessage) {
+              setProcessingMessage(readerMessage);
+            } else {
+              // Fall back to state-based messages
+              switch (readerState) {
+                case "WAITING_FOR_CARD":
+                  setProcessingMessage("Present card to reader...");
+                  break;
+                case "WAITING_FOR_PIN":
+                  setProcessingMessage("Enter PIN on reader...");
+                  break;
+                case "SELECTING_TIP":
+                  setProcessingMessage("Select tip amount...");
+                  break;
+                case "WAITING_FOR_SIGNATURE":
+                  setProcessingMessage("Sign on reader...");
+                  break;
+                case "PROCESSING":
+                  setProcessingMessage("Processing payment...");
+                  break;
+                case "IDLE":
+                  // Don't update message yet - we need to check transaction
+                  break;
+              }
             }
           }
 
