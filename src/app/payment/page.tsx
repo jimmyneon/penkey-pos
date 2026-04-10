@@ -220,12 +220,16 @@ export default function PaymentPage() {
     }
 
     const wakeUpTerminals = async () => {
+      console.log('[Payment] Wake up terminals starting...');
       try {
         const terminalsRes = await fetch("/api/sumup/terminals");
         const terminalsData = await terminalsRes.json();
         const terminals: any[] = terminalsData.terminals || [];
 
+        console.log('[Payment] Fetched', terminals.length, 'terminals from database:', terminals.map((t: any) => t.name));
+
         if (!terminals || terminals.length === 0) {
+          console.log('[Payment] No terminals found, skipping wake-up');
           return;
         }
 
@@ -233,15 +237,18 @@ export default function PaymentPage() {
         const updatedTerminals = await Promise.all(
           terminals.map(async (terminal) => {
             try {
+              console.log('[Payment] Waking up terminal:', terminal.name, terminal.reader_id);
               const diagRes = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
               if (diagRes.ok) {
                 const diag = await diagRes.json();
+                console.log('[Payment] Terminal', terminal.name, 'status:', diag.reader_online, 'battery:', diag.battery_level);
                 return {
                   ...terminal,
                   status: diag.reader_online === 'ONLINE' ? 'online' : 'offline',
                   battery_level: diag.battery_level,
                 };
               }
+              console.warn('[Payment] Terminal', terminal.name, 'diagnose failed:', diagRes.status);
               return terminal;
             } catch (error) {
               console.warn("[Payment] Failed to wake up terminal:", terminal.name, error);
@@ -251,6 +258,7 @@ export default function PaymentPage() {
         );
 
         // Cache the terminal data for dialog use
+        console.log('[Payment] Caching', updatedTerminals.length, 'terminals for dialog use:', updatedTerminals.map((t: any) => ({ name: t.name, status: t.status, battery: t.battery_level })));
         setCachedTerminals(updatedTerminals);
       } catch (error) {
         console.error("[Payment] Failed to fetch terminals for wake-up:", error);
