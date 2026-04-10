@@ -771,22 +771,20 @@ export default function PaymentPage() {
             </button>
 
             {/* Card Payment Button */}
-            <div className="relative">
-              <button
-                onClick={handleCardPayment}
-                disabled={processing || !sumUpConfigured || !isOnline}
-                className="bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:bg-[#4d4d4d] disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
-              >
-                <CreditCard className="h-16 w-16" />
-                <span className="text-2xl font-bold">Card</span>
-              </button>
-              {/* Status dot */}
+            <button
+              onClick={handleCardPayment}
+              disabled={processing || !sumUpConfigured || !isOnline}
+              className="relative bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:bg-[#4d4d4d] disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
+            >
+              <CreditCard className="h-16 w-16" />
+              <span className="text-2xl font-bold">Card</span>
+              {/* Status dot - absolute positioned inside button */}
               {sumUpConfigured && (
-                <div className={`absolute top-3 right-3 w-3 h-3 rounded-full ${
+                <div className={`absolute top-3 right-3 w-3 h-3 rounded-full border-2 border-[#5d5d5d] ${
                   isOnline ? 'bg-green-500' : 'bg-red-500'
                 }`} />
               )}
-            </div>
+            </button>
           </div>
         </div>
       </div>
