@@ -264,7 +264,11 @@ export default function TransactionDetailsPage() {
       }
 
       const refundType = selectedItems ? "partial" : "full";
-      showToast(`${refundType} refund of ${formatCurrency(amount)} processed successfully`, "success");
+      const sumupConfirmed = data.sumup_confirmed;
+      const message = sumupConfirmed
+        ? `${refundType} refund of ${formatCurrency(amount)} processed via SumUp`
+        : `${refundType} refund of ${formatCurrency(amount)} processed successfully`;
+      showToast(message, "success");
       
       // Refresh receipt data
       fetchReceiptDetail(params.id as string);

@@ -120,7 +120,8 @@ export async function POST(
           );
         }
 
-        console.log('[Refund] SumUp refund successful');
+        const sumupRefundData = await sumupRefundRes.json();
+        console.log('[Refund] SumUp refund successful:', sumupRefundData);
       } catch (error) {
         console.error('[Refund] Error calling SumUp refund API:', error);
         return NextResponse.json(
@@ -131,20 +132,33 @@ export async function POST(
     }
 
     // Insert refund record
+    const refundData: any = {
+      org_id: orgId,
+      receipt_id: receiptId,
+      refund_number: refundNumber,
+      member_id: memberId,
+      amount: amount,
+      reason: reason,
+      lines: refundLines,
+      payment_method: primaryPayment.method,
+      payment_reference: primaryPayment.reference,
+      status: "completed",
+    };
+
+    // Store SumUp refund confirmation if applicable
+    if (primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup') {
+      refundData.metadata = {
+        payment_provider: 'sumup',
+        transaction_id: paymentMetadata.transaction_id,
+        checkout_id: paymentMetadata.checkout_id,
+        sumup_refund_confirmed: true,
+        sumup_refund_message: 'Refund processed via SumUp',
+      };
+    }
+
     const { data: refund, error: refundError } = await supabase
       .from("refunds")
-      .insert({
-        org_id: orgId,
-        receipt_id: receiptId,
-        refund_number: refundNumber,
-        member_id: memberId,
-        amount: amount,
-        reason: reason,
-        lines: refundLines,
-        payment_method: primaryPayment.method,
-        payment_reference: primaryPayment.reference,
-        status: "completed",
-      })
+      .insert(refundData)
       .select()
       .single();
 
@@ -183,7 +197,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       refund: refund,
-      message: "Refund processed successfully",
+      message: primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup'
+        ? "Refund processed via SumUp successfully"
+        : "Refund processed successfully",
+      sumup_confirmed: primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup',
     });
   } catch (error) {
     console.error("Error in refund API:", error);
