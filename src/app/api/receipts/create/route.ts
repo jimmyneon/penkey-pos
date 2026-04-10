@@ -90,6 +90,26 @@ export async function POST(request: NextRequest) {
     }
     console.log('[Receipt Create] Employee validated:', employee_id);
 
+    // ✅ DUPLICATE PREVENTION: For card payments, check if transaction_id already exists in payments table
+    if (payment_method === 'card' && transaction_id && payment_provider === 'sumup') {
+      console.log("[Receipt Create] Checking for existing receipt with SumUp transaction_id:", transaction_id);
+      const { data: existingPayment, error: paymentError } = await supabase
+        .from("payments")
+        .select("receipt_id")
+        .eq("metadata->>transaction_id", transaction_id)
+        .maybeSingle();
+
+      if (!paymentError && existingPayment) {
+        console.log("[Receipt Create] Duplicate SumUp transaction detected, returning existing receipt:", existingPayment.receipt_id);
+        return NextResponse.json({
+          success: true,
+          receipt_id: existingPayment.receipt_id,
+          duplicate: true,
+          reason: "SumUp transaction already processed",
+        });
+      }
+    }
+
     // ✅ DUPLICATE PREVENTION: Check idempotency key before creating
     if (id) {
       console.log("[Receipt Create] Checking idempotency key:", id);
