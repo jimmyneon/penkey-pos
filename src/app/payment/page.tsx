@@ -336,7 +336,6 @@ export default function PaymentPage() {
       }
 
       setProcessingMessage(`Sending to ${onlineTerminal.name}...`);
-      showToast(`Sending payment request to ${onlineTerminal.name}...`, "info");
 
       // Create checkout on the reader (server reads credentials from DB)
       const checkoutRes = await fetch("/api/sumup/create-checkout", {
@@ -392,7 +391,6 @@ export default function PaymentPage() {
       setPendingReaderId(readerId);
       console.log('[Payment] Saved to state - checkoutId:', checkoutId, 'readerId:', readerId);
       setProcessingMessage("Waiting for card...");
-      showToast("Waiting for card at reader...", "info");
 
       // Poll reader status + transaction status (up to 3 minutes)
       // SumUp Cloud API flow: poll reader state, then check transaction when IDLE
@@ -450,7 +448,6 @@ export default function PaymentPage() {
           if (status === "SUCCESSFUL") {
             clearInterval(poll);
             setProcessingMessage("Payment successful!");
-            showToast("Payment successful!", "success");
             
             const transactionId = transaction?.id || transaction?.transaction_code || checkoutId;
             console.log('[Payment] Payment verified - Transaction ID:', transactionId);
@@ -470,9 +467,11 @@ export default function PaymentPage() {
           if (status === "FAILED" || status === "CANCELLED") {
             clearInterval(poll);
             const errorMsg = status === "CANCELLED" ? "Payment cancelled" : "Payment failed";
-            showToast(errorMsg, "error");
-            setProcessing(false);
-            setProcessingMessage("Processing...");
+            setProcessingMessage(errorMsg);
+            setTimeout(() => {
+              setProcessing(false);
+              setProcessingMessage("Processing...");
+            }, 2000);
             return;
           }
 
@@ -492,9 +491,11 @@ export default function PaymentPage() {
               clearInterval(poll);
               activePollRef.current = null;
               console.log('[Payment] Reader IDLE but no transaction found after', idleCount, 'checks');
-              showToast("Payment not confirmed. Please check the reader screen.", "error");
-              setProcessing(false);
-              setProcessingMessage("Processing...");
+              setProcessingMessage("Payment not confirmed. Please check the reader screen.");
+              setTimeout(() => {
+                setProcessing(false);
+                setProcessingMessage("Processing...");
+              }, 3000);
               return;
             }
           } else {
@@ -506,9 +507,7 @@ export default function PaymentPage() {
           if (attempts >= maxAttempts) {
             clearInterval(poll);
             console.log('[Payment] Timeout - checkoutId:', checkoutId, 'readerId:', readerId);
-            showToast("Payment timed out. Please check the reader.", "error");
-            setProcessing(false);
-            setProcessingMessage("Processing...");
+            setProcessingMessage("Payment timed out. Please check the reader.");
             if (checkoutId && readerId) {
               setPendingCheckoutId(checkoutId);
               setPendingReaderId(readerId);
@@ -565,13 +564,11 @@ export default function PaymentPage() {
         if (!terminateRes.ok) {
           const errorData = await terminateRes.json().catch(() => ({}));
           console.error('[Payment] Terminate failed:', errorData);
-          showToast(`Failed to cancel on reader: ${errorData.error || 'Unknown error'}`, "error");
         } else {
           console.log('[Payment] Checkout terminated successfully');
         }
       } catch (err) {
         console.error('[Payment] Failed to terminate checkout on reader:', err);
-        showToast("Failed to cancel on reader. Please cancel on the reader directly.", "error");
       }
     }
 
@@ -579,7 +576,6 @@ export default function PaymentPage() {
     setProcessingMessage("Processing...");
     setPendingCheckoutId(null);
     setPendingReaderId(null);
-    showToast("Payment cancelled", "info");
   };
 
   const handleRetryPaymentCheck = async () => {
@@ -669,7 +665,6 @@ export default function PaymentPage() {
     setConnectionLostDialog(false);
     setPendingCheckoutId(null);
     setPendingReaderId(null);
-    showToast("Payment cancelled. Please verify on the reader if payment was taken.", "error");
   };
 
   const completeCardPayment = async (paymentResult: any) => {
