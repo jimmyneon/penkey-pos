@@ -299,29 +299,62 @@ export default function PaymentPage() {
       }
 
       const checkoutId = checkoutData.checkout_id;
-      showToast("Please present card to the reader...", "info");
+      showToast("Waiting for card at reader...", "info");
 
       // Poll for payment completion (up to 90 seconds)
       const maxAttempts = 45;
       let attempts = 0;
+      let lastStatus = "";
+      
       const poll = setInterval(async () => {
         attempts++;
         try {
           const statusRes = await fetch(`/api/sumup/checkout-status?checkoutId=${checkoutId}&reader_id=${onlineTerminal.reader_id}`);
+          
+          if (!statusRes.ok) {
+            if (statusRes.status === 404 && attempts < 3) {
+              // Checkout might not be ready yet, wait a bit
+              return;
+            }
+            throw new Error(`Status check failed: ${statusRes.status}`);
+          }
+          
           const statusData = await statusRes.json();
           const status = statusData.status || statusData.checkout?.status;
+          const checkout = statusData.checkout;
 
           console.log('[Payment] Checkout status:', status, 'Attempt:', attempts);
+
+          // Update user with status changes
+          if (status !== lastStatus && status) {
+            lastStatus = status;
+            if (status === "PENDING") {
+              showToast("Processing card...", "info");
+            }
+          }
 
           // Handle all possible SumUp status values
           if (status === "PAID" || status === "SUCCESSFUL") {
             clearInterval(poll);
-            setProcessing(false);
-            showToast("Card payment successful!", "success");
-            await completeCardPayment({ checkoutId, status });
+            showToast("Payment successful!", "success");
+            
+            // Get full transaction details
+            const transactionId = checkout?.transactions?.[0]?.id || checkout?.transaction_id || checkoutId;
+            await completeCardPayment({ 
+              checkoutId, 
+              transactionId,
+              status,
+              amount: checkout?.amount || total,
+              checkout 
+            });
           } else if (status === "FAILED" || status === "CANCELLED" || status === "DECLINED" || status === "EXPIRED") {
             clearInterval(poll);
-            showToast("Card payment failed or cancelled.", "error");
+            const errorMsg = status === "CANCELLED" 
+              ? "Payment cancelled by user" 
+              : status === "DECLINED"
+              ? "Card declined"
+              : "Payment failed";
+            showToast(errorMsg, "error");
             setProcessing(false);
           } else if (attempts >= maxAttempts) {
             clearInterval(poll);
@@ -330,6 +363,11 @@ export default function PaymentPage() {
           }
         } catch (err) {
           console.error("[Payment] Status poll error:", err);
+          if (attempts >= 3) {
+            clearInterval(poll);
+            showToast("Unable to check payment status. Please verify on the reader.", "error");
+            setProcessing(false);
+          }
         }
       }, 2000);
     } catch (error) {
@@ -342,31 +380,31 @@ export default function PaymentPage() {
   const completeCardPayment = async (paymentResult: any) => {
     if (!session) return;
 
-    const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const receiptData = {
-      id: tempReceiptId,
-      lines,
-      payment_method: "card",
-      transaction_id: paymentResult.checkoutId,
-      employee_id: session.employee.id,
-      register_id: session.register.id,
-      store_id: session.register.store_id,
-      org_id: session.org_id,
-      customer_id: ticketAssignment?.customer?.id || null,
-      customer_name: ticketAssignment?.name || null,
-      customer_email: ticketAssignment?.customer?.email || null,
-      customer_phone: ticketAssignment?.customer?.phone || null,
-      table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
-    };
-
     try {
-      // Save locally first (offline-first)
-      await putMany("receipts", [{
-        ...receiptData,
-        created_at: new Date().toISOString(),
+      const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const receiptData = {
+        id: tempReceiptId,
+        lines,
+        payment_method: "card",
+        payment_provider: "sumup",
+        transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
+        checkout_id: paymentResult.checkoutId,
+        employee_id: session.employee.id,
+        register_id: session.register.id,
+        store_id: session.register.store_id,
+        org_id: session.org_id,
+        customer_id: ticketAssignment?.customer?.id || null,
+        customer_name: ticketAssignment?.name || null,
+        customer_email: ticketAssignment?.customer?.email || null,
+        customer_phone: ticketAssignment?.customer?.phone || null,
+        table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
         total,
-        offline: true,
-      }]);
+        created_at: new Date().toISOString(),
+        offline: false,
+      };
+
+      // Save locally first (offline-first)
+      await putMany("receipts", [receiptData]);
 
       // Queue for server sync
       await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
@@ -374,10 +412,11 @@ export default function PaymentPage() {
       clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
       setPaymentCompleted(true);
-      router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0&offline=true`);
+      setProcessing(false);
+      router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0`);
     } catch (error) {
       console.error("Failed to complete card payment:", error);
-      showToast("Failed to save receipt", "error");
+      showToast("Payment succeeded but failed to save receipt. Please check receipts.", "error");
       setProcessing(false);
     }
   };

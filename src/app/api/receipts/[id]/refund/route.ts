@@ -29,10 +29,10 @@ export async function POST(
       );
     }
 
-    // Get receipt details
+    // Get receipt details including payment info
     const { data: receipt, error: receiptError } = await supabase
       .from("receipts")
-      .select("id, receipt_number, total, refunded_amount, status")
+      .select("id, receipt_number, total, refunded_amount, status, payment_method, payment_provider, transaction_id")
       .eq("id", receiptId)
       .single();
 
@@ -98,6 +98,43 @@ export async function POST(
 
     // Get primary payment method
     const primaryPayment = payments && payments[0] ? (payments[0] as any) : { method: "cash", reference: null };
+
+    // If payment was via SumUp card, process refund through SumUp API first
+    const receiptData = receipt as any;
+    if (receiptData.payment_method === 'card' && receiptData.payment_provider === 'sumup' && receiptData.transaction_id) {
+      try {
+        console.log('[Refund] Processing SumUp refund for transaction:', receiptData.transaction_id);
+        
+        const sumupRefundRes = await fetch(`${request.nextUrl.origin}/api/sumup/refund`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('cookie') || '',
+          },
+          body: JSON.stringify({
+            transaction_id: receiptData.transaction_id,
+            amount: amount < receiptData.total ? amount : undefined, // Partial or full refund
+          }),
+        });
+
+        if (!sumupRefundRes.ok) {
+          const errorData = await sumupRefundRes.json();
+          console.error('[Refund] SumUp refund failed:', errorData);
+          return NextResponse.json(
+            { error: `SumUp refund failed: ${errorData.error || 'Unknown error'}` },
+            { status: sumupRefundRes.status }
+          );
+        }
+
+        console.log('[Refund] SumUp refund successful');
+      } catch (error) {
+        console.error('[Refund] Error calling SumUp refund API:', error);
+        return NextResponse.json(
+          { error: 'Failed to process card refund. Please try again.' },
+          { status: 500 }
+        );
+      }
+    }
 
     // Insert refund record
     const { data: refund, error: refundError } = await supabase
