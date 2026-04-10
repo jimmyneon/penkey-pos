@@ -30,7 +30,7 @@ import { ItemsDisplay } from "./items-display";
 import { SellHeader } from "./sell-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { hapticButtonPress, hapticItemAdded, hapticDelete, hapticSuccess, setHapticEnabledCheck } from "@/lib/utils/haptics";
-import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
+import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, playPaymentInitSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { upsellLearningEngine } from "@/lib/services/upsell-learning-engine";
@@ -1014,6 +1014,7 @@ export default function SellPage() {
           } else {
             sessionStorage.removeItem("pos_ticket_assignment");
           }
+          playPaymentInitSound();
           router.push("/payment");
         }}
         onSyncClick={async () => {
@@ -1191,6 +1192,7 @@ export default function SellPage() {
           } else {
             sessionStorage.removeItem("pos_ticket_assignment");
           }
+          playPaymentInitSound();
           router.push("/payment");
         }}
         onSave={() => setSaveTicketOpen(true)}

@@ -12,6 +12,7 @@ import { ToastContainer } from "@/components/toast-container";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { putMany } from "@/lib/idb/db";
 import { getSumUpCredentials, hasSumUpCredentials, storeSumUpCredentials } from "@/lib/services/sumup-credentials";
+import { playPaymentInitSound, playPaymentProcessingSound, playPaymentSuccessSound, playPaymentFailedSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 
 interface Session {
   employee: {
@@ -48,6 +49,7 @@ export default function PaymentPage() {
   
   // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
@@ -57,6 +59,26 @@ export default function PaymentPage() {
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
     window.removeEventListener("offline", handleOffline);
+
+    // Load sound enabled setting
+    const loadSoundSetting = async () => {
+      try {
+        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        if (sessionData) {
+          const session = JSON.parse(sessionData);
+          const registerId = session.register?.id;
+          if (registerId) {
+            const { registerSettings } = await import("@/lib/services/register-settings");
+            const settings = await registerSettings.get(registerId);
+            setSoundEnabled(settings.sound_enabled);
+            setSoundEnabledCheck(() => settings.sound_enabled);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load sound settings:', error);
+      }
+    };
+    loadSoundSetting();
 
     // Check localStorage first (instant), then confirm from DB in background
     setSumUpConfigured(hasSumUpCredentials());
@@ -236,8 +258,10 @@ export default function PaymentPage() {
   const handleCashPayment = async (amount: number) => {
     if (!session) return;
 
+    playPaymentInitSound();
     setProcessing(true);
     setCashDialogOpen(false);
+    playPaymentProcessingSound();
 
     const change = amount - total;
     console.log("[Payment] Cash tendered:", amount);
@@ -348,12 +372,15 @@ export default function PaymentPage() {
     } catch (err: any) {
       console.error("[Payment] Failed to save receipt:", err);
       showToast(err.message || "Failed to complete sale", "error");
+      playPaymentFailedSound();
       setProcessing(false);
     }
   };
 
   const handleCardPayment = async () => {
     if (!session) return;
+
+    playPaymentInitSound();
 
     const creds = getSumUpCredentials();
     if (!creds?.apiKey || !creds?.merchantCode) {
@@ -691,6 +718,7 @@ export default function PaymentPage() {
       console.error("Card payment error:", error);
       const errorMsg = error instanceof Error ? error.message : "Unknown error occurred";
       showToast(`Card payment failed: ${errorMsg}`, "error");
+      playPaymentFailedSound();
       setProcessing(false);
       setProcessingMessage("Processing...");
     }
@@ -762,6 +790,7 @@ export default function PaymentPage() {
 
       if (status === "PAID" || status === "SUCCESSFUL") {
         setProcessingMessage("Payment successful!");
+        playPaymentSuccessSound();
         showToast("Payment was successful!", "success");
         
         const transactions = checkout?.transactions || [];
@@ -1019,6 +1048,7 @@ export default function PaymentPage() {
           if (status === "SUCCESSFUL") {
             clearInterval(poll);
             setProcessingMessage("Payment successful!");
+            playPaymentSuccessSound();
 
             const transactionId = transaction?.id || transaction?.transaction_code || checkoutId;
             console.log('[Payment] Payment verified - Transaction ID:', transactionId);
@@ -1155,6 +1185,7 @@ export default function PaymentPage() {
     } catch (error) {
       console.error("Failed to complete card payment:", error);
       showToast("Payment succeeded but failed to save receipt. Please check receipts.", "error");
+      playPaymentFailedSound();
       setProcessing(false);
     }
   };

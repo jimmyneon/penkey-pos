@@ -10,6 +10,7 @@ import { ToastContainer } from "@/components/toast-container";
 import { useCartStore } from "@/lib/store/cart-store";
 import { dataCache } from "@/lib/services/data-cache";
 import { registerSettings } from "@/lib/services/register-settings";
+import { playPaymentSuccessSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 
 function PaymentSuccessContent() {
   console.log("[PaymentSuccessContent] Function body execution start");
@@ -31,6 +32,27 @@ function PaymentSuccessContent() {
   useEffect(() => {
     console.log("[PaymentSuccess] Mount effect: Component is now mounted.");
     setMounted(true);
+
+    // Load sound enabled setting
+    const loadSoundSetting = async () => {
+      try {
+        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        if (sessionData) {
+          const session = JSON.parse(sessionData);
+          const registerId = session.register?.id;
+          if (registerId) {
+            const settings = await registerSettings.get(registerId);
+            setSoundEnabledCheck(() => settings.sound_enabled);
+            if (settings.sound_enabled) {
+              playPaymentSuccessSound();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load sound settings:', error);
+      }
+    };
+    loadSoundSetting();
   }, []);
   
   useEffect(() => {

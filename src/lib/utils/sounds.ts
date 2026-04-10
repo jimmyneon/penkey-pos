@@ -111,6 +111,70 @@ export function playWarningSound(): void {
 }
 
 /**
+ * Play a payment initiation sound (cash register style)
+ */
+export function playPaymentInitSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(1200, 0.05, 'square');
+  setTimeout(() => playBeep(1600, 0.05, 'square'), 50);
+}
+
+/**
+ * Play a payment processing sound (ascending)
+ */
+export function playPaymentProcessingSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(400, 0.1, 'sine');
+  setTimeout(() => playBeep(500, 0.1, 'sine'), 100);
+  setTimeout(() => playBeep(600, 0.1, 'sine'), 200);
+}
+
+/**
+ * Play a payment success sound (celebratory chime)
+ */
+export function playPaymentSuccessSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(523.25, 0.15, 'sine'); // C5
+  setTimeout(() => playBeep(659.25, 0.15, 'sine'), 150); // E5
+  setTimeout(() => playBeep(783.99, 0.15, 'sine'), 300); // G5
+  setTimeout(() => playBeep(1046.50, 0.3, 'sine'), 450); // C6
+}
+
+/**
+ * Play a payment failed sound (sad descending tones)
+ */
+export function playPaymentFailedSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(400, 0.2, 'sawtooth');
+  setTimeout(() => playBeep(300, 0.2, 'sawtooth'), 200);
+  setTimeout(() => playBeep(200, 0.3, 'sawtooth'), 400);
+}
+
+/**
+ * Play a cart open sound
+ */
+export function playCartOpenSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(800, 0.08, 'sine');
+}
+
+/**
+ * Play a cart close sound
+ */
+export function playCartCloseSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(600, 0.1, 'sine');
+}
+
+/**
+ * Play a navigation sound (menu click)
+ */
+export function playNavigationSound(): void {
+  if (!isSoundEnabled()) return;
+  playBeep(900, 0.06, 'sine');
+}
+
+/**
  * Check if sound is supported on this device
  */
 export function isSoundSupported(): boolean {
