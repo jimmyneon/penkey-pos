@@ -171,13 +171,17 @@ export default function PaymentPage() {
 
     const checkTerminalStatus = async () => {
       try {
+        // Use availableTerminals as source for polling (so we can update battery levels)
+        const sourceTerminals = availableTerminals.length > 0 ? availableTerminals : cachedTerminals;
+        
         // Check each terminal's status
         const updatedTerminals = await Promise.all(
-          availableTerminals.map(async (terminal) => {
+          sourceTerminals.map(async (terminal) => {
             try {
               const res = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
               if (res.ok) {
                 const data = await res.json();
+                console.log('[Payment] Terminal status update:', terminal.name, 'battery:', data.battery_level);
                 return {
                   ...terminal,
                   status: data.reader_online === 'ONLINE' ? 'online' : 'offline',
@@ -203,7 +207,7 @@ export default function PaymentPage() {
     const interval = setInterval(checkTerminalStatus, 1000);
 
     return () => clearInterval(interval);
-  }, [terminalDialogOpen, cachedTerminals]);
+  }, [terminalDialogOpen, availableTerminals]);
 
   // Wake up terminals on page mount by polling their status
   useEffect(() => {
