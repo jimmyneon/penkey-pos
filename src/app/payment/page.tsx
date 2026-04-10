@@ -45,6 +45,8 @@ export default function PaymentPage() {
   // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [readerReady, setReaderReady] = useState(false);
+  const [readerStatus, setReaderStatus] = useState<string>("checking");
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -52,7 +54,7 @@ export default function PaymentPage() {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.removeEventListener("offline", handleOffline);
 
     // Check localStorage first (instant), then confirm from DB in background
     setSumUpConfigured(hasSumUpCredentials());
@@ -82,6 +84,42 @@ export default function PaymentPage() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Poll reader status to check if ready
+  useEffect(() => {
+    if (!sumUpConfigured || !isOnline) {
+      setReaderReady(false);
+      setReaderStatus("not configured");
+      return;
+    }
+
+    const checkReaderStatus = async () => {
+      try {
+        const res = await fetch("/api/sumup/reader-status");
+        if (res.ok) {
+          const data = await res.json();
+          const isIdle = data.status === "IDLE";
+          setReaderReady(isIdle);
+          setReaderStatus(data.status || "unknown");
+        } else {
+          setReaderReady(false);
+          setReaderStatus("error");
+        }
+      } catch (error) {
+        console.error("[Payment] Failed to check reader status:", error);
+        setReaderReady(false);
+        setReaderStatus("error");
+      }
+    };
+
+    // Check immediately
+    checkReaderStatus();
+
+    // Poll every 5 seconds
+    const interval = setInterval(checkReaderStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, [sumUpConfigured, isOnline]);
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session");
@@ -761,27 +799,40 @@ export default function PaymentPage() {
             </button>
 
             {/* Card Payment Button */}
-            <button
-              onClick={handleCardPayment}
-              disabled={processing || !sumUpConfigured || !isOnline}
-              className={`${
-                sumUpConfigured && isOnline
-                  ? "bg-[#5d5d5d] hover:bg-[#6d6d6d]"
-                  : "bg-[#4d4d4d] text-gray-500 cursor-not-allowed"
-              } text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]`}
-            >
-              <CreditCard className="h-16 w-16" />
-              <span className="text-2xl font-bold">Card</span>
-              {!sumUpConfigured && (
-                <span className="text-sm opacity-75">Connect SumUp in Settings</span>
-              )}
-              {sumUpConfigured && !isOnline && (
-                <span className="text-sm opacity-75">Offline</span>
-              )}
+            <div className="relative">
+              <button
+                onClick={handleCardPayment}
+                disabled={processing || !sumUpConfigured || !isOnline || !readerReady}
+                className={`${
+                  sumUpConfigured && isOnline && readerReady
+                    ? "bg-[#5d5d5d] hover:bg-[#6d6d6d]"
+                    : "bg-[#4d4d4d] text-gray-500 cursor-not-allowed"
+                } text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]`}
+              >
+                <CreditCard className="h-16 w-16" />
+                <span className="text-2xl font-bold">Card</span>
+                {!sumUpConfigured && (
+                  <span className="text-sm opacity-75">Connect SumUp in Settings</span>
+                )}
+                {sumUpConfigured && !isOnline && (
+                  <span className="text-sm opacity-75">Offline</span>
+                )}
+                {sumUpConfigured && isOnline && !readerReady && (
+                  <span className="text-sm opacity-75">Reader Busy</span>
+                )}
+                {sumUpConfigured && isOnline && readerReady && (
+                  <span className="text-sm opacity-75">Ready</span>
+                )}
+              </button>
+              {/* Status badge - absolute positioned to not affect layout */}
               {sumUpConfigured && isOnline && (
-                <span className="text-sm opacity-75">Ready</span>
+                <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-medium ${
+                  readerReady ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
+                }`}>
+                  {readerStatus === 'IDLE' ? 'Ready' : readerStatus}
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </div>
