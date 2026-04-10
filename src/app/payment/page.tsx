@@ -177,6 +177,41 @@ export default function PaymentPage() {
     return () => clearInterval(interval);
   }, [terminalDialogOpen]);
 
+  // Wake up terminals on page mount by polling their status
+  useEffect(() => {
+    if (!sumUpConfigured || !isOnline) {
+      return;
+    }
+
+    const wakeUpTerminals = async () => {
+      try {
+        const terminalsRes = await fetch("/api/sumup/terminals");
+        const terminalsData = await terminalsRes.json();
+        const terminals: any[] = terminalsData.terminals || [];
+
+        if (!terminals || terminals.length === 0) {
+          return;
+        }
+
+        // Check each terminal's status to wake them up
+        await Promise.all(
+          terminals.map(async (terminal) => {
+            try {
+              await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
+            } catch (error) {
+              console.warn("[Payment] Failed to wake up terminal:", terminal.name, error);
+            }
+          })
+        );
+      } catch (error) {
+        console.error("[Payment] Failed to fetch terminals for wake-up:", error);
+      }
+    };
+
+    // Wake up terminals immediately on page mount
+    wakeUpTerminals();
+  }, [sumUpConfigured, isOnline]);
+
   const total = getTotal();
 
   const handleCashPayment = async (amount: number) => {
