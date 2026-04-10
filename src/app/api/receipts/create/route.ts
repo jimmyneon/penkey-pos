@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const body = await request.json();
     const {
       id, // Temp receipt ID used as idempotency key
       lines,
@@ -53,7 +54,10 @@ export async function POST(request: NextRequest) {
       customer_phone,
       table_number,
       dining_option,
-    } = await request.json();
+      payment_provider,
+      transaction_id,
+      checkout_id,
+    } = body;
 
     console.log('[Receipt Create] Incoming data:', { id, payment_method, employee_id, register_id, org_id, store_id, linesCount: lines?.length, dining_option });
 
@@ -229,7 +233,6 @@ export async function POST(request: NextRequest) {
 
     // Store SumUp metadata in payments table for refunds
     if (payment_method === "card") {
-      const body = await request.json();
       paymentData.metadata = {
         payment_provider: body.payment_provider,
         transaction_id: body.transaction_id,
