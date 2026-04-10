@@ -809,40 +809,14 @@ export default function PaymentPage() {
             </button>
 
             {/* Card Payment Button */}
-            <div className="relative">
-              <button
-                onClick={handleCardPayment}
-                disabled={processing || !sumUpConfigured || !isOnline || !readerReady}
-                className={`${
-                  sumUpConfigured && isOnline && readerReady
-                    ? "bg-[#5d5d5d] hover:bg-[#6d6d6d]"
-                    : "bg-[#4d4d4d] text-gray-500 cursor-not-allowed"
-                } text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]`}
-              >
-                <CreditCard className="h-16 w-16" />
-                <span className="text-2xl font-bold">Card</span>
-                {!sumUpConfigured && (
-                  <span className="text-sm opacity-75">Connect SumUp in Settings</span>
-                )}
-                {sumUpConfigured && !isOnline && (
-                  <span className="text-sm opacity-75">Offline</span>
-                )}
-                {sumUpConfigured && isOnline && !readerReady && (
-                  <span className="text-sm opacity-75">Reader Busy</span>
-                )}
-                {sumUpConfigured && isOnline && readerReady && (
-                  <span className="text-sm opacity-75">Ready</span>
-                )}
-              </button>
-              {/* Status badge - absolute positioned to not affect layout */}
-              {sumUpConfigured && isOnline && (
-                <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-medium ${
-                  readerReady ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
-                }`}>
-                  {readerStatus === 'IDLE' ? 'Ready' : readerStatus}
-                </div>
-              )}
-            </div>
+            <button
+              onClick={handleCardPayment}
+              disabled={processing || !sumUpConfigured || !isOnline || !readerReady}
+              className="bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:bg-[#4d4d4d] disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
+            >
+              <CreditCard className="h-16 w-16" />
+              <span className="text-2xl font-bold">Card</span>
+            </button>
           </div>
         </div>
       </div>
