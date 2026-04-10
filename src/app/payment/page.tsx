@@ -691,14 +691,60 @@ export default function PaymentPage() {
       // Save locally first (offline-first)
       await putMany("receipts", [receiptData]);
 
-      // Queue for server sync
-      await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
+      // Try immediate sync since we're online (just talked to SumUp)
+      let receiptId = tempReceiptId;
+      try {
+        const getCsrfToken = () => {
+          const cookies = document.cookie.split(';').map(c => c.trim());
+          for (const cookie of cookies) {
+            if (cookie.startsWith('csrf_token=')) return cookie.substring('csrf_token='.length);
+          }
+          return null;
+        };
+        const csrfToken = getCsrfToken();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (csrfToken) headers["x-csrf-token"] = csrfToken;
+
+        const syncRes = await fetch("/api/receipts/create", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(receiptData),
+          credentials: 'include',
+        });
+
+        if (syncRes.ok) {
+          const syncData = await syncRes.json();
+          receiptId = syncData.receipt_id;
+          console.log("[Payment] Card receipt synced immediately:", receiptId);
+          
+          // Update IDB with real receipt ID
+          const { id: _tempId, ...receiptWithoutId } = receiptData;
+          await putMany("receipts", [{
+            ...receiptWithoutId,
+            id: receiptId,
+            receipt_number: syncData.receipt_number,
+            offline: false,
+          }]);
+          // Remove temp receipt from IDB
+          try {
+            const { getDB } = await import("@/lib/idb/db");
+            const db = await getDB();
+            await db.delete("receipts", tempReceiptId);
+          } catch {}
+        } else {
+          console.warn("[Payment] Immediate sync failed, falling back to outbox");
+          await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
+        }
+      } catch (syncErr) {
+        console.warn("[Payment] Immediate sync error, falling back to outbox:", syncErr);
+        await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
+      }
 
       clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
       setPaymentCompleted(true);
       setProcessing(false);
-      router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0`);
+      router.push(`/payment/success?receipt_id=${receiptId}&change=0`);
     } catch (error) {
       console.error("Failed to complete card payment:", error);
       showToast("Payment succeeded but failed to save receipt. Please check receipts.", "error");
