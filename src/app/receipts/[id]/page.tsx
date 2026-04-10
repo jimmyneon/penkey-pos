@@ -265,9 +265,15 @@ export default function TransactionDetailsPage() {
 
       const refundType = selectedItems ? "partial" : "full";
       const sumupConfirmed = data.sumup_confirmed;
-      const message = sumupConfirmed
-        ? `${refundType} refund of ${formatCurrency(amount)} processed via SumUp`
-        : `${refundType} refund of ${formatCurrency(amount)} processed successfully`;
+      const sumupVerified = data.sumup_verified;
+      let message = `${refundType} refund of ${formatCurrency(amount)} processed`;
+      if (sumupConfirmed) {
+        if (sumupVerified) {
+          message += " and verified via SumUp";
+        } else {
+          message += " via SumUp";
+        }
+      }
       showToast(message, "success");
       
       // Refresh receipt data

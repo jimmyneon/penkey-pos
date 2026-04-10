@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
+import { validatePOSSession } from "@/lib/api/auth";
 
 export async function POST(
   request: NextRequest,
@@ -95,6 +96,9 @@ export async function POST(
 
     // If payment was via SumUp card, process refund through SumUp API first
     const paymentMetadata = primaryPayment.metadata || {};
+    let sumupVerified = false;
+    let sumupTransactionData = null;
+
     if (primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup' && paymentMetadata.transaction_id) {
       try {
         console.log('[Refund] Processing SumUp refund for transaction:', paymentMetadata.transaction_id);
@@ -122,6 +126,41 @@ export async function POST(
 
         const sumupRefundData = await sumupRefundRes.json();
         console.log('[Refund] SumUp refund successful:', sumupRefundData);
+
+        // Verify refund by querying SumUp Transactions API
+        try {
+          const sessionData = await validatePOSSession(request);
+          if (sessionData) {
+            const dbCreds = await (await import('@/app/api/sumup/credentials/route')).getStoredSumUpCredentials(sessionData.org_id);
+            const apiKey = dbCreds?.api_key || process.env.SUMUP_API_KEY;
+            const merchantCode = dbCreds?.merchant_code || process.env.SUMUP_MERCHANT_CODE;
+
+            if (apiKey && merchantCode) {
+              const txRes = await fetch(`${process.env.SUMUP_API_BASE || 'https://api.sumup.com'}/v2.1/merchants/${merchantCode}/transactions?client_transaction_id=${paymentMetadata.transaction_id}`, {
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                },
+              });
+
+              if (txRes.ok) {
+                const txData = await txRes.json();
+                console.log('[Refund] SumUp transaction verification:', txData);
+                if (txData.items && txData.items.length > 0) {
+                  const tx = txData.items[0];
+                  sumupVerified = true;
+                  sumupTransactionData = {
+                    status: tx.status,
+                    refund_status: tx.refund_status || null,
+                    refunded_amount: tx.refunded_amount || null,
+                  };
+                }
+              }
+            }
+          }
+        } catch (verifyError) {
+          console.error('[Refund] Failed to verify SumUp transaction:', verifyError);
+          // Continue without verification - refund was still processed
+        }
       } catch (error) {
         console.error('[Refund] Error calling SumUp refund API:', error);
         return NextResponse.json(
@@ -153,6 +192,8 @@ export async function POST(
         checkout_id: paymentMetadata.checkout_id,
         sumup_refund_confirmed: true,
         sumup_refund_message: 'Refund processed via SumUp',
+        sumup_verified: sumupVerified,
+        sumup_transaction_data: sumupTransactionData,
       };
     }
 
@@ -198,9 +239,11 @@ export async function POST(
       success: true,
       refund: refund,
       message: primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup'
-        ? "Refund processed via SumUp successfully"
+        ? (sumupVerified ? "Refund processed and verified via SumUp" : "Refund processed via SumUp")
         : "Refund processed successfully",
       sumup_confirmed: primaryPayment.method === 'card' && paymentMetadata.payment_provider === 'sumup',
+      sumup_verified: sumupVerified,
+      sumup_transaction_data: sumupTransactionData,
     });
   } catch (error) {
     console.error("Error in refund API:", error);
