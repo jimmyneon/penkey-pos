@@ -1132,14 +1132,10 @@ export default function PaymentPage() {
               >
                 <CreditCard className="h-16 w-16" />
                 <span className="text-xl font-bold text-center">{terminal.name}</span>
-                <span className="text-sm text-gray-400 text-center">{terminal.serial_number || terminal.reader_id}</span>
                 {/* Status dot */}
                 <div className={`absolute top-3 right-3 w-3 h-3 rounded-full border-2 border-[#5d5d5d] ${
                   terminal.status === 'online' ? 'bg-green-500' : 'bg-red-500'
                 }`} />
-                {terminal.status !== 'online' && (
-                  <span className="text-sm text-red-400">Offline</span>
-                )}
               </button>
             ))}
           </div>
