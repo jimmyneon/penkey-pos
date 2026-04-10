@@ -159,50 +159,17 @@ export default function PaymentPage() {
     }
   }, [itemsDialogOpen]);
 
-  // Check terminal status once when selection dialog opens
+  // Initialize terminal selection dialog with cached data from page mount
   useEffect(() => {
     if (!terminalDialogOpen) {
       return;
     }
 
-    // Initialize with cached data immediately
+    // Use cached data immediately - no re-fetch needed since page mount already checked status
     if (cachedTerminals.length > 0 && availableTerminals.length === 0) {
       setAvailableTerminals(cachedTerminals);
+      console.log('[Payment] Using cached terminal data from page mount:', cachedTerminals);
     }
-
-    const checkTerminalStatus = async () => {
-      try {
-        // Use cached terminals as source
-        const sourceTerminals = cachedTerminals.length > 0 ? cachedTerminals : availableTerminals;
-        
-        // Check each terminal's status once
-        const updatedTerminals = await Promise.all(
-          sourceTerminals.map(async (terminal) => {
-            try {
-              const res = await fetch(`/api/sumup/diagnose?reader_id=${terminal.reader_id}`);
-              if (res.ok) {
-                const data = await res.json();
-                console.log('[Payment] Terminal status update:', terminal.name, 'battery:', data.battery_level);
-                return {
-                  ...terminal,
-                  status: data.reader_online === 'ONLINE' ? 'online' : 'offline',
-                  battery_level: data.battery_level,
-                };
-              }
-              return terminal;
-            } catch {
-              return terminal;
-            }
-          })
-        );
-        setAvailableTerminals(updatedTerminals);
-      } catch (error) {
-        console.error("[Payment] Failed to check terminal status:", error);
-      }
-    };
-
-    // Check once when dialog opens
-    checkTerminalStatus();
   }, [terminalDialogOpen, cachedTerminals]);
 
   // Wake up terminals on page mount by polling their status
