@@ -131,30 +131,44 @@ export default function TransactionDetailsPage() {
       setLoading(true);
       
       // Check IndexedDB first (for temp receipts and offline access)
+      let localReceipt: any = null;
       try {
         const { getDB } = await import("@/lib/idb/db");
         const db = await getDB();
-        const localReceipt = await db.get("receipts", receiptId);
+        localReceipt = await db.get("receipts", receiptId);
         
         if (localReceipt) {
           console.log("[ReceiptDetail] Found receipt in IndexedDB:", receiptId);
           
-          // Fetch receipt lines from IndexedDB too
-          const tx = db.transaction('receipt_lines', 'readonly');
-          const linesStore = tx.objectStore('receipt_lines');
-          const linesIndex = linesStore.index('by_receipt');
-          const lines = await linesIndex.getAll(receiptId);
+          // Try to fetch receipt lines from IndexedDB (may not exist)
+          let lines: any[] = [];
+          try {
+            const tx = db.transaction('receipt_lines', 'readonly');
+            const linesStore = tx.objectStore('receipt_lines');
+            const linesIndex = linesStore.index('by_receipt');
+            lines = await linesIndex.getAll(receiptId);
+          } catch {
+            // receipt_lines store may not exist - use embedded lines from receipt data
+            lines = (localReceipt as any).lines || [];
+          }
           
           // Combine receipt with lines
           const receiptWithLines = {
             ...localReceipt,
-            lines: lines || []
+            lines: lines.length > 0 ? lines : ((localReceipt as any).lines || [])
           };
           
-          console.log("[ReceiptDetail] Loaded receipt with", lines?.length || 0, "lines from IndexedDB");
+          console.log("[ReceiptDetail] Loaded receipt with", (receiptWithLines as any).lines?.length || 0, "lines from IndexedDB");
+          
+          // For temp receipts, don't bother falling through to API - it won't find them
+          if (receiptId.startsWith('temp_')) {
+            setReceipt(receiptWithLines as any);
+            setLoading(false);
+            return;
+          }
+          
+          // For real receipts, still try API for freshest data
           setReceipt(receiptWithLines as any);
-          setLoading(false);
-          return; // Use local data, don't fetch from API
         }
       } catch (idbError) {
         console.warn("[ReceiptDetail] IndexedDB lookup failed:", idbError);

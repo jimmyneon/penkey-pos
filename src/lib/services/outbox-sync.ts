@@ -245,8 +245,9 @@ export class OutboxSyncService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || `Failed to sync receipt: ${response.status}`);
+        const errorBody = await response.json().catch(() => ({}));
+        console.error('[Outbox] Receipt API error response:', response.status, errorBody);
+        throw new Error(errorBody.error || `Failed to sync receipt: ${response.status}`);
       }
 
       const result = await response.json();

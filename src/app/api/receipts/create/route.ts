@@ -48,6 +48,8 @@ export async function POST(request: NextRequest) {
       dining_option,
     } = await request.json();
 
+    console.log('[Receipt Create] Incoming data:', { id, payment_method, employee_id, register_id, org_id, store_id, linesCount: lines?.length, dining_option });
+
     if (!lines || lines.length === 0) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 });
     }
@@ -62,6 +64,20 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    // Verify employee_id exists in org_members
+    const { data: employee, error: employeeError } = await supabase
+      .from("org_members")
+      .select("id")
+      .eq("id", employee_id)
+      .eq("org_id", org_id)
+      .maybeSingle();
+
+    if (employeeError || !employee) {
+      console.error('[Receipt Create] Employee validation failed:', employeeError, employee_id, org_id);
+      return NextResponse.json({ error: "Invalid employee" }, { status: 400 });
+    }
+    console.log('[Receipt Create] Employee validated:', employee_id);
 
     // ✅ DUPLICATE PREVENTION: Check idempotency key before creating
     if (id) {
@@ -150,7 +166,11 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (receiptError) throw receiptError;
+    if (receiptError) {
+      console.error('[Receipt Create] Receipt insert failed:', receiptError);
+      throw receiptError;
+    }
+    console.log('[Receipt Create] Receipt inserted:', (receipt as any).id);
 
     // Insert receipt lines
     const receiptLines = lines.map((line: any, index: number) => {
@@ -176,7 +196,11 @@ export async function POST(request: NextRequest) {
     });
 
     const { error: linesError } = await supabase.from("receipt_lines").insert(receiptLines);
-    if (linesError) throw linesError;
+    if (linesError) {
+      console.error('[Receipt Create] Lines insert failed:', linesError);
+      throw linesError;
+    }
+    console.log('[Receipt Create] Lines inserted:', receiptLines.length);
 
     // Insert payment record
     const { error: paymentError } = await supabase.from("payments").insert({
@@ -186,7 +210,11 @@ export async function POST(request: NextRequest) {
       tip_amount: 0,
       reference: payment_method === "cash" ? `Cash tendered: ${cash_tendered}` : null,
     });
-    if (paymentError) throw paymentError;
+    if (paymentError) {
+      console.error('[Receipt Create] Payment insert failed:', paymentError);
+      throw paymentError;
+    }
+    console.log('[Receipt Create] Payment inserted for method:', payment_method);
 
     // Batch inventory deduction
     const itemIds = [...new Set(lines.map((l: any) => l.item_id))];
@@ -256,6 +284,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[Receipt Create] Failed:", error);
-    return NextResponse.json({ error: "Failed to create receipt" }, { status: 500 });
+    console.error("[Receipt Create] Error details:", {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+    });
+    const errorMessage = error?.message || "Failed to create receipt";
+    return NextResponse.json({ error: errorMessage, code: error?.code }, { status: 500 });
   }
 }
