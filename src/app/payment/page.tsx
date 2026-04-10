@@ -44,6 +44,7 @@ export default function PaymentPage() {
   const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
   const [pendingReaderId, setPendingReaderId] = useState<string | null>(null);
   const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const paymentCompletedRef = useRef(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; customer?: any; name: string } | null>(null);
   const { lines, getTotal, clearCart } = useCartStore();
   
@@ -257,6 +258,9 @@ export default function PaymentPage() {
   const handleCashPayment = async (amount: number) => {
     if (!session) return;
 
+    // Reset payment completion flag for new payment
+    paymentCompletedRef.current = false;
+
     playPaymentInitSound();
     setProcessing(true);
     setCashDialogOpen(false);
@@ -266,7 +270,14 @@ export default function PaymentPage() {
     console.log("[Payment] Cash tendered:", amount);
     console.log("[Payment] Total:", total);
     console.log("[Payment] Change calculated:", change);
-    
+
+    // Guard: Prevent multiple calls for the same payment
+    if (paymentCompletedRef.current) {
+      console.log('[Payment] Payment already completed, skipping duplicate call');
+      return;
+    }
+    paymentCompletedRef.current = true;
+
     const receiptData = {
       lines: lines,
       payment_method: "cash",
@@ -378,6 +389,9 @@ export default function PaymentPage() {
 
   const handleCardPayment = async () => {
     if (!session) return;
+
+    // Reset payment completion flag for new payment
+    paymentCompletedRef.current = false;
 
     playPaymentInitSound();
 
@@ -1144,6 +1158,13 @@ export default function PaymentPage() {
 
   const completeCardPayment = async (paymentResult: any) => {
     if (!session) return;
+
+    // Guard: Prevent multiple calls for the same payment
+    if (paymentCompletedRef.current) {
+      console.log('[Payment] Payment already completed, skipping duplicate call');
+      return;
+    }
+    paymentCompletedRef.current = true;
 
     try {
       const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
