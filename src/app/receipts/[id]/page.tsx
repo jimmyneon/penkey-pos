@@ -82,6 +82,11 @@ interface ReceiptDetail {
     amount: number;
     tip_amount: number;
     reference: string | null;
+    metadata: {
+      payment_provider?: string;
+      transaction_id?: string;
+      checkout_id?: string;
+    } | null;
   }>;
   lines: ReceiptLine[];
 }
@@ -317,6 +322,13 @@ export default function TransactionDetailsPage() {
   const canRefund = receipt && receipt.status !== "fully_refunded" && (receipt.total - receipt.refunded_amount) > 0;
   const refundableAmount = receipt ? receipt.total - receipt.refunded_amount : 0;
 
+  // Guardrail: Check if card payment has transaction_id in metadata
+  const primaryPayment = receipt?.payments?.[0];
+  const hasTransactionId = primaryPayment?.method === 'card' 
+    ? primaryPayment?.metadata?.transaction_id 
+    : true; // Allow refund for non-card payments
+  const refundDisabled = !canRefund || !hasTransactionId;
+
   
 
   const handleVoid = async () => {
@@ -397,7 +409,15 @@ export default function TransactionDetailsPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="space-y-2">
+            {!hasTransactionId && primaryPayment?.method === 'card' && (
+              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
+                <p className="text-yellow-400 text-sm">
+                  <strong>Warning:</strong> Cannot refund this card payment because transaction information is missing. Please ensure the receipt has been synced to the server.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-4 gap-2">
             <Button
               onClick={handleViewReceipt}
               className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12"
@@ -421,11 +441,13 @@ export default function TransactionDetailsPage() {
             </Button>
             <Button
               onClick={() => setVoidConfirmOpen(true)}
-              disabled={!canRefund}
+              disabled={refundDisabled}
               className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs sm:text-sm h-12 disabled:opacity-50"
+              title={!hasTransactionId && primaryPayment?.method === 'card' ? 'Cannot refund: transaction information missing. Please ensure the receipt has been synced to the server.' : undefined}
             >
               Void
             </Button>
+            </div>
           </div>
 
           {/* Summary Card */}

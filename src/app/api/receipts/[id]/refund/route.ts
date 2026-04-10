@@ -97,6 +97,25 @@ export async function POST(
     console.log('[Refund] Primary payment:', primaryPayment);
     console.log('[Refund] Payment metadata:', primaryPayment.metadata);
 
+    // Guardrail: For card payments, require transaction_id to be present in metadata
+    if (primaryPayment.method === 'card') {
+      if (!primaryPayment.metadata) {
+        console.error('[Refund] Card payment refund blocked: payment metadata is null/undefined');
+        return NextResponse.json(
+          { error: "Cannot refund card payment: payment information missing. Please ensure the receipt has been synced to the server." },
+          { status: 400 }
+        );
+      }
+      const paymentMetadata = primaryPayment.metadata;
+      if (!paymentMetadata.transaction_id) {
+        console.error('[Refund] Card payment refund blocked: transaction_id missing from payment metadata');
+        return NextResponse.json(
+          { error: "Cannot refund card payment: transaction information missing. Please ensure the receipt has been synced to the server." },
+          { status: 400 }
+        );
+      }
+    }
+
     // If payment was via SumUp card, process refund through SumUp API first
     const paymentMetadata = primaryPayment.metadata || {};
     let sumupVerified = false;
