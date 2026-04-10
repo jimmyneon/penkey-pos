@@ -102,9 +102,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Check recent transactions
+    // 4. Check recent transactions (Transactions API uses v2.1)
     const txRes = await fetch(
-      `${apiBase}/v0.1/merchants/${merchantCode}/transactions?limit=3&order=descending`,
+      `${apiBase}/v2.1/merchants/${merchantCode}/transactions?limit=3&order=descending`,
       { headers: { 'Authorization': `Bearer ${apiKey}` } }
     );
     if (txRes.ok) {

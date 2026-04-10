@@ -479,14 +479,20 @@ export default function PaymentPage() {
           // Reader is IDLE - payment may have completed but transaction not yet recorded
           if (status === "IDLE") {
             idleCount++;
-            setProcessingMessage("Verifying payment...");
+            if (idleCount <= 5) {
+              setProcessingMessage("Verifying payment...");
+            } else if (idleCount <= 10) {
+              setProcessingMessage("Waiting for confirmation...");
+            } else {
+              setProcessingMessage("Still checking...");
+            }
             
-            // Give SumUp a few seconds to record the transaction
-            if (idleCount >= 5) {
-              // After 10 seconds of IDLE with no transaction, payment likely wasn't taken
+            // Give SumUp up to 30 seconds to record the transaction
+            if (idleCount >= 15) {
               clearInterval(poll);
+              activePollRef.current = null;
               console.log('[Payment] Reader IDLE but no transaction found after', idleCount, 'checks');
-              showToast("Payment not completed. The reader returned to idle.", "error");
+              showToast("Payment not confirmed. Please check the reader screen.", "error");
               setProcessing(false);
               setProcessingMessage("Processing...");
               return;

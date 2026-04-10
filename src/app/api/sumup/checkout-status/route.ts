@@ -70,22 +70,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 2: Reader is IDLE - check if the transaction completed
+    // IMPORTANT: Transactions API uses v2.1, NOT v0.1
     if (clientTransactionId) {
+      const txUrl = `${apiBase}/v2.1/merchants/${merchantCode}/transactions?client_transaction_id=${clientTransactionId}`;
+      console.log('[Checkout Status] Querying transaction API:', txUrl);
       const txRes = await fetch(
-        `${apiBase}/v0.1/merchants/${merchantCode}/transactions?client_transaction_id=${clientTransactionId}`,
+        txUrl,
         {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${apiKey}` },
         }
       );
+      console.log('[Checkout Status] Transaction API response status:', txRes.status);
 
       if (txRes.ok) {
         const txData = await txRes.json();
         console.log('[Checkout Status] Transaction response:', JSON.stringify(txData, null, 2));
 
-        // Transaction API may return a single object or items array
-        const transaction = txData.items?.[0] || txData;
+        // Transaction API returns a single transaction object
+        const transaction = txData;
         const txStatus = transaction?.status;
+        console.log('[Checkout Status] Transaction status:', txStatus, 'ID:', transaction?.id);
 
         if (txStatus === 'SUCCESSFUL') {
           return NextResponse.json({
@@ -110,14 +115,11 @@ export async function GET(request: NextRequest) {
           });
         }
       } else {
-        const txStatus = txRes.status;
-        console.log('[Checkout Status] Transaction not found yet (status:', txStatus, ')');
-        // 404 is expected while payment is still processing
-        if (txStatus !== 404) {
-          let errorBody: any = {};
-          try { errorBody = await txRes.json(); } catch {}
-          console.error('[Checkout Status] Transaction API error:', errorBody);
-        }
+        const txHttpStatus = txRes.status;
+        let errorBody: any = {};
+        try { errorBody = await txRes.json(); } catch {}
+        console.log('[Checkout Status] Transaction API returned', txHttpStatus, '- body:', JSON.stringify(errorBody));
+        // 404 means transaction not recorded yet - this is expected briefly after IDLE
       }
     }
 
