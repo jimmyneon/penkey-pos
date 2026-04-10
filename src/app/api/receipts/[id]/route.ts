@@ -73,7 +73,8 @@ export async function GET(
           method,
           amount,
           tip_amount,
-          reference
+          reference,
+          metadata
         )
       `)
       .eq("id", id)
