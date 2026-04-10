@@ -30,6 +30,7 @@ import { ItemsDisplay } from "./items-display";
 import { SellHeader } from "./sell-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { hapticButtonPress, hapticItemAdded, hapticDelete, hapticSuccess, setHapticEnabledCheck } from "@/lib/utils/haptics";
+import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { upsellLearningEngine } from "@/lib/services/upsell-learning-engine";
@@ -114,7 +115,9 @@ export default function SellPage() {
 
     // Set haptic feedback check
     setHapticEnabledCheck(() => registerSettingsData.haptic_enabled);
-  }, [registerSettingsData.theme, registerSettingsData.font_size, registerSettingsData.haptic_enabled]);
+    // Set sound effects check
+    setSoundEnabledCheck(() => registerSettingsData.sound_enabled);
+  }, [registerSettingsData.theme, registerSettingsData.font_size, registerSettingsData.haptic_enabled, registerSettingsData.sound_enabled]);
 
   // Load saved tickets (TODO: migrate to database)
   useEffect(() => {
@@ -353,6 +356,7 @@ export default function SellPage() {
   const handleAddItem = (item: any, event?: React.MouseEvent) => {
     // Trigger button press animation and haptic feedback
     hapticButtonPress();
+    playButtonSound();
     setClickedItemId(item.id);
     setTimeout(() => setClickedItemId(null), 200);
 
@@ -685,6 +689,7 @@ export default function SellPage() {
 
     // Trigger item-to-ticket animation and haptic feedback
     hapticItemAdded();
+    playItemAddedSound();
 
     addLine({
       item_id: selectedItem.id,
@@ -794,6 +799,7 @@ export default function SellPage() {
     }, 50); // Small delay to let DOM update
     
     hapticSuccess();
+    playSuccessSound();
   };
 
   const handleLoadTicket = (ticketId: string) => {
@@ -819,10 +825,12 @@ export default function SellPage() {
     localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
 
     hapticSuccess();
+    playSuccessSound();
   };
 
   const handleDeleteTicket = (ticketId: string | string[]) => {
     hapticDelete();
+    playDeleteSound();
     const idsToDelete = Array.isArray(ticketId) ? ticketId : [ticketId];
     const updatedTickets = savedTickets.filter(t => !idsToDelete.includes(t.id));
     setSavedTickets(updatedTickets);
@@ -832,6 +840,7 @@ export default function SellPage() {
   const handleAssignTicket = (assignee: { type: 'customer' | 'table'; name: string; customer?: any }) => {
     setTicketAssignment(assignee);
     hapticSuccess();
+    playSuccessSound();
     
     // Show confirmation
     if (assignee.type === 'customer' && assignee.customer) {
@@ -858,6 +867,7 @@ export default function SellPage() {
     localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
 
     hapticSuccess();
+    playSuccessSound();
   };
 
   const handleMergeFromDialog = (ticketId: string | string[]) => {
@@ -933,6 +943,7 @@ export default function SellPage() {
     selectedLineIds.forEach(lineId => removeLine(lineId));
 
     hapticSuccess();
+    playSuccessSound();
   };
 
   const handleSync = async () => {
@@ -976,6 +987,7 @@ export default function SellPage() {
         onTicketClick={() => setTicketModalOpen(true)}
         onAssignCustomerClick={() => {
           hapticButtonPress();
+          playButtonSound();
           setAssignTicketOpen(true);
         }}
         onSaveTicketClick={() => {
@@ -1006,6 +1018,7 @@ export default function SellPage() {
         }}
         onSyncClick={async () => {
           hapticButtonPress();
+          playButtonSound();
           try {
             // Force refresh to bypass cache
             setForceRefresh(true);
@@ -1291,6 +1304,7 @@ export default function SellPage() {
           setCurrentTicketName("");
           setCurrentTicketComment("");
           hapticDelete();
+          playDeleteSound();
         }}
         title="Clear Ticket"
         message="Are you sure you want to clear all items from this ticket?"
