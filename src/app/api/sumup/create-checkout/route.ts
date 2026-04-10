@@ -51,10 +51,12 @@ export async function POST(request: NextRequest) {
     if (description) body.description = description;
     // Send affiliate field in correct format per SumUp API docs
     if (affiliateKey && affiliateKey.trim() !== '') {
+      // Generate UUID compatible with Edge runtime
+      const foreignTxId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
       body.affiliate = {
         key: affiliateKey,
         app_id: 'com.penkey.pos',
-        foreign_transaction_id: crypto.randomUUID(),
+        foreign_transaction_id: foreignTxId,
       };
     }
 

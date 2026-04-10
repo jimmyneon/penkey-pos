@@ -312,6 +312,12 @@ export default function PaymentPage() {
             setProcessingMessage("Processing...");
             return;
           }
+          
+          // Check battery level and warn if low
+          const batteryLevel = readerStatus.data?.battery_level;
+          if (batteryLevel !== undefined && batteryLevel < 20) {
+            showToast(`⚠️ Reader battery low (${Math.round(batteryLevel)}%). Please charge soon.`, "info");
+          }
         }
       } catch (err) {
         console.warn('[Payment] Could not check reader status, proceeding anyway:', err);
