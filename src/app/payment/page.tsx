@@ -33,6 +33,7 @@ export default function PaymentPage() {
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("Processing...");
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; customer?: any; name: string } | null>(null);
   const { lines, getTotal, clearCart } = useCartStore();
@@ -263,6 +264,7 @@ export default function PaymentPage() {
     }
 
     setProcessing(true);
+    setProcessingMessage("Checking card reader...");
 
     try {
       // Fetch paired terminals from database
@@ -273,6 +275,7 @@ export default function PaymentPage() {
       if (!terminals || terminals.length === 0) {
         showToast("No card readers paired. Go to Settings → Payment Terminals to pair a reader.", "error");
         setProcessing(false);
+        setProcessingMessage("Processing...");
         return;
       }
 
@@ -281,6 +284,7 @@ export default function PaymentPage() {
       
       // Check reader status before attempting payment
       try {
+        setProcessingMessage("Checking reader status...");
         const readerStatusRes = await fetch(`/api/sumup/reader-status?reader_id=${onlineTerminal.reader_id}`);
         if (readerStatusRes.ok) {
           const readerStatus = await readerStatusRes.json();
@@ -289,12 +293,14 @@ export default function PaymentPage() {
           if (readerStatus.device_status === 'OFFLINE') {
             showToast("Card reader is offline. Please ensure it's powered on and connected.", "error");
             setProcessing(false);
+            setProcessingMessage("Processing...");
             return;
           }
           
           if (readerStatus.state === 'UPDATING_FIRMWARE') {
             showToast("Card reader is updating. Please wait and try again.", "error");
             setProcessing(false);
+            setProcessingMessage("Processing...");
             return;
           }
         }
@@ -303,6 +309,7 @@ export default function PaymentPage() {
         // Continue - reader status check is optional
       }
 
+      setProcessingMessage(`Sending to ${onlineTerminal.name}...`);
       showToast(`Sending payment request to ${onlineTerminal.name}...`, "info");
 
       // Create checkout on the reader (server reads credentials from DB)
@@ -319,12 +326,17 @@ export default function PaymentPage() {
 
       const checkoutData = await checkoutRes.json();
       if (!checkoutData.success) {
-        showToast(checkoutData.error || "Failed to start card payment", "error");
+        const errorMsg = typeof checkoutData.error === 'string' 
+          ? checkoutData.error 
+          : checkoutData.error?.message || checkoutData.message || "Failed to start card payment";
+        showToast(errorMsg, "error");
         setProcessing(false);
+        setProcessingMessage("Processing...");
         return;
       }
 
       const checkoutId = checkoutData.checkout_id;
+      setProcessingMessage("Waiting for card...");
       showToast("Waiting for card at reader...", "info");
 
       // Poll for payment completion (up to 90 seconds)
@@ -351,17 +363,53 @@ export default function PaymentPage() {
 
           console.log('[Payment] Checkout status:', status, 'Attempt:', attempts);
 
-          // Update user with status changes
+          // Update user with status changes based on reader state
           if (status !== lastStatus && status) {
             lastStatus = status;
-            if (status === "PENDING") {
-              showToast("Processing card...", "info");
+            
+            // Update spinner message based on checkout status
+            switch (status) {
+              case "PENDING":
+                setProcessingMessage("Processing card...");
+                break;
+              case "WAITING_FOR_CARD":
+                setProcessingMessage("Waiting for card...");
+                break;
+              case "WAITING_FOR_PIN":
+                setProcessingMessage("Enter PIN on reader...");
+                break;
+              case "SELECTING_TIP":
+                setProcessingMessage("Select tip amount...");
+                break;
+              case "WAITING_FOR_SIGNATURE":
+                setProcessingMessage("Sign on reader...");
+                break;
+            }
+          }
+          
+          // Also check reader state from checkout data
+          const readerState = checkout?.reader_state || checkout?.state;
+          if (readerState && readerState !== lastStatus) {
+            switch (readerState) {
+              case "WAITING_FOR_CARD":
+                setProcessingMessage("Present card to reader...");
+                break;
+              case "WAITING_FOR_PIN":
+                setProcessingMessage("Enter PIN on reader...");
+                break;
+              case "SELECTING_TIP":
+                setProcessingMessage("Select tip amount...");
+                break;
+              case "WAITING_FOR_SIGNATURE":
+                setProcessingMessage("Sign on reader...");
+                break;
             }
           }
 
           // Handle all possible SumUp status values
           if (status === "PAID" || status === "SUCCESSFUL") {
             clearInterval(poll);
+            setProcessingMessage("Payment successful!");
             showToast("Payment successful!", "success");
             
             // Verify payment was actually processed
@@ -370,6 +418,7 @@ export default function PaymentPage() {
               console.error('[Payment] No transaction found in successful checkout');
               showToast("Payment status unclear. Please verify on the reader.", "error");
               setProcessing(false);
+              setProcessingMessage("Processing...");
               return;
             }
             
@@ -382,10 +431,12 @@ export default function PaymentPage() {
               console.error('[Payment] Transaction status mismatch:', transactionStatus);
               showToast("Payment verification failed. Please check receipts.", "error");
               setProcessing(false);
+              setProcessingMessage("Processing...");
               return;
             }
             
             console.log('[Payment] Payment verified - Transaction ID:', transactionId);
+            setProcessingMessage("Saving receipt...");
             
             await completeCardPayment({ 
               checkoutId, 
@@ -404,10 +455,12 @@ export default function PaymentPage() {
               : "Payment failed";
             showToast(errorMsg, "error");
             setProcessing(false);
+            setProcessingMessage("Processing...");
           } else if (attempts >= maxAttempts) {
             clearInterval(poll);
             showToast("Payment timeout. Please check the reader and try again.", "error");
             setProcessing(false);
+            setProcessingMessage("Processing...");
           }
         } catch (err) {
           console.error("[Payment] Status poll error:", err);
@@ -416,13 +469,16 @@ export default function PaymentPage() {
             clearInterval(poll);
             showToast("Lost connection to payment system. Please check the reader and verify payment status.", "error");
             setProcessing(false);
+            setProcessingMessage("Processing...");
           }
         }
       }, 2000);
     } catch (error) {
       console.error("Card payment error:", error);
-      showToast(`Card payment failed: ${(error as Error).message}`, "error");
+      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred";
+      showToast(`Card payment failed: ${errorMsg}`, "error");
       setProcessing(false);
+      setProcessingMessage("Processing...");
     }
   };
 
@@ -634,10 +690,10 @@ export default function PaymentPage() {
       {/* Processing Overlay */}
       {processing && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-[#3d3d3d] rounded-lg p-8 text-center">
+          <div className="bg-[#3d3d3d] rounded-lg p-8 text-center max-w-sm">
             <Loader2 className="h-16 w-16 text-penkey-orange animate-spin mx-auto mb-4" />
-            <p className="text-xl font-bold text-white mb-2">Please wait...</p>
-            <p className="text-gray-400">Processing payment</p>
+            <p className="text-xl font-bold text-white mb-2">{processingMessage}</p>
+            <p className="text-sm text-gray-400">Please do not close this window</p>
           </div>
         </div>
       )}
