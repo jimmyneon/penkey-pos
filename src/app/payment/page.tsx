@@ -171,8 +171,8 @@ export default function PaymentPage() {
     // Check immediately
     checkTerminalStatus();
 
-    // Poll every 5 seconds
-    const interval = setInterval(checkTerminalStatus, 5000);
+    // Poll every 1 second
+    const interval = setInterval(checkTerminalStatus, 1000);
 
     return () => clearInterval(interval);
   }, [terminalDialogOpen]);
