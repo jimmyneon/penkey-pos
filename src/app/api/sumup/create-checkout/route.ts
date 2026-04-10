@@ -80,12 +80,41 @@ export async function POST(request: NextRequest) {
       try { errorData = await sumupResponse.json(); } catch {}
       console.error('[SumUp] Checkout error:', sumupResponse.status, errorData);
 
+      // Handle READER_BUSY error by terminating the pending checkout
+      if (sumupResponse.status === 422 && errorData?.errors?.type === 'READER_BUSY') {
+        console.log('[SumUp] Reader busy - attempting to terminate pending checkout');
+        try {
+          const terminateRes = await fetch(
+            `${apiBase}/v0.1/merchants/${merchantCode}/readers/${reader_id}/checkout`,
+            {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+          console.log('[SumUp] Terminate response:', terminateRes.status);
+          
+          if (terminateRes.ok) {
+            return NextResponse.json({ 
+              error: 'Previous checkout terminated. Please try again.',
+              retry: true 
+            }, { status: 409 });
+          }
+        } catch (terminateErr) {
+          console.error('[SumUp] Failed to terminate checkout:', terminateErr);
+        }
+      }
+
       const message =
         sumupResponse.status === 409
           ? 'Terminal is busy – another checkout is in progress'
           : sumupResponse.status === 404
           ? 'Terminal not found – please re-pair the reader'
-          : errorData?.message || errorData?.error_message || JSON.stringify(errorData) || 'Failed to start checkout on terminal';
+          : sumupResponse.status === 422 && errorData?.errors?.type === 'READER_BUSY'
+          ? 'Reader is busy with a previous checkout. Please wait or restart the reader.'
+          : errorData?.message || errorData?.error_message || errorData?.errors?.detail || JSON.stringify(errorData) || 'Failed to start checkout on terminal';
 
       return NextResponse.json({ error: message }, { status: sumupResponse.status });
     }
@@ -93,8 +122,8 @@ export async function POST(request: NextRequest) {
     const checkoutData = await sumupResponse.json();
     console.log('[SumUp Checkout] Response:', JSON.stringify(checkoutData, null, 2));
 
-    // SumUp API returns different field names depending on the endpoint
-    const checkoutId = checkoutData.id || checkoutData.checkout_id || checkoutData.client_transaction_id;
+    // SumUp Cloud API returns: { data: { client_transaction_id: "..." } }
+    const checkoutId = checkoutData.data?.client_transaction_id || checkoutData.client_transaction_id || checkoutData.id;
     
     if (!checkoutId) {
       console.error('[SumUp Checkout] No checkout ID in response:', checkoutData);
@@ -109,6 +138,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       checkout_id: checkoutId,
+      client_transaction_id: checkoutId,
       checkout: checkoutData,
     });
 

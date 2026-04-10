@@ -347,6 +347,18 @@ export default function PaymentPage() {
           ? checkoutData.error 
           : checkoutData.error?.message || checkoutData.message || "Failed to start card payment";
         console.error('[Payment] Checkout creation failed:', errorMsg);
+        
+        // If server terminated a pending checkout, retry automatically
+        if (checkoutData.retry) {
+          console.log('[Payment] Retrying after terminating pending checkout...');
+          showToast("Clearing previous checkout, please wait...", "info");
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+          // Retry by calling handleCardPayment again
+          setProcessing(false);
+          setTimeout(() => handleCardPayment(), 500);
+          return;
+        }
+        
         showToast(errorMsg, "error");
         setProcessing(false);
         setProcessingMessage("Processing...");
