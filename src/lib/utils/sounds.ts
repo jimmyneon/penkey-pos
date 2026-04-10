@@ -26,6 +26,12 @@ function initAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   }
+  
+  // Resume audio context if suspended (browser autoplay policy)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  
   return audioContext;
 }
 
@@ -34,11 +40,14 @@ function initAudioContext(): AudioContext {
  */
 function playBeep(frequency: number, duration: number, type: OscillatorType = 'sine'): void {
   if (!isSoundEnabled()) {
+    console.log('[Sound] Sound disabled, skipping');
     return;
   }
 
   try {
     const ctx = initAudioContext();
+    console.log('[Sound] Playing beep:', frequency, duration, type, 'context state:', ctx.state);
+    
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
 
@@ -48,13 +57,14 @@ function playBeep(frequency: number, duration: number, type: OscillatorType = 's
     oscillator.frequency.value = frequency;
     oscillator.type = type;
 
-    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+    // Increase volume for better audibility
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + duration);
   } catch (error) {
-    console.debug('Sound not supported:', error);
+    console.error('[Sound] Error playing sound:', error);
   }
 }
 
