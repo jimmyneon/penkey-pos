@@ -133,15 +133,20 @@ Status: Online
             logger.error(f"[Serial] Unexpected error writing to printer: {e}")
             raise
 
-    def _build_escpos_receipt(self, text: str) -> bytes:
+    def _build_escpos_receipt(self, text: str, settings: Optional[Dict] = None) -> bytes:
         """Build ESC/POS commands for receipt printing"""
         commands = bytearray()
+
+        # Get settings or use defaults
+        settings = settings or {}
+        code_page = settings.get('code_page', 0x02)  # CP850 by default
+        feed_lines = settings.get('feed_lines_before_cut', 6)
 
         # Initialize printer
         commands.extend([0x1B, 0x40])  # ESC @
 
-        # Set code page to CP850 (Western European) - supports pound sign
-        commands.extend([0x1B, 0x74, 0x02])  # CP850
+        # Set code page from settings
+        commands.extend([0x1B, 0x74, code_page])
 
         # Process each line
         for line in text.split('\n'):
@@ -182,7 +187,7 @@ Status: Online
         commands.extend([0x1B, 0x61, 0x00])  # Left align
 
         # Feed lines before cut
-        commands.extend([0x0A] * feed_lines)  # Configurable feed lines
+        commands.extend([0x0A] * feed_lines)
 
         # Cut paper (full cut with feed)
         commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0 - feed and cut
