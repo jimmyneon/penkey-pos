@@ -132,8 +132,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Failed to queue receipt print:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
     return NextResponse.json(
-      { error: "Failed to queue receipt for printing" },
+      { error: "Failed to queue receipt for printing", details: error?.message },
       { status: 500 }
     );
   }
