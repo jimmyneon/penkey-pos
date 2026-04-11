@@ -56,7 +56,7 @@ export function PrinterManager({ registerId }: PrinterCardProps) {
   }
 
   return (
-    <div className="bg-zinc-800/50 rounded-lg p-6 space-y-6">
+    <div className="bg-zinc-800/50 rounded-lg p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-orange-500/20 rounded-lg">
@@ -69,17 +69,17 @@ export function PrinterManager({ registerId }: PrinterCardProps) {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={refresh}
-            className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            className="inline-flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm flex-1 sm:flex-none"
           >
             <RefreshCw className="w-4 h-4" />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
           <Button
             onClick={() => setShowAddDialog(true)}
-            className="bg-orange-500 hover:bg-orange-600"
+            className="bg-orange-500 hover:bg-orange-600 flex-1 sm:flex-none"
           >
             Add Printer
           </Button>
@@ -179,12 +179,12 @@ function PrinterCard({
 
   return (
     <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div className={`w-3 h-3 rounded-full mt-1.5 ${statusColors[printer.status as keyof typeof statusColors] || "bg-zinc-500"}`} />
-          <div>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 flex-1">
+          <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${statusColors[printer.status as keyof typeof statusColors] || "bg-zinc-500"}`} />
+          <div className="flex-1 min-w-0">
             <h3 className="font-medium text-white">{printer.name}</h3>
-            <div className="flex items-center gap-2 mt-1 text-sm text-zinc-400">
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-zinc-400">
               <span className="capitalize">{printer.type}</span>
               <span>•</span>
               <span className="capitalize">{printer.connection_type}</span>
@@ -211,12 +211,13 @@ function PrinterCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={onTest}
-            className="text-zinc-400 hover:text-white"
+            className="text-zinc-400 hover:text-white p-2"
+            title="Test Print"
           >
             <TestTube className="h-4 w-4" />
           </Button>
@@ -224,7 +225,7 @@ function PrinterCard({
             variant="ghost"
             size="sm"
             onClick={onViewJobs}
-            className="text-zinc-400 hover:text-white"
+            className="text-zinc-400 hover:text-white p-2"
             title="View Print Jobs"
           >
             <List className="h-4 w-4" />
@@ -233,7 +234,8 @@ function PrinterCard({
             variant="ghost"
             size="sm"
             onClick={onEdit}
-            className="text-zinc-400 hover:text-white"
+            className="text-zinc-400 hover:text-white p-2"
+            title="Edit Printer"
           >
             <Edit2 className="h-4 w-4" />
           </Button>
@@ -241,7 +243,8 @@ function PrinterCard({
             variant="ghost"
             size="sm"
             onClick={onDelete}
-            className="text-zinc-400 hover:text-red-400"
+            className="text-zinc-400 hover:text-red-400 p-2"
+            title="Delete Printer"
           >
             <Trash2 className="h-4 w-4" />
           </Button>

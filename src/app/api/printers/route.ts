@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     const store_id = searchParams.get('store_id') || undefined;
     const status = searchParams.get('status') as any || undefined;
 
+    console.log('[Printers API] Fetching printers with filters:', { register_id, store_id, status });
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -26,11 +28,13 @@ export async function GET(request: NextRequest) {
       status,
     });
 
+    console.log('[Printers API] Fetched printers:', printers.length);
     return NextResponse.json({ printers });
   } catch (error: any) {
-    console.error("Failed to fetch printers:", error);
+    console.error("[Printers API] Failed to fetch printers:", error);
+    console.error("[Printers API] Error details:", error.message, error.stack);
     return NextResponse.json(
-      { error: "Failed to fetch printers" },
+      { error: error.message || "Failed to fetch printers" },
       { status: 500 }
     );
   }

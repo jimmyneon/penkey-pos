@@ -149,6 +149,8 @@ export async function getPrinters(
 ): Promise<Printer[]> {
   const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
 
+  console.log('[PrintQueue] getPrinters called with filters:', filters);
+
   let query = supabase.from("printers").select("*");
 
   if (filters?.register_id) {
@@ -165,7 +167,12 @@ export async function getPrinters(
 
   const { data, error } = await query.order("name");
 
-  if (error) throw error;
+  if (error) {
+    console.error('[PrintQueue] getPrinters error:', error);
+    throw error;
+  }
+
+  console.log('[PrintQueue] getPrinters result:', data?.length, 'printers');
   return (data || []) as Printer[];
 }
 
