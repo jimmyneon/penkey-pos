@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, Button, Input } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { AlertTriangle, DollarSign } from "lucide-react";
+import { AlertTriangle, DollarSign, Lock } from "lucide-react";
+import { verifyPinLocally, getCachedRegister } from "@/lib/services/pin-cache";
 
 interface ReceiptLine {
   id: string;
@@ -35,6 +36,21 @@ export function RefundDialog({
   const [reason, setReason] = useState("");
   const [isPartial, setIsPartial] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showPinEntry, setShowPinEntry] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [verifyingPin, setVerifyingPin] = useState(false);
+  const [orgId, setOrgId] = useState<string | null>(null);
+
+  // Get org_id from session on mount
+  useEffect(() => {
+    if (open) {
+      const sessionData = sessionStorage.getItem("pos_session");
+      if (sessionData) {
+        setOrgId(JSON.parse(sessionData).org_id);
+      }
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -48,7 +64,7 @@ export function RefundDialog({
     }
   }, [open]);
 
-  const handleRefund = () => {
+  const handleRefund = async () => {
     if (isPartial && selectedItems.size === 0) {
       alert("Please select items to refund");
       return;
@@ -62,8 +78,72 @@ export function RefundDialog({
       alert("Please provide a reason for the refund");
       return;
     }
-    onRefund(amount, reason, isPartial ? Array.from(selectedItems) : undefined);
-    handleClose();
+    // Show PIN entry before processing refund
+    setShowPinEntry(true);
+    setPin("");
+    setPinError("");
+  };
+
+  const handlePinSubmit = async () => {
+    if (pin.length !== 4) {
+      setPinError("Please enter a 4-digit PIN");
+      return;
+    }
+
+    setVerifyingPin(true);
+    setPinError("");
+
+    try {
+      let verified = false;
+
+      // Try local verification first
+      if (orgId) {
+        const localResult = await verifyPinLocally(pin, orgId);
+        if (localResult) {
+          verified = true;
+        }
+      }
+
+      // Fallback to API if local verification fails
+      if (!verified) {
+        const response = await fetch("/api/auth/pin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ pin }),
+        });
+
+        if (response.ok) {
+          verified = true;
+        }
+      }
+
+      if (verified) {
+        const amount = isPartial ? calculateSelectedItemsTotal() : parseFloat(refundAmount);
+        onRefund(amount, reason, isPartial ? Array.from(selectedItems) : undefined);
+        handleClose();
+      } else {
+        setPinError("Invalid PIN");
+        setPin("");
+      }
+    } catch (err) {
+      setPinError("PIN verification failed");
+      setPin("");
+    } finally {
+      setVerifyingPin(false);
+    }
+  };
+
+  const handlePinPadClick = (num: string) => {
+    if (pin.length < 4) {
+      setPin(pin + num);
+      setPinError("");
+    }
+  };
+
+  const handlePinClear = () => {
+    setPin("");
+    setPinError("");
   };
 
   const calculateSelectedItemsTotal = () => {
@@ -93,24 +173,119 @@ export function RefundDialog({
     setReason("");
     setIsPartial(false);
     setSelectedItems(new Set());
+    setShowPinEntry(false);
+    setPin("");
+    setPinError("");
     onClose();
   };
 
   const amount = parseFloat(refundAmount) || 0;
   const isValid = amount > 0 && amount <= maxAmount && reason.trim().length > 0;
 
+  // Auto-submit PIN when 4 digits entered
+  useEffect(() => {
+    if (pin.length === 4 && showPinEntry) {
+      handlePinSubmit();
+    }
+  }, [pin, showPinEntry]);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[calc(100vw-16px)] sm:max-w-md bg-[#3d3d3d] border-gray-700 max-h-[85vh] overflow-y-auto">
-        <DialogTitle className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
-          Refund Transaction
-        </DialogTitle>
-        <DialogDescription className="text-sm text-gray-400">
-          Process a refund for receipt {receiptNumber}
-        </DialogDescription>
+        {showPinEntry ? (
+          <>
+            <DialogTitle className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
+              PIN Required
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-400">
+              Enter your PIN to authorize this refund
+            </DialogDescription>
 
-        <div className="space-y-3 mt-3">
+            <div className="space-y-4 mt-4">
+              {/* PIN Display */}
+              <div className="flex justify-center gap-3 sm:gap-4 mb-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg border-2 flex items-center justify-center ${
+                      pin.length > i
+                        ? "border-penkey-orange bg-penkey-orange"
+                        : "border-gray-600 bg-[#2d2d2d]"
+                    }`}
+                  >
+                    {pin.length > i && (
+                      <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-white"></div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {pinError && (
+                <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
+                  <p className="text-center text-red-400 text-sm font-medium">
+                    {pinError}
+                  </p>
+                </div>
+              )}
+
+              {verifyingPin && (
+                <div className="text-center text-gray-400 text-sm">
+                  Verifying...
+                </div>
+              )}
+
+              {/* PIN Pad */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => handlePinPadClick(num.toString())}
+                    disabled={verifyingPin}
+                    className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  onClick={handlePinClear}
+                  disabled={verifyingPin}
+                  className="h-14 sm:h-16 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50 flex items-center justify-center"
+                >
+                  <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
+                </button>
+                <button
+                  onClick={() => handlePinPadClick("0")}
+                  disabled={verifyingPin}
+                  className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50"
+                >
+                  0
+                </button>
+                <div></div>
+              </div>
+
+              {/* Cancel Button */}
+              <Button
+                variant="outline"
+                onClick={() => setShowPinEntry(false)}
+                disabled={verifyingPin}
+                className="w-full border-gray-600 text-gray-300 hover:bg-[#2d2d2d]"
+              >
+                Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogTitle className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
+              Refund Transaction
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-400">
+              Process a refund for receipt {receiptNumber}
+            </DialogDescription>
+
+            <div className="space-y-3 mt-3">
           {/* Refund Type */}
           <div className="flex flex-col sm:flex-row gap-2">
             <button
@@ -230,7 +405,9 @@ export function RefundDialog({
               Process Refund
             </Button>
           </div>
-        </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

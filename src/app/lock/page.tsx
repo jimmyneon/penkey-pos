@@ -258,7 +258,7 @@ export default function LockPage() {
                 key={num}
                 onClick={() => handleNumberClick(num.toString())}
                 disabled={loading}
-                className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 transition-all text-white disabled:opacity-50"
+                className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50"
               >
                 {num}
               </button>
@@ -266,14 +266,14 @@ export default function LockPage() {
             <button
               onClick={handleClear}
               disabled={loading}
-              className="h-14 sm:h-16 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 transition-all text-white disabled:opacity-50 flex items-center justify-center"
+              className="h-14 sm:h-16 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50 flex items-center justify-center"
             >
               <Delete className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
             <button
               onClick={() => handleNumberClick("0")}
               disabled={loading}
-              className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 transition-all text-white disabled:opacity-50"
+              className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50"
             >
               0
             </button>

@@ -189,6 +189,13 @@ export function ModifierDialog({
         defaultOptions.forEach((opt) => {
           defaults[group.id][opt.id] = 1;
         });
+      } else if (group.selection_type === 'required' || group.min_selections > 0) {
+        // For required groups with no default set, auto-select the first option
+        if (group.modifier_options.length > 0) {
+          defaults[group.id] = {};
+          defaults[group.id][group.modifier_options[0].id] = 1;
+          console.log(`[ModifierDialog] Auto-selected first option for required group: ${group.name}`);
+        }
       }
     });
     setSelectedModifiers(defaults);
