@@ -85,7 +85,8 @@ export default function PaymentTerminalsPage() {
       const res = await fetch(`/api/sumup/diagnose?reader_id=${readerId}`);
       const data = await res.json();
       console.log('[Payment Terminals] Reader status response:', data);
-      if (data.success && data.reader_online) {
+      // Diagnose API returns diagnosis object directly, not wrapped in success
+      if (data.reader_online) {
         const status = data.reader_online === 'ONLINE' ? 'online' : 'offline';
         console.log('[Payment Terminals] Reader', readerId, 'is', status);
         return status;
