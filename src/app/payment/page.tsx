@@ -302,12 +302,15 @@ export default function PaymentPage() {
       register_id: session.register.id,
       store_id: session.register.store_id,
       org_id: session.org_id,
+      created_at: new Date().toISOString(),
       // Customer data from ticket assignment
       customer_id: ticketAssignment?.customer?.id || null,
       customer_name: ticketAssignment?.name || null,
       customer_email: ticketAssignment?.customer?.email || null,
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
+      // Dining option: eat-in for table assignments, takeaway for customer assignments
+      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : 'takeaway',
     };
     
     console.log('[Payment] Creating receipt with customer data:', {
@@ -1192,11 +1195,14 @@ export default function PaymentPage() {
         register_id: session.register.id,
         store_id: session.register.store_id,
         org_id: session.org_id,
+        created_at: new Date().toISOString(),
         customer_id: ticketAssignment?.customer?.id || null,
         customer_name: ticketAssignment?.name || null,
         customer_email: ticketAssignment?.customer?.email || null,
         customer_phone: ticketAssignment?.customer?.phone || null,
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
+        // Dining option: eat-in for table assignments, takeaway for customer assignments
+        dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : 'takeaway',
         payment_provider: "sumup",
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,

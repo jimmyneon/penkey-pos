@@ -327,20 +327,37 @@ export default function SettingsPage() {
     try {
       console.log("[Settings] Saving settings for register:", registerId);
       console.log("[Settings] Settings to save:", settings);
-      
-      await registerSettings.update(registerId, settings);
-      
+
+      // Use API endpoint instead of RPC (more reliable)
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const response = await fetch("/api/register/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData && { "x-pos-session": sessionData }),
+        },
+        body: JSON.stringify({
+          register_id: registerId,
+          settings,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save settings");
+      }
+
       console.log("[Settings] Settings saved successfully");
       hapticSuccess();
-      
+
       // Show success message
       showToast("Settings saved successfully!", "success");
-      
+
       // Reload settings to confirm
       const reloadedSettings = await registerSettings.get(registerId);
       console.log("[Settings] Reloaded settings:", reloadedSettings);
       setSettings(reloadedSettings);
-      
+
       // Navigate back to sell page to apply changes
       setTimeout(() => {
         router.push("/sell");

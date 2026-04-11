@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       payment_provider,
       transaction_id,
       checkout_id,
+      created_at,
     } = body;
 
     console.log('[Receipt Create] Incoming data:', { id, payment_method, employee_id, register_id, org_id, store_id, linesCount: lines?.length, dining_option });
@@ -202,6 +203,8 @@ export async function POST(request: NextRequest) {
         status: "completed",
         dining_option: dining_option || "takeaway",
         idempotency_key: isValidUUID(id) ? id : null,
+        // Preserve original transaction time if provided (offline sync), otherwise use database default
+        created_at: created_at || undefined,
       })
       .select()
       .single();
