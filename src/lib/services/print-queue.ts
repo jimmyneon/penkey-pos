@@ -137,7 +137,7 @@ export async function updatePrintJobStatus(
   }
 
   if (status === "completed") {
-    updates.printed_at = new Date().toISOString();
+    // printed_at column doesn't exist in database
   }
 
   if (error_message) {

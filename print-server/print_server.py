@@ -187,7 +187,8 @@ class PrintServer:
                 updates['attempts'] = current + 1
 
             elif status == 'completed':
-                updates['printed_at'] = datetime.utcnow().isoformat()
+                # printed_at column doesn't exist in database
+                pass
 
             if error:
                 updates['error_message'] = error

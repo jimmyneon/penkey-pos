@@ -9,7 +9,6 @@ BEGIN
   UPDATE print_jobs
   SET 
     status = 'completed',
-    printed_at = now(),
     updated_at = now()
   WHERE 
     status = 'printing'
