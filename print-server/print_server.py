@@ -178,13 +178,17 @@ class PrintServer:
             updates: Dict[str, Any] = {'status': status}
 
             if status == 'printing':
-                resp = await self.supabase.table('print_jobs') \
-                    .select('attempts') \
-                    .eq('id', job_id) \
-                    .single() \
-                    .execute()
-                current = resp.data.get('attempts', 0) if resp.data else 0
-                updates['attempts'] = current + 1
+                try:
+                    resp = await self.supabase.table('print_jobs') \
+                        .select('attempts') \
+                        .eq('id', job_id) \
+                        .single() \
+                        .execute()
+                    current = resp.data.get('attempts', 0) if resp.data else 0
+                    updates['attempts'] = current + 1
+                except Exception as e:
+                    logger.warning(f"Failed to fetch attempts for job {job_id}: {e}, defaulting to 0")
+                    updates['attempts'] = 0
 
             elif status == 'completed':
                 # printed_at column doesn't exist in database
@@ -241,7 +245,10 @@ class PrintServer:
         if not is_valid:
             logger.error(f"Job validation failed: {error_msg}")
             job_id = job.get('id', 'unknown')
-            await self.update_job_status(job_id, 'failed', f"Invalid job: {error_msg}")
+            try:
+                await self.update_job_status(job_id, 'failed', f"Invalid job: {error_msg}")
+            except Exception as update_err:
+                logger.error(f"Failed to mark invalid job {job_id} as failed: {update_err}")
             return False
 
         job_id = job['id']
@@ -252,9 +259,13 @@ class PrintServer:
 
         logger.info(f"Processing job {job_id} (type={job_type}, attempt {attempts + 1}/{max_attempts})")
 
+        # Prevent infinite retry loops - if already exceeded max attempts, mark as failed and don't process
         if attempts >= max_attempts:
-            logger.error(f"Job {job_id} exceeded max attempts")
-            await self.update_job_status(job_id, 'failed', 'Exceeded maximum retry attempts')
+            logger.error(f"Job {job_id} already exceeded max attempts ({attempts}/{max_attempts}), marking as failed")
+            try:
+                await self.update_job_status(job_id, 'failed', 'Exceeded maximum retry attempts')
+            except Exception as update_err:
+                logger.error(f"Failed to mark job {job_id} as failed after exceeding max attempts: {update_err}")
             return False
 
         await self.update_job_status(job_id, 'printing')
@@ -284,11 +295,14 @@ class PrintServer:
         except Exception as e:
             err = str(e)
             logger.error(f"Job {job_id} failed: {err}")
+            # Only retry if not exceeded max attempts
             next_status = 'failed' if (attempts + 1 >= max_attempts) else 'pending'
             try:
                 await self.update_job_status(job_id, next_status, err)
             except Exception as update_err:
                 logger.error(f"Failed to update job {job_id} status after failure: {update_err}")
+                # If status update fails, don't retry to prevent infinite loop
+                return False
             return False
 
     # ------------------------------------------------------------------
