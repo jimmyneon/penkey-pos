@@ -20,13 +20,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const orgId = searchParams.get("org_id");
-
-    // ✅ SECURITY: Verify org_id matches session
-    if (!orgId || orgId !== session.org_id) {
-      console.warn(`[API-AUTH] Org mismatch - Request: ${orgId}, Session: ${session.org_id}`);
-      return unauthorizedResponse();
-    }
 
     const supabase = createSupabaseServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,9 +27,8 @@ export async function GET(request: NextRequest) {
     );
 
     // Get register settings for the register
-    // First, get the register ID from the query params
     const registerId = searchParams.get("register_id");
-    
+
     if (!registerId) {
       return NextResponse.json(
         { error: "register_id is required" },
