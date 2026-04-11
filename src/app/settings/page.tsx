@@ -378,11 +378,6 @@ export default function SettingsPage() {
         console.log("[Settings] Reloaded settings:", reloadedSettings);
         setSettings(reloadedSettings);
       }
-
-      // Navigate back to sell page to apply changes
-      setTimeout(() => {
-        router.push("/sell");
-      }, 1000);
     } catch (error) {
       console.error("Failed to save settings:", error);
       showToast("Failed to save settings: " + (error as Error).message, "error");
@@ -409,6 +404,7 @@ export default function SettingsPage() {
     if (registerId) {
       try {
         const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        const session = sessionData ? JSON.parse(sessionData) : null;
         const response = await fetch("/api/register/settings", {
           method: "POST",
           headers: {
@@ -417,6 +413,7 @@ export default function SettingsPage() {
           },
           body: JSON.stringify({
             register_id: registerId,
+            org_id: session?.org_id,
             settings: newSettings,
           }),
         });
