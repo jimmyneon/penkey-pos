@@ -41,6 +41,7 @@ export default function ItemsOnlyPage() {
   const [assignCategoryDialogOpen, setAssignCategoryDialogOpen] = useState(false);
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<any>(null);
+  const [longPressFired, setLongPressFired] = useState(false);
 
   const { categories, loading: categoriesLoading } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -192,7 +193,9 @@ export default function ItemsOnlyPage() {
                   key={item.id}
                   onPointerDown={() => {
                     // start long press
+                    setLongPressFired(false);
                     const t = setTimeout(() => {
+                      setLongPressFired(true);
                       setSelectionMode(true);
                       setSelectedIds((prev) => new Set(prev).add(item.id));
                     }, 450);
@@ -202,7 +205,8 @@ export default function ItemsOnlyPage() {
                     if (longPressTimer) {
                       clearTimeout(longPressTimer);
                       setLongPressTimer(null);
-                      if (!selectionMode) {
+                      // Only open edit dialog if long press didn't fire
+                      if (!longPressFired && !selectionMode) {
                         hapticButtonPress();
                         setSelectedItem(item);
                         setEditDialogOpen(true);
@@ -213,6 +217,7 @@ export default function ItemsOnlyPage() {
                     if (longPressTimer) {
                       clearTimeout(longPressTimer);
                       setLongPressTimer(null);
+                      setLongPressFired(false);
                     }
                   }}
                   onClick={() => {
