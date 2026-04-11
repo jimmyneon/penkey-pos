@@ -16,9 +16,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Schedule the function to run every minute using pg_cron
-SELECT cron.schedule(
-  'auto-complete-print-jobs',
-  '* * * * *',  -- Every minute
-  'SELECT auto_complete_stuck_print_jobs();'
-);
+-- Note: pg_cron job disabled to prevent interference with manual status changes
+-- To enable manually: SELECT cron.schedule('auto-complete-print-jobs', '* * * * *', 'SELECT auto_complete_stuck_print_jobs();');
+-- To disable manually: SELECT cron.unschedule('auto-complete-print-jobs');
