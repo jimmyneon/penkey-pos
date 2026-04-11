@@ -740,7 +740,7 @@ export default function SettingsPage() {
                   variant="outline"
                   onClick={() => { hapticButtonPress(); checkPrinterStatus(); }}
                   disabled={printerStatus === "checking"}
-                  className="min-h-[44px] border-gray-600 text-black"
+                  className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${printerStatus === "checking" ? "animate-spin" : ""}`} />
                   Check
@@ -756,7 +756,7 @@ export default function SettingsPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => router.push("/settings/printers")}
-                className="min-h-[44px] border-gray-600 text-black"
+                className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
               >
                 <Printer className="h-4 w-4 mr-2" />
                 Manage
@@ -795,7 +795,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => router.push("/settings/payment-terminals")}
-                    className="min-h-[44px] border-gray-600 text-black"
+                    className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     Manage
@@ -846,7 +846,7 @@ export default function SettingsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => setShowApiKey(!showApiKey)}
-                          className="min-h-[44px] border-gray-600 text-white hover:bg-white/10"
+                          className="min-h-[44px] min-w-[80px] border-gray-600 text-black"
                         >
                           {showApiKey ? "Hide" : "Show"}
                         </Button>
@@ -894,7 +894,7 @@ export default function SettingsPage() {
                       <Button
                         onClick={() => setShowSumUpForm(false)}
                         variant="outline"
-                        className="min-h-[44px] border-gray-600 text-black"
+                        className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
                       >
                         Cancel
                       </Button>
