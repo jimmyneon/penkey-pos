@@ -49,19 +49,19 @@ Register: {{register_name}}
   + {{name}}{{#if price_adjustment}} ({{currency price_adjustment}}){{/if}}
   {{/each}}
 {{/if}}
-{{line_total}}
+                              {{currency line_total}}
 {{/each}}
 ==================================================
 
-Subtotal: {{currency subtotal}}
-Tax (20%): {{currency tax}}
+Subtotal:                    {{currency subtotal}}
+Tax (20%):                   {{currency tax}}
 ==================================================
-TOTAL: {{currency total}}
+TOTAL:                       {{currency total}}
 ==================================================
 
 {{#if (eq payment_method "cash")}}
-Cash Tendered: {{currency cash_tendered}}
-Change: {{currency cash_change}}
+Cash Tendered:               {{currency cash_tendered}}
+Change:                      {{currency cash_change}}
 {{/if}}
 
 Thank you for your custom!
