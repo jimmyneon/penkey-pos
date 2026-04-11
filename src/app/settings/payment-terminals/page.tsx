@@ -35,23 +35,31 @@ export default function PaymentTerminalsPage() {
   const [pairingCode, setPairingCode] = useState('');
 
   useEffect(() => {
+    console.log('[Payment Terminals] Component mounted');
     fetchTerminals();
     fetchSumUpReaders();
   }, []);
 
   const fetchTerminals = async () => {
+    console.log('[Payment Terminals] fetchTerminals called');
     try {
       const res = await fetch('/api/sumup/terminals');
+      console.log('[Payment Terminals] fetchTerminals response status:', res.status);
       const data = await res.json();
+      console.log('[Payment Terminals] fetchTerminals data:', data);
       if (data.success) {
         setTerminals(data.terminals || []);
+        console.log('[Payment Terminals] Set terminals:', data.terminals?.length);
         // Check status after loading terminals
         if (data.terminals && data.terminals.length > 0) {
+          console.log('[Payment Terminals] Terminals found, checking status...');
           checkAllReaderStatus();
+        } else {
+          console.log('[Payment Terminals] No terminals found');
         }
       }
     } catch (e) {
-      console.error('Failed to fetch terminals', e);
+      console.error('[Payment Terminals] Failed to fetch terminals', e);
     } finally {
       setLoading(false);
     }
