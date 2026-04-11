@@ -1,0 +1,14 @@
+# Penkey Print Server Environment Configuration
+# Copy this file to .env on your Raspberry Pi
+
+# Supabase connection
+SUPABASE_URL=https://gxpdoceobcidgdejwpzf.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4cGRvY2VvYmNpZGdkZWp3cHpmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTE0MDQyOCwiZXhwIjoyMDkwNzE2NDI4fQ.7-7v87Sqn90DX68t3ac-Wcgxq2DERcOIf-GRegGnx74
+
+# Printer configuration
+PRINTER_ID=00000000-0000-0000-0000-0000000000a0
+PRINTER_DEVICE=/dev/ttyUSB0
+PRINTER_BAUD=38400
+
+# Server settings
+POLL_INTERVAL=5

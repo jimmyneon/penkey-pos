@@ -74,8 +74,11 @@ class PrintServer:
     def connect(self) -> None:
         """Connect to Supabase and initialise printer"""
         self.supabase = create_client(self.supabase_url, self.supabase_key)
-        self.printer = EpsonPrinter(self.cups_printer_name)
-        logger.info(f"Connected to Supabase and printer '{self.cups_printer_name}'")
+        self.printer = EpsonSerialPrinter(
+            device=self.printer_device,
+            baudrate=self.printer_baud
+        )
+        logger.info(f"Connected to Supabase and printer at {self.printer_device} ({self.printer_baud} baud)")
 
     # ------------------------------------------------------------------
     # Realtime subscription
