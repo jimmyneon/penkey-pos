@@ -1286,7 +1286,7 @@ function ToggleSwitch({
     >
       <span
         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-          checked ? "translate-x-3" : "-translate-x-3"
+          checked ? "translate-x-[14px]" : "-translate-x-[14px]"
         }`}
       />
     </button>
