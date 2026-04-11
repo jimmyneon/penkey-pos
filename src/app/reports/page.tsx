@@ -3,9 +3,13 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon } from "lucide-react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useSalesSummary } from "@/lib/hooks/use-sales-summary";
+import { useSalesByItems } from "@/lib/hooks/use-sales-by-items";
+import { useSalesByTransactionType } from "@/lib/hooks/use-sales-by-transaction-type";
+import { useSalesByEmployee } from "@/lib/hooks/use-sales-by-employee";
+import { useHourlySales } from "@/lib/hooks/use-hourly-sales";
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -37,6 +41,10 @@ export default function ReportsPage() {
   };
   
   const { data, loading, error, refetch } = useSalesSummary(getDaysForPeriod());
+  const { data: itemsData, loading: itemsLoading } = useSalesByItems(getDaysForPeriod());
+  const { data: transactionTypeData, loading: transactionTypeLoading } = useSalesByTransactionType(getDaysForPeriod());
+  const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(getDaysForPeriod());
+  const { data: hourlyData, loading: hourlyLoading } = useHourlySales(getDaysForPeriod());
 
   // Use all receipts from the selected period (already filtered by API)
   const periodReceipts = useMemo(() => {
@@ -411,6 +419,60 @@ export default function ReportsPage() {
                 <p className="text-3xl font-bold text-white">£{periodMetrics.avgOrder.toFixed(2)}</p>
                 <p className="text-xs text-gray-400 mt-1">per customer</p>
               </button>
+            </div>
+
+            {/* New Report Types */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white">Detailed Reports</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => openModal('sales-by-items')}
+                  className="bg-[#3d3d3d] rounded-xl p-4 shadow-md min-h-[100px] flex flex-col justify-between hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-400">Sales by Items</p>
+                    <Package className="h-5 w-5 text-penkey-orange" />
+                  </div>
+                  <p className="text-xl font-bold text-white">{itemsData?.summary?.total_items || 0}</p>
+                  <p className="text-xs text-gray-400 mt-1">items sold</p>
+                </button>
+
+                <button
+                  onClick={() => openModal('sales-by-transaction-type')}
+                  className="bg-[#3d3d3d] rounded-xl p-4 shadow-md min-h-[100px] flex flex-col justify-between hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-400">Transaction Types</p>
+                    <CreditCard className="h-5 w-5 text-penkey-orange" />
+                  </div>
+                  <p className="text-xl font-bold text-white">{transactionTypeData?.transaction_types?.length || 0}</p>
+                  <p className="text-xs text-gray-400 mt-1">payment types</p>
+                </button>
+
+                <button
+                  onClick={() => openModal('sales-by-employee')}
+                  className="bg-[#3d3d3d] rounded-xl p-4 shadow-md min-h-[100px] flex flex-col justify-between hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-400">Sales by Employee</p>
+                    <User className="h-5 w-5 text-penkey-orange" />
+                  </div>
+                  <p className="text-xl font-bold text-white">{employeeData?.summary?.total_employees || 0}</p>
+                  <p className="text-xs text-gray-400 mt-1">staff members</p>
+                </button>
+
+                <button
+                  onClick={() => openModal('hourly-sales')}
+                  className="bg-[#3d3d3d] rounded-xl p-4 shadow-md min-h-[100px] flex flex-col justify-between hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-400">Hourly Sales</p>
+                    <ClockIcon className="h-5 w-5 text-penkey-orange" />
+                  </div>
+                  <p className="text-xl font-bold text-white">{hourlyData?.summary?.busiest_hour !== null && hourlyData?.summary?.busiest_hour !== undefined ? `${hourlyData.summary.busiest_hour}:00` : 'N/A'}</p>
+                  <p className="text-xs text-gray-400 mt-1">busiest hour</p>
+                </button>
+              </div>
             </div>
 
             {/* Period Story - Clickable */}
@@ -790,6 +852,240 @@ export default function ReportsPage() {
                 {[periodMetrics.receiptCount >= 50, comparison.diff > 0, periodMetrics.grossSales >= periodTarget].filter(Boolean).length} of 3 Goals Achieved
               </p>
             </div>
+            
+            <Button
+              onClick={closeModal}
+              className="w-full mt-6 bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px]"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Sales by Items Modal */}
+      {activeModal === 'sales-by-items' && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={closeModal}>
+          <div className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Package className="h-6 w-6 text-penkey-orange" />
+                Sales by Items
+              </h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {itemsLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <RefreshCw className="h-6 w-6 text-penkey-orange animate-spin" />
+              </div>
+            ) : itemsData ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-[#2d2d2d] rounded-lg p-3">
+                    <p className="text-xs text-gray-400">Total Items</p>
+                    <p className="text-xl font-bold text-white">{itemsData.summary.total_items}</p>
+                  </div>
+                  <div className="bg-[#2d2d2d] rounded-lg p-3">
+                    <p className="text-xs text-gray-400">Total Quantity</p>
+                    <p className="text-xl font-bold text-white">{itemsData.summary.total_quantity_sold}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {itemsData.items.slice(0, 10).map((item, index) => (
+                    <div key={index} className="bg-[#2d2d2d] rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <p className="text-white font-medium">{item.name}</p>
+                        <p className="text-xs text-gray-400">{item.quantity_sold} sold</p>
+                      </div>
+                      <p className="text-penkey-orange font-bold">£{item.total_revenue.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
+            
+            <Button
+              onClick={closeModal}
+              className="w-full mt-6 bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px]"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Sales by Transaction Type Modal */}
+      {activeModal === 'sales-by-transaction-type' && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={closeModal}>
+          <div className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <CreditCard className="h-6 w-6 text-penkey-orange" />
+                Sales by Transaction Type
+              </h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {transactionTypeLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <RefreshCw className="h-6 w-6 text-penkey-orange animate-spin" />
+              </div>
+            ) : transactionTypeData ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-[#2d2d2d] rounded-lg p-3">
+                    <p className="text-xs text-gray-400">Total Revenue</p>
+                    <p className="text-xl font-bold text-white">£{transactionTypeData.summary.total_revenue.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-[#2d2d2d] rounded-lg p-3">
+                    <p className="text-xs text-gray-400">Transactions</p>
+                    <p className="text-xl font-bold text-white">{transactionTypeData.summary.total_transactions}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {transactionTypeData.transaction_types.map((type, index) => (
+                    <div key={index} className="bg-[#2d2d2d] rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <p className="text-white font-medium capitalize">{type.method}</p>
+                        <p className="text-xs text-gray-400">{type.transaction_count} transactions</p>
+                      </div>
+                      <p className="text-penkey-orange font-bold">£{type.total_amount.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
+            
+            <Button
+              onClick={closeModal}
+              className="w-full mt-6 bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px]"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Sales by Employee Modal */}
+      {activeModal === 'sales-by-employee' && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={closeModal}>
+          <div className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <User className="h-6 w-6 text-penkey-orange" />
+                Sales by Employee
+              </h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {employeeLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <RefreshCw className="h-6 w-6 text-penkey-orange animate-spin" />
+              </div>
+            ) : employeeData ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-[#2d2d2d] rounded-lg p-3">
+                    <p className="text-xs text-gray-400">Total Employees</p>
+                    <p className="text-xl font-bold text-white">{employeeData.summary.total_employees}</p>
+                  </div>
+                  <div className="bg-[#2d2d2d] rounded-lg p-3">
+                    <p className="text-xs text-gray-400">Total Sales</p>
+                    <p className="text-xl font-bold text-white">£{employeeData.summary.total_sales.toFixed(2)}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {employeeData.employees.map((employee, index) => (
+                    <div key={index} className="bg-[#2d2d2d] rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <p className="text-white font-medium">{employee.employee_name}</p>
+                        <p className="text-xs text-gray-400">{employee.transaction_count} transactions</p>
+                      </div>
+                      <p className="text-penkey-orange font-bold">£{employee.total_sales.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
+            
+            <Button
+              onClick={closeModal}
+              className="w-full mt-6 bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px]"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Hourly Sales Modal */}
+      {activeModal === 'hourly-sales' && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={closeModal}>
+          <div className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <ClockIcon className="h-6 w-6 text-penkey-orange" />
+                Hourly Sales
+              </h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {hourlyLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <RefreshCw className="h-6 w-6 text-penkey-orange animate-spin" />
+              </div>
+            ) : hourlyData ? (
+              <div className="space-y-4">
+                <div className="bg-[#2d2d2d] rounded-lg p-4 mb-4">
+                  <p className="text-xs text-gray-400 mb-1">Busiest Hour</p>
+                  <p className="text-2xl font-bold text-white">{hourlyData.summary.busiest_hour !== null ? `${hourlyData.summary.busiest_hour}:00` : 'N/A'}</p>
+                </div>
+                
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {hourlyData.hourly_data.filter(h => h.transaction_count > 0).map((hour, index) => (
+                    <div key={index} className="bg-[#2d2d2d] rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <p className="text-white font-medium">{hour.hour}:00</p>
+                        <p className="text-xs text-gray-400">{hour.transaction_count} transactions</p>
+                      </div>
+                      <p className="text-penkey-orange font-bold">£{hour.total_sales.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
             
             <Button
               onClick={closeModal}
