@@ -148,6 +148,18 @@ export default function ItemsHubPage() {
             variant="ghost"
             onClick={() => {
               hapticButtonPress();
+              setImportDialogOpen(true);
+            }}
+            className="text-white hover:bg-white/10"
+            title="Import data"
+          >
+            <Upload className="h-5 w-5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              hapticButtonPress();
               handleExport();
             }}
             disabled={exporting}
@@ -155,18 +167,6 @@ export default function ItemsHubPage() {
             title="Export all data"
           >
             <Download className="h-5 w-5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              hapticButtonPress();
-              setImportDialogOpen(true);
-            }}
-            className="text-white hover:bg-white/10"
-            title="Import data"
-          >
-            <Upload className="h-5 w-5" />
           </Button>
           <Button
             size="sm"

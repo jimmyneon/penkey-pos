@@ -57,6 +57,7 @@ export default function ModifiersPage() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [longPressTimer, setLongPressTimer] = useState<any>(null);
+  const [longPressFired, setLongPressFired] = useState(false);
   const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
@@ -232,7 +233,9 @@ export default function ModifiersPage() {
                 <div
                   key={group.id}
                   onPointerDown={() => {
+                    setLongPressFired(false);
                     const t = setTimeout(() => {
+                      setLongPressFired(true);
                       setSelectionMode(true);
                       setSelectedIds((prev) => new Set(prev).add(group.id));
                     }, 450);
@@ -242,7 +245,8 @@ export default function ModifiersPage() {
                     if (longPressTimer) {
                       clearTimeout(longPressTimer);
                       setLongPressTimer(null);
-                      if (!selectionMode) {
+                      // Only navigate if long press didn't fire
+                      if (!longPressFired && !selectionMode) {
                         // Normal tap navigates to full edit page
                         hapticButtonPress();
                         router.push(`/modifiers/${group.id}`);
@@ -253,6 +257,7 @@ export default function ModifiersPage() {
                     if (longPressTimer) {
                       clearTimeout(longPressTimer);
                       setLongPressTimer(null);
+                      setLongPressFired(false);
                     }
                   }}
                   onClick={() => {
