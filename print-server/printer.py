@@ -6,7 +6,7 @@ Handles ESC/POS commands and serial printing
 
 import serial
 import logging
-from typing import Optional
+from typing import Optional, Dict
 from datetime import datetime
 import os
 
