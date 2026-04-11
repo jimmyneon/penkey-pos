@@ -259,12 +259,15 @@ class PrintServer:
         await self.update_job_status(job_id, 'printing')
 
         try:
+            # Get printer settings from job data or use defaults
+            printer_settings = data.get('printer_settings', {})
+
             if job_type == 'receipt':
-                success = self._print_receipt(data)
+                success = self._print_receipt(data, printer_settings)
             elif job_type == 'test':
                 success = self.printer.test_print()
             elif job_type == 'report':
-                success = self.printer.print_text(data.get('report_text', ''))
+                success = self.printer.print_text(data.get('report_text', ''), printer_settings)
             else:
                 logger.warning(f"Unknown job type: {job_type}")
                 success = False
@@ -291,9 +294,9 @@ class PrintServer:
     # Print helpers
     # ------------------------------------------------------------------
 
-    def _print_receipt(self, data: Dict[str, Any]) -> bool:
+    def _print_receipt(self, data: Dict[str, Any], settings: Optional[Dict] = None) -> bool:
         receipt_text = data.get('receipt_text') or self._format_receipt(data)
-        return self.printer.print_receipt(receipt_text)
+        return self.printer.print_receipt(receipt_text, settings)
 
     def _format_receipt(self, data: Dict[str, Any]) -> str:
         """Fallback formatter when receipt_text is not pre-built"""

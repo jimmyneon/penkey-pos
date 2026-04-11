@@ -61,11 +61,11 @@ class EpsonSerialPrinter:
             self.serial_conn.close()
             logger.info(f"[Serial] Connection closed")
 
-    def print_receipt(self, receipt_text: str) -> bool:
+    def print_receipt(self, receipt_text: str, settings: Optional[Dict] = None) -> bool:
         """Print a formatted receipt"""
         try:
             logger.info("[Print] Starting receipt print")
-            commands = self._build_escpos_receipt(receipt_text)
+            commands = self._build_escpos_receipt(receipt_text, settings)
             self._print_raw(commands)
             logger.info("[Print] Receipt printed successfully")
             return True
@@ -73,11 +73,11 @@ class EpsonSerialPrinter:
             logger.error(f"[Print] Failed to print receipt: {e}")
             return False
 
-    def print_text(self, text: str) -> bool:
+    def print_text(self, text: str, settings: Optional[Dict] = None) -> bool:
         """Print plain text"""
         try:
             logger.info("[Print] Starting text print")
-            commands = self._build_escpos_text(text)
+            commands = self._build_escpos_text(text, settings)
             self._print_raw(commands)
             logger.info("[Print] Text printed successfully")
             return True
@@ -182,22 +182,27 @@ Status: Online
         commands.extend([0x1B, 0x61, 0x00])  # Left align
 
         # Feed lines before cut
-        commands.extend([0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A])  # 6 line feeds
+        commands.extend([0x0A] * feed_lines)  # Configurable feed lines
 
         # Cut paper (full cut with feed)
         commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0 - feed and cut
 
         return bytes(commands)
 
-    def _build_escpos_text(self, text: str) -> bytes:
+    def _build_escpos_text(self, text: str, settings: Optional[Dict] = None) -> bytes:
         """Build ESC/POS commands for plain text"""
         commands = bytearray()
+
+        # Get settings or use defaults
+        settings = settings or {}
+        code_page = settings.get('code_page', 0x02)  # CP850 by default
+        feed_lines = settings.get('feed_lines_before_cut', 6)
 
         # Initialize
         commands.extend([0x1B, 0x40])
 
-        # Set code page to CP850
-        commands.extend([0x1B, 0x74, 0x02])
+        # Set code page
+        commands.extend([0x1B, 0x74, code_page])
 
         # Add text
         for line in text.split('\n'):
@@ -205,7 +210,7 @@ Status: Online
             commands.append(0x0A)
 
         # Feed lines before cut
-        commands.extend([0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A])  # 6 line feeds
+        commands.extend([0x0A] * feed_lines)
 
         # Cut paper
         commands.extend([0x1D, 0x56, 0x42, 0x00])

@@ -40,7 +40,7 @@ Receipt #{{receipt_number}}
 Served by: {{employee_name}}
 Register: {{register_name}}
 
---------------------------------
+==================================================
 {{#each lines}}
 {{quantity}}x {{item_name}}{{#if variant_name}} - {{variant_name}}{{/if}}
 {{#if modifiers}}
@@ -48,19 +48,19 @@ Register: {{register_name}}
   + {{name}}{{#if price_adjustment}} ({{currency price_adjustment}}){{/if}}
   {{/each}}
 {{/if}}
-                    {{currency line_total}}
+                                {{currency line_total}}
 {{/each}}
---------------------------------
+==================================================
 
-Subtotal:           {{currency subtotal}}
-Tax (20%):          {{currency tax}}
---------------------------------
-TOTAL:              {{currency total}}
---------------------------------
+Subtotal:                      {{currency subtotal}}
+Tax (20%):                     {{currency tax}}
+==================================================
+TOTAL:                         {{currency total}}
+==================================================
 
 {{#if (eq payment_method "cash")}}
-Cash Tendered:      {{currency cash_tendered}}
-Change:             {{currency cash_change}}
+Cash Tendered:                  {{currency cash_tendered}}
+Change:                        {{currency cash_change}}
 {{/if}}
 
 Thank you for your custom!
