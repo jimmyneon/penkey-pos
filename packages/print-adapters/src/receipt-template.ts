@@ -25,7 +25,8 @@ export interface ReceiptData {
 
 // Register Handlebars helpers
 Handlebars.registerHelper("currency", (value: number) => {
-  return `£${value.toFixed(2)}`;
+  // Use ASCII pound sign for CP850 encoding compatibility
+  return `\xA3${value.toFixed(2)}`;
 });
 
 Handlebars.registerHelper("eq", (a: any, b: any) => a === b);
