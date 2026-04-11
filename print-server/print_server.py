@@ -192,12 +192,12 @@ class PrintServer:
             if error:
                 updates['error_message'] = error
 
-            await self.supabase.table('print_jobs') \
+            logger.debug(f"[DB] Updating job {job_id} to status: {status}, updates: {updates}")
+            result = await self.supabase.table('print_jobs') \
                 .update(updates) \
                 .eq('id', job_id) \
                 .execute()
-
-            logger.info(f"Job {job_id} → {status}")
+            logger.info(f"Job {job_id} → {status} (update successful)")
         except Exception as e:
             logger.error(f"Failed to update job {job_id} status: {e}")
 

@@ -140,8 +140,8 @@ Status: Online
         # Initialize printer
         commands.extend([0x1B, 0x40])  # ESC @
 
-        # Set code page to UTF-8
-        commands.extend([0x1B, 0x74, 0x10])
+        # Set code page to CP437 (Western European) for better character support
+        commands.extend([0x1B, 0x74, 0x00])  # CP437
 
         # Process each line
         for line in text.split('\n'):
@@ -172,8 +172,8 @@ Status: Online
             else:
                 commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-            # Add text
-            commands.extend(line.encode('utf-8', errors='replace'))
+            # Add text (use latin-1 for better character support)
+            commands.extend(line.encode('latin-1', errors='replace'))
             commands.append(0x0A)  # Line feed
 
         # Reset formatting
@@ -181,8 +181,11 @@ Status: Online
         commands.extend([0x1D, 0x21, 0x00])  # Normal size
         commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-        # Cut paper
-        commands.extend([0x1D, 0x56, 0x00])  # Full cut
+        # Feed lines before cut
+        commands.extend([0x0A, 0x0A, 0x0A])  # 3 line feeds
+
+        # Cut paper (full cut with feed)
+        commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0 - feed and cut
 
         return bytes(commands)
 
@@ -193,22 +196,25 @@ Status: Online
         # Initialize
         commands.extend([0x1B, 0x40])
 
-        # Set code page
-        commands.extend([0x1B, 0x74, 0x10])
+        # Set code page to CP437
+        commands.extend([0x1B, 0x74, 0x00])
 
         # Add text
         for line in text.split('\n'):
-            commands.extend(line.encode('utf-8', errors='replace'))
+            commands.extend(line.encode('latin-1', errors='replace'))
             commands.append(0x0A)
 
+        # Feed lines before cut
+        commands.extend([0x0A, 0x0A, 0x0A])  # 3 line feeds
+
         # Cut paper
-        commands.extend([0x1D, 0x56, 0x00])
+        commands.extend([0x1D, 0x56, 0x42, 0x00])
 
         return bytes(commands)
 
     def _center(self, text: str) -> str:
-        """Center text in a 32-character line (80mm paper)"""
-        width = 32
+        """Center text in a 48-character line (80mm paper)"""
+        width = 48
         padding = (width - len(text)) // 2
         return ' ' * max(0, padding) + text
 
