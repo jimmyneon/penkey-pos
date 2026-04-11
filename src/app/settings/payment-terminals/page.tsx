@@ -48,12 +48,13 @@ export default function PaymentTerminalsPage() {
       const data = await res.json();
       console.log('[Payment Terminals] fetchTerminals data:', data);
       if (data.success) {
-        setTerminals(data.terminals || []);
-        console.log('[Payment Terminals] Set terminals:', data.terminals?.length);
+        const terminalsList = data.terminals || [];
+        setTerminals(terminalsList);
+        console.log('[Payment Terminals] Set terminals:', terminalsList.length);
         // Check status after loading terminals
-        if (data.terminals && data.terminals.length > 0) {
+        if (terminalsList.length > 0) {
           console.log('[Payment Terminals] Terminals found, checking status...');
-          checkAllReaderStatus();
+          checkAllReaderStatus(terminalsList);
         } else {
           console.log('[Payment Terminals] No terminals found');
         }
@@ -97,19 +98,20 @@ export default function PaymentTerminalsPage() {
     }
   };
 
-  const checkAllReaderStatus = async () => {
-    console.log('[Payment Terminals] checkAllReaderStatus called, terminals.length:', terminals.length);
-    if (terminals.length === 0) {
+  const checkAllReaderStatus = async (terminalsToCheck?: Terminal[]) => {
+    const terminalList = terminalsToCheck || terminals;
+    console.log('[Payment Terminals] checkAllReaderStatus called, terminals.length:', terminalList.length);
+    if (terminalList.length === 0) {
       console.log('[Payment Terminals] No terminals, skipping status check');
       return;
     }
     
-    console.log('[Payment Terminals] Checking status for all terminals:', terminals.length);
+    console.log('[Payment Terminals] Checking status for all terminals:', terminalList.length);
     setCheckingStatus(true);
     
     try {
       const statusUpdates = await Promise.all(
-        terminals.map(async (terminal) => {
+        terminalList.map(async (terminal) => {
           console.log('[Payment Terminals] Processing terminal:', terminal.name, terminal.reader_id);
           const status = await checkReaderStatus(terminal.reader_id);
           console.log('[Payment Terminals] Terminal status result:', terminal.name, status);
