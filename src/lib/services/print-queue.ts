@@ -69,6 +69,16 @@ export async function createReceiptPrintJob(
 ): Promise<PrintJob> {
   const receiptText = generateReceiptText(receiptData);
 
+  // Fetch printer config to include printer settings
+  const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+  const { data: printer } = await supabase
+    .from("printers")
+    .select("config")
+    .eq("id", printer_id)
+    .single();
+
+  const printerSettings = printer?.config || {};
+
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,
     job_type: "receipt",
@@ -76,6 +86,7 @@ export async function createReceiptPrintJob(
     data: {
       receipt_text: receiptText,
       ...receiptData,
+      printer_settings: printerSettings,
     },
     priority: "normal",
     receipt_id,

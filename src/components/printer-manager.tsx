@@ -275,7 +275,10 @@ function PrinterDialog({
     device_path: printer?.device_path || "",
     paper_width: printer?.paper_width || 80,
     location: printer?.location || "",
+    config: printer?.config || {},
   });
+
+  const config = form.config || {};
 
   const isEditing = !!printer;
 
@@ -418,6 +421,83 @@ function PrinterDialog({
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white"
               placeholder="e.g., Main Counter"
             />
+          </div>
+
+          {/* Printer Settings */}
+          <div className="border-t border-zinc-700 pt-4">
+            <h3 className="text-sm font-medium text-zinc-300 mb-3">Printer Settings</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  Character Encoding
+                </label>
+                <select
+                  value={config.code_page || 0x02}
+                  onChange={(e) => setForm({
+                    ...form,
+                    config: { ...config, code_page: parseInt(e.target.value) }
+                  })}
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white"
+                >
+                  <option value={0x00}>CP437 (US)</option>
+                  <option value={0x02}>CP850 (Western European)</option>
+                  <option value={0x01}>CP437 (Multilingual)</option>
+                  <option value={0x04}>CP860 (Portuguese)</option>
+                  <option value={0x05}>CP863 (Canadian French)</option>
+                  <option value={0x06}>CP865 (Nordic)</option>
+                  <option value={0x07}>CP851 (Greek)</option>
+                  <option value={0x08}>CP857 (Turkish)</option>
+                  <option value={0x09}>CP737 (Greek)</option>
+                  <option value={0x0A}>CP775 (Baltic)</option>
+                  <option value={0x0B}>CP852 (Eastern European)</option>
+                  <option value={0x0C}>CP858 (Euro)</option>
+                  <option value={0x0D}>CP866 (Cyrillic)</option>
+                  <option value={0x0E}>CP874 (Thai)</option>
+                  <option value={0x0F}>CP928 (Japanese)</option>
+                  <option value={0x10}>CP932 (Japanese)</option>
+                  <option value={0x11}>CP999 (Japanese)</option>
+                  <option value={0x12}>CP1252 (Windows)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  Feed Lines Before Cut
+                </label>
+                <input
+                  type="number"
+                  value={config.feed_lines_before_cut || 6}
+                  onChange={(e) => setForm({
+                    ...form,
+                    config: { ...config, feed_lines_before_cut: parseInt(e.target.value) }
+                  })}
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white"
+                  min="0"
+                  max="20"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Character Width (chars)
+              </label>
+              <input
+                type="number"
+                value={config.width || (form.paper_width === 80 ? 58 : 42)}
+                onChange={(e) => setForm({
+                  ...form,
+                  config: { ...config, width: parseInt(e.target.value) }
+                })}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white"
+                min="30"
+                max="64"
+              />
+              <p className="text-xs text-zinc-500 mt-1">
+                Number of characters per line (58 for 80mm, 42 for 58mm)
+              </p>
+            </div>
           </div>
         </div>
 
