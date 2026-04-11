@@ -43,8 +43,8 @@ export async function createPrintJob(
     .from("print_jobs")
     .insert({
       printer_id: input.printer_id,
-      job_type: input.job_type,
-      template: input.template,
+      type: input.job_type,  // Database uses 'type' instead of 'job_type'
+      template_id: input.template_id || null,  // Database uses 'template_id'
       data: input.data,
       priority: input.priority || "normal",
       receipt_id: input.receipt_id || null,
@@ -82,7 +82,7 @@ export async function createReceiptPrintJob(
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,
     job_type: "receipt",
-    template: "receipt",
+    template_id: null,  // Database uses 'template_id'
     data: {
       receipt_text: receiptText,
       ...receiptData,

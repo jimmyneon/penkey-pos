@@ -252,7 +252,7 @@ class PrintServer:
             return False
 
         job_id = job['id']
-        job_type = job.get('job_type', 'receipt')  # Default to receipt if missing
+        job_type = job.get('type', 'receipt')  # Default to receipt if missing
         data = job.get('data', {})
         attempts = job.get('attempts', 0)
         max_attempts = job.get('max_attempts', 3)
