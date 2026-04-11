@@ -7,9 +7,7 @@ import { getPrinters, createPrinter, updatePrinter, deletePrinter } from "@/lib/
 // GET - List all printers
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Printers API] Starting GET request');
     const session = await validatePOSSession(request);
-    console.log('[Printers API] Session validated:', !!session);
     if (!session) {
       return unauthorizedResponse();
     }
@@ -19,12 +17,8 @@ export async function GET(request: NextRequest) {
     const store_id = searchParams.get('store_id') || undefined;
     const status = searchParams.get('status') as any || undefined;
 
-    console.log('[Printers API] Fetching printers with filters:', { register_id, store_id, status });
-
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-    console.log('[Printers API] Supabase config:', { url: !!supabaseUrl, key: !!supabaseKey });
 
     const printers = await getPrinters(supabaseUrl, supabaseKey, {
       register_id,
@@ -32,11 +26,9 @@ export async function GET(request: NextRequest) {
       status,
     });
 
-    console.log('[Printers API] Fetched printers:', printers.length);
     return NextResponse.json({ printers });
   } catch (error: any) {
-    console.error("[Printers API] Failed to fetch printers:", error);
-    console.error("[Printers API] Error details:", error.message, error.stack);
+    console.error("Failed to fetch printers:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch printers" },
       { status: 500 }
