@@ -523,7 +523,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.theme === "dark" ? "default" : "outline"}
                   onClick={() => updateSetting("theme", "dark")}
-                  className={`min-h-[44px] min-w-[100px] ${settings.theme === "dark" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings.theme === "dark" ? "bg-penkey-orange" : ""}`}
                 >
                   <Moon className="h-4 w-4 mr-2" />
                   Dark
@@ -532,7 +532,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.theme === "light" ? "default" : "outline"}
                   onClick={() => updateSetting("theme", "light")}
-                  className={`min-h-[44px] min-w-[100px] ${settings.theme === "light" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings.theme === "light" ? "bg-penkey-orange" : ""}`}
                 >
                   <Sun className="h-4 w-4 mr-2" />
                   Light
@@ -545,18 +545,18 @@ export default function SettingsPage() {
               description="Adjust text size in item buttons on sell page"
             >
               <div className="flex gap-2 flex-wrap">
-                {["small", "medium", "large"].map((size) => (
+                {(["small", "medium", "large"].map((size) => (
                   <Button
                     key={size}
                     size="sm"
                     variant={settings.font_size === size ? "default" : "outline"}
                     onClick={() => updateSetting("font_size", size as any)}
-                    className={`min-h-[44px] min-w-[100px] ${settings.font_size === size ? "bg-penkey-orange" : ""}`}
+                    className={`min-h-[44px] min-w-[140px] ${settings.font_size === size ? "bg-penkey-orange" : ""}`}
                   >
                     <Type className="h-4 w-4 mr-1 sm:mr-2" />
                     <span className="text-xs sm:text-sm">{size.charAt(0).toUpperCase() + size.slice(1)}</span>
                   </Button>
-                ))}
+                )))}
               </div>
             </SettingRow>
 
@@ -570,7 +570,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 2 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 2)}
-                  className={`min-h-[44px] min-w-[100px] md:hidden ${settings.grid_size === 2 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] md:hidden ${settings.grid_size === 2 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   2 Columns
@@ -581,7 +581,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 3 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 3)}
-                  className={`min-h-[44px] min-w-[100px] ${settings.grid_size === 3 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings.grid_size === 3 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   3 Columns
@@ -592,7 +592,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 4 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 4)}
-                  className={`min-h-[44px] min-w-[100px] ${settings.grid_size === 4 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings.grid_size === 4 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   4 Columns
@@ -603,7 +603,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 5 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 5)}
-                  className={`min-h-[44px] min-w-[100px] hidden md:inline-flex ${settings.grid_size === 5 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] hidden md:inline-flex ${settings.grid_size === 5 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   5 Columns
@@ -614,7 +614,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 6 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 6)}
-                  className={`min-h-[44px] min-w-[100px] hidden lg:inline-flex ${settings.grid_size === 6 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] hidden lg:inline-flex ${settings.grid_size === 6 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   6 Columns
@@ -680,7 +680,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant={settings.print_behaviour === val ? "default" : "outline"}
                     onClick={() => updateSetting("print_behaviour", val)}
-                    className={`min-h-[44px] min-w-[100px] capitalize ${settings.print_behaviour === val ? "bg-penkey-orange" : ""}`}
+                    className={`min-h-[44px] min-w-[140px] capitalize ${settings.print_behaviour === val ? "bg-penkey-orange" : ""}`}
                   >
                     {val === "always" ? "Always Print" : val === "ask" ? "Always Ask" : "Never Print"}
                   </Button>
@@ -740,7 +740,7 @@ export default function SettingsPage() {
                   variant="outline"
                   onClick={() => { hapticButtonPress(); checkPrinterStatus(); }}
                   disabled={printerStatus === "checking"}
-                  className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
+                  className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${printerStatus === "checking" ? "animate-spin" : ""}`} />
                   Check
@@ -756,7 +756,7 @@ export default function SettingsPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => router.push("/settings/printers")}
-                className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
+                className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
               >
                 <Printer className="h-4 w-4 mr-2" />
                 Manage
@@ -795,7 +795,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => router.push("/settings/payment-terminals")}
-                    className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
+                    className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     Manage
@@ -894,7 +894,7 @@ export default function SettingsPage() {
                       <Button
                         onClick={() => setShowSumUpForm(false)}
                         variant="outline"
-                        className="min-h-[44px] min-w-[100px] border-gray-600 text-black"
+                        className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
                       >
                         Cancel
                       </Button>
@@ -939,7 +939,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.default_dining_option === "eat-in" ? "default" : "outline"}
                   onClick={() => updateSetting("default_dining_option", "eat-in")}
-                  className={`min-h-[44px] min-w-[100px] ${settings.default_dining_option === "eat-in" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings.default_dining_option === "eat-in" ? "bg-penkey-orange" : ""}`}
                 >
                   Eat In
                 </Button>
@@ -947,7 +947,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.default_dining_option === "takeaway" ? "default" : "outline"}
                   onClick={() => updateSetting("default_dining_option", "takeaway")}
-                  className={`min-h-[44px] min-w-[100px] ${settings.default_dining_option === "takeaway" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings.default_dining_option === "takeaway" ? "bg-penkey-orange" : ""}`}
                 >
                   Takeaway
                 </Button>
@@ -1043,15 +1043,15 @@ export default function SettingsPage() {
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-700 sticky bottom-0 bg-[#2d2d2d] pb-3 sm:pb-0 sm:static">
             <button
               onClick={handleReset}
-              className="border-2 border-gray-600 hover:bg-white/10 min-h-[48px] w-full sm:w-auto order-2 sm:order-1 flex items-center justify-center rounded-md bg-transparent text-white transition-all active:scale-95"
+              className="border-2 border-gray-600 hover:bg-white/10 min-h-[48px] min-w-[180px] w-full sm:w-auto order-2 sm:order-1 flex items-center justify-center rounded-md bg-white text-black transition-all active:scale-95"
             >
-              <RotateCcw className="h-4 w-4 mr-2 text-white" />
-              <span className="text-sm sm:text-base text-white">Reset to Defaults</span>
+              <RotateCcw className="h-4 w-4 mr-2 text-black" />
+              <span className="text-sm sm:text-base text-black">Reset to Defaults</span>
             </button>
             <Button
               onClick={handleSave}
               disabled={saving}
-              className="bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px] w-full sm:w-auto order-1 sm:order-2"
+              className="bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px] min-w-[180px] w-full sm:w-auto order-1 sm:order-2"
             >
               <Save className="h-4 w-4 mr-2" />
               <span className="text-sm sm:text-base">{saving ? "Saving..." : "Save Settings"}</span>
@@ -1081,7 +1081,7 @@ export default function SettingsPage() {
                   setShowPasscodeDialog(true);
                 }}
                 variant="outline"
-                className="text-black border-gray-600 hover:bg-white/10 min-h-[44px] min-w-[120px]"
+                className="text-black border-gray-600 hover:bg-white/10 min-h-[44px] min-w-[140px]"
               >
                 <Key className="h-4 w-4 mr-2" />
                 Change PIN
@@ -1105,7 +1105,7 @@ export default function SettingsPage() {
                   setTimeout(() => router.push("/lock"), 500);
                 }}
                 variant="outline"
-                className="text-red-400 border-red-400/50 hover:bg-red-400/10 min-h-[48px] w-full sm:w-auto flex items-center justify-center"
+                className="text-red-400 border-red-400/50 hover:bg-red-400/10 min-h-[48px] min-w-[180px] w-full sm:w-auto flex items-center justify-center"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 <span className="text-sm sm:text-base">Sign Out</span>
@@ -1254,13 +1254,13 @@ function ToggleSwitch({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
         checked ? "bg-penkey-orange" : "bg-gray-600"
       }`}
     >
       <span
-        className={`inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
-          checked ? "translate-x-2.5 sm:translate-x-2" : "-translate-x-2.5 sm:-translate-x-2"
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-2" : "-translate-x-2"
         }`}
       />
     </button>
