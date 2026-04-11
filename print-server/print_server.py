@@ -252,12 +252,11 @@ class PrintServer:
             return False
 
         job_id = job['id']
-        job_type = job.get('type', 'receipt')  # Default to receipt if missing
         data = job.get('data', {})
         attempts = job.get('attempts', 0)
         max_attempts = job.get('max_attempts', 3)
 
-        logger.info(f"Processing job {job_id} (type={job_type}, attempt {attempts + 1}/{max_attempts})")
+        logger.info(f"Processing job {job_id} (attempt {attempts + 1}/{max_attempts})")
 
         # Prevent infinite retry loops - if already exceeded max attempts, mark as failed and don't process
         if attempts >= max_attempts:
@@ -274,14 +273,8 @@ class PrintServer:
             # Get printer settings from job data or use defaults
             printer_settings = data.get('printer_settings', {})
 
-            # Handle any job type - treat as generic print
-            if job_type == 'test':
-                success = self.printer.test_print()
-            elif job_type == 'report':
-                success = self.printer.print_text(data.get('report_text', ''), printer_settings)
-            else:
-                # Default to receipt print for any other type (receipt, customer_copy, etc.)
-                success = self._print_receipt(data, printer_settings)
+            # Print as receipt for all jobs
+            success = self._print_receipt(data, printer_settings)
 
             logger.info(f"Print operation returned: success={success}")
             if success:
