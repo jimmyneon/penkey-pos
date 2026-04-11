@@ -1280,7 +1280,7 @@ function ToggleSwitch({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
+      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors !min-h-0 !min-w-0 ${
         checked ? "bg-penkey-orange" : "bg-gray-600"
       }`}
     >
