@@ -274,15 +274,14 @@ class PrintServer:
             # Get printer settings from job data or use defaults
             printer_settings = data.get('printer_settings', {})
 
-            if job_type == 'receipt':
-                success = self._print_receipt(data, printer_settings)
-            elif job_type == 'test':
+            # Handle any job type - treat as generic print
+            if job_type == 'test':
                 success = self.printer.test_print()
             elif job_type == 'report':
                 success = self.printer.print_text(data.get('report_text', ''), printer_settings)
             else:
-                logger.warning(f"Unknown job type: {job_type}")
-                success = False
+                # Default to receipt print for any other type (receipt, customer_copy, etc.)
+                success = self._print_receipt(data, printer_settings)
 
             logger.info(f"Print operation returned: success={success}")
             if success:
