@@ -17,19 +17,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Alternative: Use a trigger that checks on every update
--- This will auto-complete jobs when any other job is updated
-CREATE OR REPLACE FUNCTION check_and_complete_stuck_jobs()
-RETURNS trigger AS $$
-BEGIN
-  -- Check for stuck jobs whenever print_jobs table is updated
-  PERFORM auto_complete_stuck_print_jobs();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create trigger to auto-complete stuck jobs on any print_jobs update
-CREATE TRIGGER auto_complete_stuck_jobs_trigger
-AFTER UPDATE ON print_jobs
-FOR EACH ROW
-EXECUTE FUNCTION check_and_complete_stuck_jobs();
+-- Schedule the function to run every minute using pg_cron
+SELECT cron.schedule(
+  'auto-complete-print-jobs',
+  '* * * * *',  -- Every minute
+  'SELECT auto_complete_stuck_print_jobs();'
+);
