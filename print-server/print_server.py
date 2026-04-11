@@ -306,7 +306,8 @@ class PrintServer:
 
     def _print_receipt(self, data: Dict[str, Any], settings: Optional[Dict] = None) -> bool:
         receipt_text = data.get('receipt_text') or self._format_receipt(data)
-        return self.printer.print_receipt(receipt_text, settings)
+        transaction_id = data.get('transaction_id')
+        return self.printer.print_receipt(receipt_text, settings, transaction_id)
 
     def _format_receipt(self, data: Dict[str, Any]) -> str:
         """Fallback formatter when receipt_text is not pre-built"""
