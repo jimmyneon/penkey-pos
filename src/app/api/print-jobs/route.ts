@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
       .from("print_jobs")
       .insert({
         printer_id,
-        job_type: "test",
-        template: "test",
+        type: "test",
+        template_id: null,
         data: { 
           storeName: "Penkey Délicaf & Gifts",
           dateTime: new Date().toLocaleString("en-GB"),

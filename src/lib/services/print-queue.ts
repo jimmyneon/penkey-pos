@@ -9,11 +9,11 @@ import { generateReceiptText, type ReceiptTemplateData } from "@penkey/print-ada
 
 export interface CreatePrintJobInput {
   printer_id: string;
-  job_type: PrintJobType;
-  template: string;
+  type: PrintJobType;
+  template_id?: string | null;
   data: Record<string, any>;
-  priority?: PrintJobPriority;
-  receipt_id?: string;
+  priority?: "high" | "normal" | "low";
+  receipt_id?: string | null;
 }
 
 export interface PrinterConfig {
@@ -43,8 +43,8 @@ export async function createPrintJob(
     .from("print_jobs")
     .insert({
       printer_id: input.printer_id,
-      type: input.job_type,  // Database uses 'type' instead of 'job_type'
-      template_id: input.template_id || null,  // Database uses 'template_id'
+      type: input.type,
+      template_id: input.template_id || null,
       data: input.data,
       priority: input.priority || "normal",
       receipt_id: input.receipt_id || null,
@@ -81,8 +81,8 @@ export async function createReceiptPrintJob(
 
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,
-    job_type: "receipt",
-    template_id: null,  // Database uses 'template_id'
+    type: "receipt",
+    template_id: null,
     data: {
       receipt_text: receiptText,
       ...receiptData,
