@@ -213,8 +213,8 @@ Status: Online
         return bytes(commands)
 
     def _center(self, text: str) -> str:
-        """Center text in a 48-character line (80mm paper)"""
-        width = 48
+        """Center text in a 58-character line (80mm paper)"""
+        width = 58
         padding = (width - len(text)) // 2
         return ' ' * max(0, padding) + text
 
