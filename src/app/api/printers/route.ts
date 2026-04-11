@@ -6,12 +6,14 @@ import { getPrinters, createPrinter, updatePrinter, deletePrinter } from "@/lib/
 
 // GET - List all printers
 export async function GET(request: NextRequest) {
-  const session = await validatePOSSession(request);
-  if (!session) {
-    return unauthorizedResponse();
-  }
-
   try {
+    console.log('[Printers API] Starting GET request');
+    const session = await validatePOSSession(request);
+    console.log('[Printers API] Session validated:', !!session);
+    if (!session) {
+      return unauthorizedResponse();
+    }
+
     const { searchParams } = new URL(request.url);
     const register_id = searchParams.get('register_id') || undefined;
     const store_id = searchParams.get('store_id') || undefined;
@@ -21,6 +23,8 @@ export async function GET(request: NextRequest) {
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    console.log('[Printers API] Supabase config:', { url: !!supabaseUrl, key: !!supabaseKey });
 
     const printers = await getPrinters(supabaseUrl, supabaseKey, {
       register_id,
