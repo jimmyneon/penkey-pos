@@ -502,7 +502,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.theme === "dark" ? "default" : "outline"}
                   onClick={() => updateSetting("theme", "dark")}
-                  className={`min-h-[44px] ${settings.theme === "dark" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] ${settings.theme === "dark" ? "bg-penkey-orange" : ""}`}
                 >
                   <Moon className="h-4 w-4 mr-2" />
                   Dark
@@ -511,7 +511,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.theme === "light" ? "default" : "outline"}
                   onClick={() => updateSetting("theme", "light")}
-                  className={`min-h-[44px] ${settings.theme === "light" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] ${settings.theme === "light" ? "bg-penkey-orange" : ""}`}
                 >
                   <Sun className="h-4 w-4 mr-2" />
                   Light
@@ -530,7 +530,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant={settings.font_size === size ? "default" : "outline"}
                     onClick={() => updateSetting("font_size", size as any)}
-                    className={`min-h-[44px] ${settings.font_size === size ? "bg-penkey-orange" : ""}`}
+                    className={`min-h-[44px] min-w-[100px] ${settings.font_size === size ? "bg-penkey-orange" : ""}`}
                   >
                     <Type className="h-4 w-4 mr-1 sm:mr-2" />
                     <span className="text-xs sm:text-sm">{size.charAt(0).toUpperCase() + size.slice(1)}</span>
@@ -549,7 +549,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 2 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 2)}
-                  className={`min-h-[44px] md:hidden ${settings.grid_size === 2 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] md:hidden ${settings.grid_size === 2 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   2 Columns
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 3 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 3)}
-                  className={`min-h-[44px] ${settings.grid_size === 3 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] ${settings.grid_size === 3 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   3 Columns
@@ -571,7 +571,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 4 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 4)}
-                  className={`min-h-[44px] ${settings.grid_size === 4 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] ${settings.grid_size === 4 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   4 Columns
@@ -582,7 +582,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 5 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 5)}
-                  className={`min-h-[44px] hidden md:inline-flex ${settings.grid_size === 5 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] hidden md:inline-flex ${settings.grid_size === 5 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   5 Columns
@@ -593,7 +593,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.grid_size === 6 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 6)}
-                  className={`min-h-[44px] hidden lg:inline-flex ${settings.grid_size === 6 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] hidden lg:inline-flex ${settings.grid_size === 6 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   6 Columns
@@ -659,7 +659,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant={settings.print_behaviour === val ? "default" : "outline"}
                     onClick={() => updateSetting("print_behaviour", val)}
-                    className={`min-h-[44px] capitalize ${settings.print_behaviour === val ? "bg-penkey-orange" : ""}`}
+                    className={`min-h-[44px] min-w-[100px] capitalize ${settings.print_behaviour === val ? "bg-penkey-orange" : ""}`}
                   >
                     {val === "always" ? "Always Print" : val === "ask" ? "Always Ask" : "Never Print"}
                   </Button>
@@ -918,7 +918,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.default_dining_option === "eat-in" ? "default" : "outline"}
                   onClick={() => updateSetting("default_dining_option", "eat-in")}
-                  className={`min-h-[44px] ${settings.default_dining_option === "eat-in" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] ${settings.default_dining_option === "eat-in" ? "bg-penkey-orange" : ""}`}
                 >
                   Eat In
                 </Button>
@@ -926,7 +926,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant={settings.default_dining_option === "takeaway" ? "default" : "outline"}
                   onClick={() => updateSetting("default_dining_option", "takeaway")}
-                  className={`min-h-[44px] ${settings.default_dining_option === "takeaway" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[100px] ${settings.default_dining_option === "takeaway" ? "bg-penkey-orange" : ""}`}
                 >
                   Takeaway
                 </Button>
@@ -1060,7 +1060,7 @@ export default function SettingsPage() {
                   setShowPasscodeDialog(true);
                 }}
                 variant="outline"
-                className="text-white border-gray-600 hover:bg-white/10 min-h-[44px]"
+                className="text-black border-gray-600 hover:bg-white/10 min-h-[44px] min-w-[120px]"
               >
                 <Key className="h-4 w-4 mr-2" />
                 Change PIN
@@ -1233,13 +1233,13 @@ function ToggleSwitch({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors min-h-[44px] sm:min-h-0 justify-center ${
+      className={`relative inline-flex h-6 w-11 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${
         checked ? "bg-penkey-orange" : "bg-gray-600"
       }`}
     >
       <span
-        className={`inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
-          checked ? "translate-x-2.5 sm:translate-x-2" : "-translate-x-2.5 sm:-translate-x-2"
+        className={`inline-block h-4 w-4 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-2" : "-translate-x-2"
         }`}
       />
     </button>
