@@ -269,7 +269,9 @@ class PrintServer:
                 logger.warning(f"Unknown job type: {job_type}")
                 success = False
 
+            logger.info(f"Print operation returned: success={success}")
             if success:
+                logger.info(f"Attempting to mark job {job_id} as completed...")
                 await self.update_job_status(job_id, 'completed')
                 return True
             else:

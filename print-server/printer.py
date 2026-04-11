@@ -140,8 +140,8 @@ Status: Online
         # Initialize printer
         commands.extend([0x1B, 0x40])  # ESC @
 
-        # Set code page to CP437 (Western European) for better character support
-        commands.extend([0x1B, 0x74, 0x00])  # CP437
+        # Set code page to CP850 (Western European) - supports pound sign
+        commands.extend([0x1B, 0x74, 0x02])  # CP850
 
         # Process each line
         for line in text.split('\n'):
@@ -182,7 +182,7 @@ Status: Online
         commands.extend([0x1B, 0x61, 0x00])  # Left align
 
         # Feed lines before cut
-        commands.extend([0x0A, 0x0A, 0x0A])  # 3 line feeds
+        commands.extend([0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A])  # 6 line feeds
 
         # Cut paper (full cut with feed)
         commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0 - feed and cut
@@ -196,8 +196,8 @@ Status: Online
         # Initialize
         commands.extend([0x1B, 0x40])
 
-        # Set code page to CP437
-        commands.extend([0x1B, 0x74, 0x00])
+        # Set code page to CP850
+        commands.extend([0x1B, 0x74, 0x02])
 
         # Add text
         for line in text.split('\n'):
@@ -205,7 +205,7 @@ Status: Online
             commands.append(0x0A)
 
         # Feed lines before cut
-        commands.extend([0x0A, 0x0A, 0x0A])  # 3 line feeds
+        commands.extend([0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A])  # 6 line feeds
 
         # Cut paper
         commands.extend([0x1D, 0x56, 0x42, 0x00])
