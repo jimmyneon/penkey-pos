@@ -142,7 +142,7 @@ class PrintServer:
     # ------------------------------------------------------------------
 
     async def update_printer_status(self, status: str, error: Optional[str] = None) -> None:
-        """Update printer heartbeat + status in Supabase"""
+        """Update printer heartbeat in Supabase (status column not updated as it doesn't exist)"""
         try:
             updates: Dict[str, Any] = {
                 'last_seen_at': datetime.utcnow().isoformat()
@@ -150,25 +150,13 @@ class PrintServer:
             if error:
                 updates['last_error'] = error
 
-            # Try to update status column if it exists, otherwise skip
-            try:
-                updates['status'] = status
-                await self.supabase.table('printers') \
-                    .update(updates) \
-                    .eq('id', self.printer_id) \
-                    .execute()
-            except Exception as e:
-                if 'status' in str(e):
-                    # Column doesn't exist, skip status update
-                    logger.debug(f"[Printer] Status column not found, skipping status update: {e}")
-                    await self.supabase.table('printers') \
-                        .update(updates) \
-                        .eq('id', self.printer_id) \
-                        .execute()
-                else:
-                    raise
+            # Only update last_seen_at and last_error - status column doesn't exist
+            await self.supabase.table('printers') \
+                .update(updates) \
+                .eq('id', self.printer_id) \
+                .execute()
         except Exception as e:
-            logger.error(f"Failed to update printer status: {e}")
+            logger.error(f"Failed to update printer heartbeat: {e}")
 
     async def get_pending_jobs(self) -> list:
         """Fetch all pending jobs for this printer (fallback poll)"""
@@ -239,10 +227,24 @@ class PrintServer:
             async with self._job_lock:
                 self._processing.discard(job_id)
 
+    def _validate_job(self, job: Dict[str, Any]) -> tuple[bool, str]:
+        """Validate job has required fields"""
+        if not job.get('id'):
+            return False, "Job missing 'id' field"
+        return True, ""
+
     async def process_job(self, job: Dict[str, Any]) -> bool:
         """Process a single print job end-to-end"""
+        # Validate job before processing
+        is_valid, error_msg = self._validate_job(job)
+        if not is_valid:
+            logger.error(f"Job validation failed: {error_msg}")
+            job_id = job.get('id', 'unknown')
+            await self.update_job_status(job_id, 'failed', f"Invalid job: {error_msg}")
+            return False
+
         job_id = job['id']
-        job_type = job['job_type']
+        job_type = job.get('job_type', 'receipt')  # Default to receipt if missing
         data = job.get('data', {})
         attempts = job.get('attempts', 0)
         max_attempts = job.get('max_attempts', 3)
@@ -277,7 +279,10 @@ class PrintServer:
             err = str(e)
             logger.error(f"Job {job_id} failed: {err}")
             next_status = 'failed' if (attempts + 1 >= max_attempts) else 'pending'
-            await self.update_job_status(job_id, next_status, err)
+            try:
+                await self.update_job_status(job_id, next_status, err)
+            except Exception as update_err:
+                logger.error(f"Failed to update job {job_id} status after failure: {update_err}")
             return False
 
     # ------------------------------------------------------------------
@@ -388,7 +393,7 @@ class PrintServer:
             pass
         if self.printer:
             self.printer._disconnect()
-        await self.supabase.close()
+        # AsyncClient doesn't have close(), just let it cleanup naturally
 
     # ------------------------------------------------------------------
     # Test mode
