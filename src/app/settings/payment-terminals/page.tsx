@@ -98,25 +98,37 @@ export default function PaymentTerminalsPage() {
   };
 
   const checkAllReaderStatus = async () => {
-    if (terminals.length === 0) return;
+    console.log('[Payment Terminals] checkAllReaderStatus called, terminals.length:', terminals.length);
+    if (terminals.length === 0) {
+      console.log('[Payment Terminals] No terminals, skipping status check');
+      return;
+    }
     
     console.log('[Payment Terminals] Checking status for all terminals:', terminals.length);
     setCheckingStatus(true);
-    const statusUpdates = await Promise.all(
-      terminals.map(async (terminal) => {
-        const status = await checkReaderStatus(terminal.reader_id);
-        return { id: terminal.id, status };
-      })
-    );
+    
+    try {
+      const statusUpdates = await Promise.all(
+        terminals.map(async (terminal) => {
+          console.log('[Payment Terminals] Processing terminal:', terminal.name, terminal.reader_id);
+          const status = await checkReaderStatus(terminal.reader_id);
+          console.log('[Payment Terminals] Terminal status result:', terminal.name, status);
+          return { id: terminal.id, status };
+        })
+      );
 
-    console.log('[Payment Terminals] Status updates:', statusUpdates);
-    setTerminals(prev =>
-      prev.map(t => {
-        const update = statusUpdates.find(u => u.id === t.id);
-        return update ? { ...t, status: update.status } : t;
-      })
-    );
-    setCheckingStatus(false);
+      console.log('[Payment Terminals] Status updates:', statusUpdates);
+      setTerminals(prev =>
+        prev.map(t => {
+          const update = statusUpdates.find(u => u.id === t.id);
+          return update ? { ...t, status: update.status } : t;
+        })
+      );
+    } catch (error) {
+      console.error('[Payment Terminals] Error checking status:', error);
+    } finally {
+      setCheckingStatus(false);
+    }
   };
 
   const handleUnpairFromSumUp = async (readerId: string) => {
