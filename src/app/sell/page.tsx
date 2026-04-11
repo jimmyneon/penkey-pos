@@ -364,6 +364,7 @@ export default function SellPage() {
   };
 
   const handleAddItem = (item: any, event?: React.MouseEvent) => {
+    console.log('[handleAddItem] Called for item:', item.name, 'with event:', !!event);
     // Trigger button press animation and haptic feedback
     hapticButtonPress();
     playButtonSound();
@@ -390,22 +391,31 @@ export default function SellPage() {
     }
 
     // Check if item has modifiers - show modifier dialog
+    console.log('[handleAddItem] Calling checkAndShowModifiers with event:', !!event);
     checkAndShowModifiers(item, null, event);
   };
 
   const checkAndShowModifiers = async (item: any, variant: any, event?: React.MouseEvent) => {
+    console.log('[checkAndShowModifiers] Called for item:', item.name, 'with event:', !!event);
     try {
       // 1) RAM cache — O(1), synchronous, no awaits
       const ramGroups = modifierRAMCache.get(item.id);
+      console.log('[checkAndShowModifiers] RAM cache groups:', ramGroups);
       if (ramGroups !== null) {
         if (ramGroups && ramGroups.length > 0) {
+          console.log('[checkAndShowModifiers] Showing modifier dialog');
           setSelectedItem(item);
           setSelectedVariant(variant);
           setModifierDialogOpen(true);
         } else {
           // Confirmed no modifiers — add directly (same path as the fallback below)
+          console.log('[checkAndShowModifiers] RAM cache empty, adding directly with event:', !!event);
           const price = variant ? variant.price : item.base_price;
           addLine({ item_id: item.id, item_name: item.name, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
+          if (event) {
+            console.log('[checkAndShowModifiers] Triggering animation from RAM cache path');
+            triggerFlyingAnimation(item.name, event);
+          }
           debouncedUpsellSuggestions(item);
           setSelectedItem(null);
         }
@@ -418,14 +428,20 @@ export default function SellPage() {
         if (row) {
           const hasGroups = row.groups?.some((g: any) => g?.modifier_options?.length > 0);
           if (hasGroups) {
+            console.log('[checkAndShowModifiers] IDB has groups, showing modifier dialog');
             setSelectedItem(item);
             setSelectedVariant(variant);
             setModifierDialogOpen(true);
             return;
           } else {
+            console.log('[checkAndShowModifiers] IDB has empty groups, adding directly with event:', !!event);
             modifierRAMCache.set(item.id, []);
             const price = variant ? variant.price : item.base_price;
             addLine({ item_id: item.id, item_name: item.name, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
+            if (event) {
+              console.log('[checkAndShowModifiers] Triggering animation from IDB path');
+              triggerFlyingAnimation(item.name, event);
+            }
             debouncedUpsellSuggestions(item);
             setSelectedItem(null);
             return;
@@ -451,6 +467,7 @@ export default function SellPage() {
     }
 
     // No modifiers - add directly to cart
+    console.log('[checkAndShowModifiers] No modifiers found, adding directly to cart. Event:', !!event);
     const price = variant ? variant.price : item.base_price;
     
     addLine({
