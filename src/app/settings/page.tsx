@@ -1280,13 +1280,13 @@ function ToggleSwitch({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors !min-h-0 !min-w-0 ${
+      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors !min-h-0 !min-w-0 p-1 ${
         checked ? "bg-penkey-orange" : "bg-gray-600"
       }`}
     >
       <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-          checked ? "!translate-x-[8px]" : "!-translate-x-[8px]"
+        className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+          checked ? "translate-x-6" : "translate-x-0"
         }`}
       />
     </button>
