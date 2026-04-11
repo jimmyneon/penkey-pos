@@ -836,7 +836,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant="outline"
                     onClick={disconnectSumUp}
-                    className="min-h-[44px] border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                    className="min-h-[44px] min-w-[140px] border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
                   >
                     Disconnect
                   </Button>
@@ -1107,7 +1107,7 @@ export default function SettingsPage() {
                   setShowPasscodeDialog(true);
                 }}
                 variant="outline"
-                className="text-black border-gray-600 hover:bg-white/10 min-h-[44px] min-w-[140px]"
+                className="text-black border-gray-600 hover:bg-white/10 min-h-[48px] min-w-[180px]"
               >
                 <Key className="h-4 w-4 mr-2" />
                 Change PIN
