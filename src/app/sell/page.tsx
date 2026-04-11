@@ -66,6 +66,7 @@ export default function SellPage() {
   const [showPopular, setShowPopular] = useState(true);
   const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
+  const [pendingItemEvent, setPendingItemEvent] = useState<React.MouseEvent | null>(null);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -386,6 +387,7 @@ export default function SellPage() {
 
     // If item has variants, show variant dialog first
     if (item.has_variants && item.item_variants?.length > 0) {
+      setPendingItemEvent(event || null);
       setVariantDialogOpen(true);
       return;
     }
@@ -700,11 +702,15 @@ export default function SellPage() {
   };
 
   const handleVariantSelect = (variant: any) => {
+    console.log('[handleVariantSelect] Called with pending event:', !!pendingItemEvent);
     if (!selectedItem) return;
 
     // After variant selection, check for modifiers
+    const event = pendingItemEvent;
     setVariantDialogOpen(false);
-    checkAndShowModifiers(selectedItem, variant, undefined);
+    setPendingItemEvent(null);
+    console.log('[handleVariantSelect] Calling checkAndShowModifiers with event:', !!event);
+    checkAndShowModifiers(selectedItem, variant, event || undefined);
   };
 
   const handleModifiersConfirm = (modifiers: any[]) => {
@@ -1178,6 +1184,7 @@ export default function SellPage() {
           onClose={() => {
             setVariantDialogOpen(false);
             setSelectedItem(null);
+            setPendingItemEvent(null);
           }}
           itemName={selectedItem.name}
           variants={selectedItem.item_variants || []}
