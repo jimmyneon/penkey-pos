@@ -29,6 +29,7 @@ export default function PaymentTerminalsPage() {
   const [loadingReaders, setLoadingReaders] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [pairingLoading, setPairingLoading] = useState(false);
   const [pairingError, setPairingError] = useState('');
   const [terminalName, setTerminalName] = useState('');
@@ -38,7 +39,43 @@ export default function PaymentTerminalsPage() {
     console.log('[Payment Terminals] Component mounted');
     fetchTerminals();
     fetchSumUpReaders();
+
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
   }, []);
+
+  // Continuous polling based on terminal status
+  useEffect(() => {
+    // Clear existing interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+
+    // Don't poll if loading or no terminals
+    if (loading || terminals.length === 0) {
+      return;
+    }
+
+    // Check if any terminal is offline
+    const anyOffline = terminals.some(t => t.status === 'offline');
+    const pollInterval = anyOffline ? 5000 : 15000; // 5s if offline, 15s if all online
+
+    console.log('[Payment Terminals] Starting polling - interval:', pollInterval / 1000, 's, any offline:', anyOffline);
+
+    const interval = setInterval(() => {
+      console.log('[Payment Terminals] Polling terminal status...');
+      checkAllReaderStatus();
+    }, pollInterval);
+
+    setPollingInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loading, terminals]);
 
   const fetchTerminals = async () => {
     console.log('[Payment Terminals] fetchTerminals called');
