@@ -92,8 +92,7 @@ export async function POST(request: NextRequest) {
     if (!selectedPrinterId) {
       const registerId = (receipt as any).register_id;
       const printers = await getPrinters(supabaseUrl, supabaseKey, { 
-        register_id: registerId,
-        status: 'online'
+        register_id: registerId
       });
       
       if (printers.length > 0) {
