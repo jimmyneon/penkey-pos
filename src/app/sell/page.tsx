@@ -289,13 +289,22 @@ export default function SellPage() {
   }, []);
 
   const triggerFlyingAnimation = (itemName: string, event: React.MouseEvent) => {
+    console.log('[Fly Animation] triggerFlyingAnimation called for:', itemName);
     const button = event.currentTarget as HTMLElement;
-    if (!button) return; // Guard against null button
+    console.log('[Fly Animation] Button element:', button);
+    if (!button) {
+      console.log('[Fly Animation] No button element found');
+      return; // Guard against null button
+    }
     
     const animateItemToTicket = (itemName: string, buttonRect: DOMRect) => {
     const ticketIndicator = document.querySelector('[data-ticket-indicator]');
+    console.log('[Fly Animation] Ticket indicator:', ticketIndicator);
     
-    if (!ticketIndicator) return;
+    if (!ticketIndicator) {
+      console.log('[Fly Animation] No ticket indicator found');
+      return;
+    }
     
     const ticketRect = ticketIndicator.getBoundingClientRect();
     
@@ -458,7 +467,10 @@ export default function SellPage() {
 
     // Trigger flying animation (if we have an event)
     if (event) {
+      console.log('[Fly Animation] Triggering for item without modifiers:', item.name);
       triggerFlyingAnimation(item.name, event);
+    } else {
+      console.log('[Fly Animation] No event available for item without modifiers:', item.name);
     }
 
     // Debounced upsell
