@@ -37,7 +37,7 @@ export async function PATCH(
     );
 
     const body = await request.json();
-    const { name, price_adjustment } = body;
+    const { name, price_adjustment, is_default, is_active } = body;
 
     // Verify the modifier option belongs to the user's organization
     const { data: option, error: optionError } = await supabase
@@ -56,12 +56,22 @@ export async function PATCH(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    const updateData: any = {
+      name,
+      price_adjustment,
+    };
+
+    if (is_default !== undefined) {
+      updateData.is_default = is_default;
+    }
+
+    if (is_active !== undefined) {
+      updateData.is_active = is_active;
+    }
+
     const { error } = await supabase
       .from("modifier_options")
-      .update({
-        name,
-        price_adjustment,
-      })
+      .update(updateData)
       .eq("id", id);
 
     if (error) {
