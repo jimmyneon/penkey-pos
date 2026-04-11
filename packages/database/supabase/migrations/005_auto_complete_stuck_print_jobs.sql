@@ -1,6 +1,9 @@
 -- Auto-complete print jobs stuck in 'printing' status
 -- Since we can't get feedback from the printer, we assume success after 2 minutes
 
+-- Enable pg_cron extension
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
 -- Function to auto-complete stuck jobs
 CREATE OR REPLACE FUNCTION auto_complete_stuck_print_jobs()
 RETURNS void AS $$
@@ -17,13 +20,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Note: To enable pg_cron extension (optional), run:
--- CREATE EXTENSION IF NOT EXISTS pg_cron;
--- SELECT cron.schedule(
---   'auto-complete-print-jobs',
---   '* * * * *',  -- Every minute
---   'SELECT auto_complete_stuck_print_jobs();'
--- );
-
--- Alternative: Call this function periodically from your application
--- via a scheduled job or cron job
+-- Schedule the function to run every minute
+SELECT cron.schedule(
+  'auto-complete-print-jobs',
+  '* * * * *',  -- Every minute
+  'SELECT auto_complete_stuck_print_jobs();'
+);
