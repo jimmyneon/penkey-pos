@@ -212,7 +212,6 @@ export async function createPrinter(
       location: config.location || null,
       register_id: config.register_id || null,
       store_id: config.store_id || null,
-      config: config.config || {},
       status: "offline",
     })
     .select()
@@ -266,7 +265,6 @@ export async function updatePrinter(
     location: updates.location ?? null,
     register_id: updates.register_id ?? null,
     store_id: updates.store_id ?? null,
-    config: updates.config ?? {},
   };
 
   const { data, error } = await supabase
