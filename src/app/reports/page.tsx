@@ -421,7 +421,7 @@ export default function ReportsPage() {
               </button>
             </div>
 
-            {/* New Report Types */}
+            {/* New Report Types - Sales breakdown by items, transaction type, employee, and hourly */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-white">Detailed Reports</h3>
               <div className="grid grid-cols-2 gap-3">
