@@ -72,11 +72,16 @@ export default function PaymentTerminalsPage() {
 
   const checkReaderStatus = async (readerId: string): Promise<'online' | 'offline'> => {
     try {
+      console.log('[Payment Terminals] Checking status for reader:', readerId);
       const res = await fetch(`/api/sumup/diagnose?reader_id=${readerId}`);
       const data = await res.json();
+      console.log('[Payment Terminals] Reader status response:', data);
       if (data.success && data.reader_online) {
-        return data.reader_online === 'ONLINE' ? 'online' : 'offline';
+        const status = data.reader_online === 'ONLINE' ? 'online' : 'offline';
+        console.log('[Payment Terminals] Reader', readerId, 'is', status);
+        return status;
       }
+      console.log('[Payment Terminals] Reader', readerId, 'status check failed, defaulting to offline');
       return 'offline';
     } catch (e) {
       console.error('Failed to check reader status:', readerId, e);
@@ -87,6 +92,7 @@ export default function PaymentTerminalsPage() {
   const checkAllReaderStatus = async () => {
     if (terminals.length === 0) return;
     
+    console.log('[Payment Terminals] Checking status for all terminals:', terminals.length);
     setCheckingStatus(true);
     const statusUpdates = await Promise.all(
       terminals.map(async (terminal) => {
@@ -95,6 +101,7 @@ export default function PaymentTerminalsPage() {
       })
     );
 
+    console.log('[Payment Terminals] Status updates:', statusUpdates);
     setTerminals(prev =>
       prev.map(t => {
         const update = statusUpdates.find(u => u.id === t.id);
@@ -205,109 +212,104 @@ export default function PaymentTerminalsPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
-            title="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => router.push('/')}
-            className="p-2 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
-            title="Home"
-          >
-            <Home className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Payment Terminals</h1>
-            <p className="text-zinc-400 mt-1 text-sm sm:text-base">Manage your SumUp Solo card readers</p>
+    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="bg-[#3d3d3d] text-white px-3 sm:px-4 py-3 flex items-center justify-between border-b border-gray-700 flex-shrink-0 z-10">
+        <button
+          onClick={() => router.back()}
+          className="text-white hover:bg-white/10 min-h-[44px] min-w-[44px] p-2 rounded-lg transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="font-semibold text-base sm:text-lg">Payment Terminals</h1>
+        <div className="w-[44px]"></div>
+      </header>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                fetchTerminals();
+              }}
+              disabled={loadingReaders || checkingStatus}
+              className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${(loadingReaders || checkingStatus) ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={handleUnpairAll}
+              disabled={sumUpReaders.length === 0 && terminals.length === 0}
+              className="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 text-red-400 font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              Reset All
+            </button>
+            <button
+              onClick={() => { setPairingError(''); setShowModal(true); }}
+              className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Pair New Reader
+            </button>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              fetchTerminals();
-            }}
-            disabled={loadingReaders || checkingStatus}
-            className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
-          >
-            <RefreshCw className={`w-4 h-4 ${(loadingReaders || checkingStatus) ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-          <button
-            onClick={handleUnpairAll}
-            disabled={sumUpReaders.length === 0 && terminals.length === 0}
-            className="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 text-red-400 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Reset All</span>
-          </button>
-          <button
-            onClick={() => { setPairingError(''); setShowModal(true); }}
-            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Pair New Reader</span>
-          </button>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+              <p className="text-zinc-400 text-sm">Loading terminals...</p>
+            </div>
+          ) : checkingStatus ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+              <p className="text-zinc-400 text-sm">Checking reader status...</p>
+            </div>
+          ) : terminals.length === 0 ? (
+            <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 flex flex-col items-center justify-center py-12 sm:py-16 gap-4">
+              <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-500" />
+              <div className="text-center px-4">
+                <p className="text-white font-semibold text-sm sm:text-base">No terminals paired</p>
+                <p className="text-zinc-400 text-xs sm:text-sm mt-1">Pair your SumUp Solo to start accepting card payments</p>
+              </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm sm:text-base"
+              >
+                <Plus className="w-4 h-4" />
+                Pair First Reader
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {terminals.map((t) => (
+                <div key={t.id} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                      <CreditCard className="w-5 h-5 text-zinc-300" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-white text-sm sm:text-base truncate">{t.name}</p>
+                      <p className="text-xs text-zinc-400 truncate">ID: {t.reader_id}{t.location ? ' · ' + t.location : ''}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    {statusBadge(t.status)}
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0"
+                      title="Remove terminal"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-2">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
-          <p className="text-zinc-400 text-sm">Loading terminals...</p>
-        </div>
-      ) : checkingStatus ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-2">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
-          <p className="text-zinc-400 text-sm">Checking reader status...</p>
-        </div>
-      ) : terminals.length === 0 ? (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 flex flex-col items-center justify-center py-12 sm:py-16 gap-4">
-          <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-500" />
-          <div className="text-center px-4">
-            <p className="text-white font-semibold text-sm sm:text-base">No terminals paired</p>
-            <p className="text-zinc-400 text-xs sm:text-sm mt-1">Pair your SumUp Solo to start accepting card payments</p>
-          </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm sm:text-base"
-          >
-            <Plus className="w-4 h-4" />
-            Pair First Reader
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {terminals.map((t) => (
-            <div key={t.id} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
-                  <CreditCard className="w-5 h-5 text-zinc-300" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-white text-sm sm:text-base truncate">{t.name}</p>
-                  <p className="text-xs text-zinc-400 truncate">ID: {t.reader_id}{t.location ? ' · ' + t.location : ''}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                {statusBadge(t.status)}
-                <button
-                  onClick={() => handleDelete(t.id)}
-                  className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0"
-                  title="Remove terminal"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
