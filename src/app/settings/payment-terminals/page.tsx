@@ -72,10 +72,10 @@ export default function PaymentTerminalsPage() {
 
   const checkReaderStatus = async (readerId: string): Promise<'online' | 'offline'> => {
     try {
-      const res = await fetch(`/api/sumup/reader-status?reader_id=${readerId}`);
+      const res = await fetch(`/api/sumup/diagnose?reader_id=${readerId}`);
       const data = await res.json();
-      if (data.success && data.status) {
-        return data.status === 'ONLINE' ? 'online' : 'offline';
+      if (data.success && data.reader_online) {
+        return data.reader_online === 'ONLINE' ? 'online' : 'offline';
       }
       return 'offline';
     } catch (e) {
@@ -206,7 +206,7 @@ export default function PaymentTerminalsPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -222,8 +222,12 @@ export default function PaymentTerminalsPage() {
           >
             <Home className="w-5 h-5" />
           </button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">Payment Terminals</h1>
+            <p className="text-zinc-400 mt-1 text-sm sm:text-base">Manage your SumUp Solo card readers</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           <button
             onClick={() => {
               fetchTerminals();
