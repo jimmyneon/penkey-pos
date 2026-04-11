@@ -17,15 +17,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create a trigger to run this function periodically
--- Note: This requires pg_cron extension, or you can run this via a scheduled job
--- Alternative: Create a materialized view that refreshes periodically
-
--- For Supabase, use pg_cron if available:
+-- Note: To enable pg_cron extension (optional), run:
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- SELECT cron.schedule(
 --   'auto-complete-print-jobs',
 --   '* * * * *',  -- Every minute
 --   'SELECT auto_complete_stuck_print_jobs();'
 -- );
 
--- Or run this manually via a scheduled job in your application
+-- Alternative: Call this function periodically from your application
+-- via a scheduled job or cron job
