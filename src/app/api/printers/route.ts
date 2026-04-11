@@ -13,16 +13,17 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const register_id = searchParams.get('register_id') || undefined;
-    const store_id = searchParams.get('store_id') || undefined;
+    const register_id = searchParams.get('register_id');
+    const store_id = searchParams.get('store_id');
     const status = searchParams.get('status') as any || undefined;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+    // Temporarily remove register_id filter to diagnose the issue
     const printers = await getPrinters(supabaseUrl, supabaseKey, {
-      register_id,
-      store_id,
+      // register_id: register_id || undefined,
+      store_id: store_id || undefined,
       status,
     });
 
