@@ -34,6 +34,8 @@ export default function CategoriesPage() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [longPressTimer, setLongPressTimer] = useState<any>(null);
+  const [longPressFired, setLongPressFired] = useState(false);
+  const [wasLongPress, setWasLongPress] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const { categories, loading: categoriesLoading, reload: reloadCategories } = useCategories(session?.org_id || "skip");
@@ -137,7 +139,11 @@ export default function CategoriesPage() {
                 <div
                   key={category.id}
                   onPointerDown={() => {
+                    setLongPressFired(false);
+                    setWasLongPress(false);
                     const t = setTimeout(() => {
+                      setLongPressFired(true);
+                      setWasLongPress(true);
                       setSelectionMode(true);
                       setSelectedIds((prev) => new Set(prev).add(category.id));
                     }, 450);
@@ -147,7 +153,7 @@ export default function CategoriesPage() {
                     if (longPressTimer) {
                       clearTimeout(longPressTimer);
                       setLongPressTimer(null);
-                      if (!selectionMode) {
+                      if (!longPressFired && !selectionMode) {
                         hapticButtonPress();
                         setSelectedCategory(category);
                         setEditDialogOpen(true);
@@ -158,9 +164,14 @@ export default function CategoriesPage() {
                     if (longPressTimer) {
                       clearTimeout(longPressTimer);
                       setLongPressTimer(null);
+                      setLongPressFired(false);
                     }
                   }}
                   onClick={() => {
+                    if (wasLongPress) {
+                      setWasLongPress(false);
+                      return;
+                    }
                     if (selectionMode) {
                       const next = new Set(selectedIds);
                       if (next.has(category.id)) next.delete(category.id); else next.add(category.id);
@@ -226,6 +237,22 @@ export default function CategoriesPage() {
       {/* Bulk actions bar */}
       {selectionMode && selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-[#3d3d3d] border-t border-gray-700 p-3 flex items-center gap-2 z-40">
+          <div
+            className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer ${
+              selectedIds.size === filteredCategories.length ? "bg-penkey-orange border-penkey-orange" : "border-gray-500"
+            }`}
+            onClick={() => {
+              if (selectedIds.size === filteredCategories.length) {
+                setSelectedIds(new Set());
+              } else {
+                setSelectedIds(new Set(filteredCategories.map(category => category.id)));
+              }
+            }}
+          >
+            {selectedIds.size === filteredCategories.length && (
+              <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            )}
+          </div>
           <span className="text-sm text-white mr-auto">{selectedIds.size} selected</span>
           <Button
             size="sm"

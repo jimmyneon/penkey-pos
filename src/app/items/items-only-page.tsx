@@ -317,6 +317,22 @@ export default function ItemsOnlyPage() {
       {/* Bulk actions bar */}
       {selectionMode && selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-[#3d3d3d] border-t border-gray-700 p-3 flex items-center gap-2 z-40">
+          <div
+            className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer ${
+              selectedIds.size === filteredItems.length ? "bg-penkey-orange border-penkey-orange" : "border-gray-500"
+            }`}
+            onClick={() => {
+              if (selectedIds.size === filteredItems.length) {
+                setSelectedIds(new Set());
+              } else {
+                setSelectedIds(new Set(filteredItems.map(item => item.id)));
+              }
+            }}
+          >
+            {selectedIds.size === filteredItems.length && (
+              <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            )}
+          </div>
           <span className="text-sm text-white mr-auto">{selectedIds.size} selected</span>
           <Button
             size="sm"
