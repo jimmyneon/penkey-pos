@@ -1223,23 +1223,23 @@ function SettingRow({
   );
 }
 
-function ToggleSwitch({ 
-  checked, 
-  onChange 
-}: { 
-  checked: boolean; 
-  onChange: (checked: boolean) => void; 
+function ToggleSwitch({
+  checked,
+  onChange
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
 }) {
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${
+      className={`relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${
         checked ? "bg-penkey-orange" : "bg-gray-600"
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
-          checked ? "translate-x-2" : "-translate-x-2"
+        className={`inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-2.5 sm:translate-x-2" : "-translate-x-2.5 sm:-translate-x-2"
         }`}
       />
     </button>

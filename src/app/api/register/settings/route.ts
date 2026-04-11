@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { register_id, settings } = body;
+    const { register_id, settings, org_id } = body;
 
     if (!register_id) {
       return NextResponse.json(
@@ -103,23 +103,10 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Verify register belongs to org
-    const { data: register, error: registerError } = await supabase
-      .from("registers")
-      .select("org_id")
-      .eq("id", register_id)
-      .single();
-
-    if (registerError || !register) {
-      return NextResponse.json(
-        { error: "Register not found" },
-        { status: 404 }
-      );
-    }
-
-    // ✅ SECURITY: Verify org_id matches session
-    if (register.org_id !== session.org_id) {
-      console.warn(`[API-AUTH] Org mismatch - Register: ${register.org_id}, Session: ${session.org_id}`);
+    // ✅ SECURITY: Verify org_id matches session (use provided org_id or session org_id)
+    const requestOrgId = org_id || session.org_id;
+    if (requestOrgId !== session.org_id) {
+      console.warn(`[API-AUTH] Org mismatch - Request: ${requestOrgId}, Session: ${session.org_id}`);
       return unauthorizedResponse();
     }
 
@@ -128,6 +115,7 @@ export async function POST(request: NextRequest) {
       .from("register_settings")
       .upsert({
         register_id,
+        org_id: requestOrgId,
         ...settings,
         updated_at: new Date().toISOString(),
       }, {
