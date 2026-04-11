@@ -30,6 +30,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for temp receipt IDs (still syncing to database)
+    if (receipt_id.startsWith('temp_')) {
+      return NextResponse.json(
+        { error: "Receipt is still syncing to database. Please try again in a few seconds." },
+        { status: 409 }
+      );
+    }
+
     // Create Supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
