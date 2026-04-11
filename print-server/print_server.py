@@ -16,7 +16,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from supabase import create_client, Client
-from printer import EpsonPrinter
+from printer import EpsonSerialPrinter
 
 # Load environment variables
 load_dotenv()
@@ -46,11 +46,14 @@ class PrintServer:
         self.supabase_url = os.getenv('SUPABASE_URL')
         self.supabase_key = os.getenv('SUPABASE_KEY')
         self.printer_id = os.getenv('PRINTER_ID')
-        self.cups_printer_name = os.getenv('CUPS_PRINTER_NAME', 'epson-tm-t20')
         self.poll_interval = int(os.getenv('POLL_INTERVAL', '30'))  # fallback only
 
+        # Serial printer settings
+        self.printer_device = os.getenv('PRINTER_DEVICE', '/dev/ttyUSB0')
+        self.printer_baud = int(os.getenv('PRINTER_BAUD', '38400'))
+
         self.supabase: Optional[Client] = None
-        self.printer: Optional[EpsonPrinter] = None
+        self.printer: Optional[EpsonSerialPrinter] = None
         self.running = False
 
         # Mutex so realtime + fallback poll never process the same job twice

@@ -1,66 +1,100 @@
 #!/usr/bin/env python3
 """
 Epson Printer Module
-Handles ESC/POS commands and CUPS printing
+Handles ESC/POS commands and serial printing
 """
 
-import cups
+import serial
 import logging
 from typing import Optional
 from datetime import datetime
+import os
 
 logger = logging.getLogger(__name__)
 
 
-class EpsonPrinter:
-    """Epson TM-series printer interface using CUPS"""
+class EpsonSerialPrinter:
+    """Epson TM-series printer interface using serial connection"""
 
-    def __init__(self, cups_printer_name: str):
-        self.cups_printer_name = cups_printer_name
-        self.conn = cups.Connection()
-        
-        # Verify printer exists
-        printers = self.conn.getPrinters()
-        if cups_printer_name not in printers:
-            available = list(printers.keys())
-            raise ValueError(f"Printer '{cups_printer_name}' not found. Available: {available}")
-        
-        logger.info(f"Initialized printer: {cups_printer_name}")
+    def __init__(
+        self,
+        device: str = None,
+        baudrate: int = None,
+        timeout: float = 5.0
+    ):
+        # Get settings from environment or use defaults
+        self.device = device or os.getenv('PRINTER_DEVICE', '/dev/ttyUSB0')
+        self.baudrate = baudrate or int(os.getenv('PRINTER_BAUD', '38400'))
+        self.timeout = timeout
+
+        # Serial settings: 8N1 (8 data bits, no parity, 1 stop bit)
+        self.serial_config = {
+            'baudrate': self.baudrate,
+            'bytesize': serial.EIGHTBITS,
+            'parity': serial.PARITY_NONE,
+            'stopbits': serial.STOPBITS_ONE,
+            'timeout': self.timeout,
+            'xonxoff': False,  # No software flow control
+            'rtscts': False,   # No hardware flow control
+        }
+
+        self.serial_conn = None
+        self._connect()
+
+    def _connect(self) -> None:
+        """Open serial connection to printer"""
+        try:
+            logger.info(f"[Serial] Opening connection to {self.device} at {self.baudrate} baud")
+            self.serial_conn = serial.Serial(self.device, **self.serial_config)
+            logger.info(f"[Serial] Successfully connected to printer at {self.device}")
+        except serial.SerialException as e:
+            logger.error(f"[Serial] Failed to connect to {self.device}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"[Serial] Unexpected error connecting to {self.device}: {e}")
+            raise
+
+    def _disconnect(self) -> None:
+        """Close serial connection"""
+        if self.serial_conn and self.serial_conn.is_open:
+            logger.info(f"[Serial] Closing connection to {self.device}")
+            self.serial_conn.close()
+            logger.info(f"[Serial] Connection closed")
 
     def print_receipt(self, receipt_text: str) -> bool:
         """Print a formatted receipt"""
         try:
-            # Build ESC/POS commands
+            logger.info("[Print] Starting receipt print")
             commands = self._build_escpos_receipt(receipt_text)
-            
-            # Send to printer via CUPS
             self._print_raw(commands)
-            
-            logger.info("Receipt printed successfully")
+            logger.info("[Print] Receipt printed successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to print receipt: {e}")
+            logger.error(f"[Print] Failed to print receipt: {e}")
             return False
 
     def print_text(self, text: str) -> bool:
         """Print plain text"""
         try:
+            logger.info("[Print] Starting text print")
             commands = self._build_escpos_text(text)
             self._print_raw(commands)
-            logger.info("Text printed successfully")
+            logger.info("[Print] Text printed successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to print text: {e}")
+            logger.error(f"[Print] Failed to print text: {e}")
             return False
 
     def test_print(self) -> bool:
         """Print a test page"""
         try:
+            logger.info("[Print] Starting test print")
             test_text = f"""{self._center('Penkey POS')}
 {self._center('Printer Test')}
 {self._center('=' * 24)}
 
-Printer: {self.cups_printer_name}
+Printer: {self.device}
+Baud Rate: {self.baudrate}
 Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Status: Online
 
@@ -71,32 +105,33 @@ Status: Online
 
 
 """
-            return self.print_text(test_text)
+            result = self.print_text(test_text)
+            if result:
+                logger.info("[Print] Test print successful")
+            return result
         except Exception as e:
-            logger.error(f"Test print failed: {e}")
+            logger.error(f"[Print] Test print failed: {e}")
             return False
 
     def _print_raw(self, data: bytes) -> None:
-        """Send raw data to printer via CUPS"""
-        import tempfile
-        import os
-
-        # Write to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.bin') as tmp:
-            tmp.write(data)
-            tmp_path = tmp.name
-
+        """Send raw data to printer via serial"""
         try:
-            # Send to printer
-            self.conn.printFile(
-                self.cups_printer_name,
-                tmp_path,
-                "Print Job",
-                {}
-            )
-        finally:
-            # Clean up temp file
-            os.unlink(tmp_path)
+            # Reconnect if connection was lost
+            if not self.serial_conn or not self.serial_conn.is_open:
+                self._connect()
+
+            logger.debug(f"[Serial] Writing {len(data)} bytes to printer")
+            self.serial_conn.write(data)
+            self.serial_conn.flush()
+            logger.debug("[Serial] Data written successfully")
+        except serial.SerialException as e:
+            logger.error(f"[Serial] Failed to write to printer: {e}")
+            # Try to reconnect
+            self._connect()
+            raise
+        except Exception as e:
+            logger.error(f"[Serial] Unexpected error writing to printer: {e}")
+            raise
 
     def _build_escpos_receipt(self, text: str) -> bytes:
         """Build ESC/POS commands for receipt printing"""
@@ -111,7 +146,7 @@ Status: Online
         # Process each line
         for line in text.split('\n'):
             stripped = line.strip()
-            
+
             if not stripped:
                 commands.append(0x0A)  # Line feed
                 continue
@@ -177,38 +212,10 @@ Status: Online
         padding = (width - len(text)) // 2
         return ' ' * max(0, padding) + text
 
+    def __del__(self):
+        """Cleanup on deletion"""
+        self._disconnect()
 
-class EpsonDirectUSB:
-    """Direct USB printer control (alternative to CUPS)"""
-    
-    def __init__(self, device_path: str = '/dev/usb/lp0'):
-        self.device_path = device_path
-        
-    def print_raw(self, data: bytes) -> bool:
-        """Print raw data directly to USB device"""
-        try:
-            with open(self.device_path, 'wb') as printer:
-                printer.write(data)
-                printer.flush()
-            return True
-        except Exception as e:
-            logger.error(f"Direct USB print failed: {e}")
-            return False
 
-    def print_receipt(self, text: str) -> bool:
-        """Print receipt using direct USB"""
-        # Build ESC/POS commands
-        commands = bytearray()
-        
-        # Initialize
-        commands.extend([0x1B, 0x40])
-        
-        # Add text
-        for line in text.split('\n'):
-            commands.extend(line.encode('utf-8', errors='replace'))
-            commands.extend([0x0A, 0x0D])  # CRLF
-        
-        # Cut
-        commands.extend([0x1D, 0x56, 0x00])
-        
-        return self.print_raw(bytes(commands))
+# Backward compatibility alias
+EpsonPrinter = EpsonSerialPrinter

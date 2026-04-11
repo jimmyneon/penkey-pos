@@ -1,7 +1,6 @@
 [Unit]
 Description=Penkey POS Print Server
-After=network.target cups.service
-Wants=cups.service
+After=network.target
 
 [Service]
 Type=simple
@@ -19,7 +18,7 @@ SyslogIdentifier=penkey-print-server
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/tmp /var/log /home/pi/penkey-print-server
+ReadWritePaths=/tmp /var/log /home/pi/penkey-print-server /dev/ttyUSB0
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
