@@ -307,12 +307,12 @@ export default function EditModifierGroupPage() {
       hapticDelete();
       setSaving(true);
       
-      console.log("[Delete Option] Deleting:", optionId);
-      
       const response = await fetch(
         `/api/modifiers/options/${optionId}`,
         addCSRFToken({
-          method: "DELETE",
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: false }),
         })
       );
 
@@ -324,13 +324,16 @@ export default function EditModifierGroupPage() {
       
       console.log("[Delete Option] Success");
       
+      // Remove from local state
       setOptions(options.filter(opt => opt.id !== optionId));
       
       // Clear cache
       dataCache.clear(session!.org_id, "modifier_groups");
       dataCache.clear(session!.org_id, "item_modifier_groups");
       modifierRAMCache.clear();
-      showToast("Option deleted successfully", "success");
+      
+      hapticDelete();
+      showToast("Option deleted successfully!", "success");
     } catch (err: any) {
       console.error("Failed to delete option:", err);
       showToast(`Failed to delete option: ${err.message}`, "error");
@@ -339,27 +342,41 @@ export default function EditModifierGroupPage() {
     }
   };
 
-  const handleDeleteGroup = async () => {
+  const handleSetDefaultOption = async (optionId: string) => {
     try {
-      hapticDelete();
       setSaving(true);
       
-      const response = await fetch(`/api/modifiers/groups/${groupId}`, {
-        method: "DELETE",
-      });
+      // Update all options in the group: set is_default to false for all, then true for selected
+      const updatePromises = options.map(opt => 
+        fetch(
+          `/api/modifiers/options/${opt.id}`,
+          addCSRFToken({
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_default: opt.id === optionId }),
+          })
+        )
+      );
 
-      if (!response.ok) throw new Error("Failed to delete group");
+      await Promise.all(updatePromises);
+      
+      // Update local state
+      setOptions(options.map(opt => ({
+        ...opt,
+        is_default: opt.id === optionId
+      })));
       
       // Clear cache
       dataCache.clear(session!.org_id, "modifier_groups");
       dataCache.clear(session!.org_id, "item_modifier_groups");
       modifierRAMCache.clear();
       
-      showToast("Modifier group deleted", "success");
-      router.push("/modifiers");
-    } catch (err) {
-      console.error("Failed to delete group:", err);
-      showToast("Failed to delete group", "error");
+      hapticButtonPress();
+      showToast("Default option updated!", "success");
+    } catch (err: any) {
+      console.error("Failed to set default option:", err);
+      showToast(`Failed to set default option: ${err.message}`, "error");
+    } finally {
       setSaving(false);
     }
   };
@@ -691,6 +708,25 @@ export default function EditModifierGroupPage() {
                 <div className="flex items-center justify-center text-gray-500 cursor-grab active:cursor-grabbing">
                   <GripVertical className="h-6 w-6" />
                 </div>
+
+                {/* Default Option Radio (only for required modifiers) */}
+                {selectionType === "required" && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSetDefaultOption(option.id);
+                    }}
+                    className="flex items-center justify-center cursor-pointer"
+                  >
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                      option.is_default ? "bg-penkey-orange border-penkey-orange" : "border-gray-500"
+                    }`}>
+                      {option.is_default && (
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Option Info */}
                 <div className="flex-1 min-w-0 pointer-events-none">

@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
     const categoryMap = new Map<string, string>();
     const modifierGroupMap = new Map<string, string>();
     const itemMap = new Map<string, string>();
+    const modifierGroupDefaultOptionMap = new Map<string, string>();
 
     if (isLoyverse) {
       // Loyverse format: Handle, SKU, Name, Category, Description, Sold by weight, Option 1 name, Option 1 value, Option 2 name, Option 2 value, Option 3 name, Option 3 value, Cost, Barcode, SKU of included item, Quantity of included item, Track stock, Available for sale [Store], Price [Store], In stock [Store], Low stock [Store], Modifier columns...
@@ -354,6 +355,7 @@ export async function POST(request: NextRequest) {
             const minSelections = parseInt(values[headerMap.get('min selections') || 7] || '0') || 0;
             const maxSelections = values[headerMap.get('max selections') || 8] ? parseInt(values[headerMap.get('max selections') || 8]) : null;
             const sortOrder = parseInt(values[headerMap.get('sort order') || 9] || '0') || 0;
+            const defaultOption = unescapeCSV(values[headerMap.get('default option') || 12] || '');
 
             const { data: newGroup, error: groupError } = await supabase
               .from("modifier_groups")
@@ -371,6 +373,9 @@ export async function POST(request: NextRequest) {
             if (groupError) throw groupError;
 
             modifierGroupMap.set(name, newGroup.id);
+            if (defaultOption) {
+              modifierGroupDefaultOptionMap.set(name, defaultOption);
+            }
             results.modifier_groups.created++;
           } catch (err) {
             console.error("Failed to import modifier group:", name, err);
@@ -390,13 +395,25 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
+            // Find the group name for this option to check if it's the default
+            let groupName = '';
+            for (const [gName, gId] of Array.from(modifierGroupMap.entries())) {
+              if (gId === recentGroupId) {
+                groupName = gName;
+                break;
+              }
+            }
+            
+            const defaultOptionName = modifierGroupDefaultOptionMap.get(groupName) || '';
+            const isDefault = name === defaultOptionName;
+
             await supabase
               .from("modifier_options")
               .insert({
                 modifier_group_id: recentGroupId,
                 name,
                 price_adjustment: priceAdjustment,
-                is_default: false,
+                is_default: isDefault,
                 is_active: isActive,
                 sort_order: sortOrder
               } as any);

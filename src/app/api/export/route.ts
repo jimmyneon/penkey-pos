@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
     const csvLines: string[] = [];
     
     // Add header
-    csvLines.push('Type,Name,Category,Price,SKU,Description,Color,Selection Type,Min Selections,Max Selections,Sort Order,Is Active,Item,Modifier Group');
+    csvLines.push('Type,Name,Category,Price,SKU,Description,Color,Selection Type,Min Selections,Max Selections,Sort Order,Is Active,Default Option,Item,Modifier Group');
     
     // Add categories
     (categories as Category[] || []).forEach(cat => {
@@ -186,14 +186,16 @@ export async function GET(request: NextRequest) {
     
     // Add modifier groups
     (modifierGroups as ModifierGroup[] || []).forEach(group => {
+      const defaultOption = (group.modifier_options || []).find(opt => opt.is_default);
+      const defaultOptionName = defaultOption ? escapeCSV(defaultOption.name) : '';
       csvLines.push(
-        `Modifier Group,${escapeCSV(group.name)},,,,,${escapeCSV(group.selection_type)},${group.min_selections},${group.max_selections || ''},${group.sort_order},,,`
+        `Modifier Group,${escapeCSV(group.name)},,,,,${escapeCSV(group.selection_type)},${group.min_selections},${group.max_selections || ''},${group.sort_order},,${defaultOptionName},`
       );
       
       // Add modifier options
       (group.modifier_options || []).forEach(opt => {
         csvLines.push(
-          `Modifier Option,${escapeCSV(opt.name)},,${opt.price_adjustment},,,,,,,,${opt.sort_order},${opt.is_active},,`
+          `Modifier Option,${escapeCSV(opt.name)},,${opt.price_adjustment},,,,,,,,${opt.sort_order},${opt.is_default},,`
         );
       });
     });
