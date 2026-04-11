@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
-import { Loader2, Plus, Trash2, Wifi, WifiOff, CreditCard, X, AlertCircle, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2, Plus, Trash2, Wifi, WifiOff, CreditCard, X, AlertCircle, RefreshCw, ArrowLeft, Home } from 'lucide-react';
 
 interface Terminal {
   id: string;
@@ -21,10 +22,12 @@ interface SumUpReader {
 }
 
 export default function PaymentTerminalsPage() {
+  const router = useRouter();
   const [terminals, setTerminals] = useState<Terminal[]>([]);
   const [sumUpReaders, setSumUpReaders] = useState<SumUpReader[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingReaders, setLoadingReaders] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [pairingLoading, setPairingLoading] = useState(false);
   const [pairingError, setPairingError] = useState('');
@@ -40,7 +43,13 @@ export default function PaymentTerminalsPage() {
     try {
       const res = await fetch('/api/sumup/terminals');
       const data = await res.json();
-      if (data.success) setTerminals(data.terminals || []);
+      if (data.success) {
+        setTerminals(data.terminals || []);
+        // Check status after loading terminals
+        if (data.terminals && data.terminals.length > 0) {
+          checkAllReaderStatus();
+        }
+      }
     } catch (e) {
       console.error('Failed to fetch terminals', e);
     } finally {
@@ -59,6 +68,40 @@ export default function PaymentTerminalsPage() {
     } finally {
       setLoadingReaders(false);
     }
+  };
+
+  const checkReaderStatus = async (readerId: string): Promise<'online' | 'offline'> => {
+    try {
+      const res = await fetch(`/api/sumup/reader-status?reader_id=${readerId}`);
+      const data = await res.json();
+      if (data.success && data.status) {
+        return data.status === 'ONLINE' ? 'online' : 'offline';
+      }
+      return 'offline';
+    } catch (e) {
+      console.error('Failed to check reader status:', readerId, e);
+      return 'offline';
+    }
+  };
+
+  const checkAllReaderStatus = async () => {
+    if (terminals.length === 0) return;
+    
+    setCheckingStatus(true);
+    const statusUpdates = await Promise.all(
+      terminals.map(async (terminal) => {
+        const status = await checkReaderStatus(terminal.reader_id);
+        return { id: terminal.id, status };
+      })
+    );
+
+    setTerminals(prev =>
+      prev.map(t => {
+        const update = statusUpdates.find(u => u.id === t.id);
+        return update ? { ...t, status: update.status } : t;
+      })
+    );
+    setCheckingStatus(false);
   };
 
   const handleUnpairFromSumUp = async (readerId: string) => {
@@ -164,17 +207,31 @@ export default function PaymentTerminalsPage() {
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Payment Terminals</h1>
-          <p className="text-zinc-400 mt-1 text-sm sm:text-base">Manage your SumUp Solo card readers</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+            title="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="p-2 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+            title="Home"
+          >
+            <Home className="w-5 h-5" />
+          </button>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={fetchSumUpReaders}
-            disabled={loadingReaders}
+            onClick={() => {
+              fetchTerminals();
+            }}
+            disabled={loadingReaders || checkingStatus}
             className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
           >
-            <RefreshCw className={`w-4 h-4 ${loadingReaders ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${(loadingReaders || checkingStatus) ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
           <button
@@ -196,8 +253,14 @@ export default function PaymentTerminalsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
+        <div className="flex flex-col items-center justify-center py-16 gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+          <p className="text-zinc-400 text-sm">Loading terminals...</p>
+        </div>
+      ) : checkingStatus ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+          <p className="text-zinc-400 text-sm">Checking reader status...</p>
         </div>
       ) : terminals.length === 0 ? (
         <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 flex flex-col items-center justify-center py-12 sm:py-16 gap-4">
