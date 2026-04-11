@@ -113,6 +113,7 @@ export default function SettingsPage() {
       setRegisterId(regId);
       setUserEmail(session.employee?.email || session.employee?.name || "User");
       console.log("[Settings] Loading settings for register:", regId);
+      console.log("[Settings] Session org_id:", session.org_id);
 
       // Load settings from database via API endpoint
       const sessionDataForApi = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -128,6 +129,8 @@ export default function SettingsPage() {
         setSettings(loadedSettings);
       } else {
         console.warn("[Settings] Failed to load settings from API, using defaults");
+        const errorData = await settingsRes.json();
+        console.error("[Settings] API error:", errorData);
         setSettings(DEFAULT_SETTINGS);
       }
 
