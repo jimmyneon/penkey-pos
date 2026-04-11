@@ -58,6 +58,7 @@ export default function ModifiersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [longPressTimer, setLongPressTimer] = useState<any>(null);
   const [longPressFired, setLongPressFired] = useState(false);
+  const [wasLongPress, setWasLongPress] = useState(false);
   const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
@@ -234,8 +235,10 @@ export default function ModifiersPage() {
                   key={group.id}
                   onPointerDown={() => {
                     setLongPressFired(false);
+                    setWasLongPress(false);
                     const t = setTimeout(() => {
                       setLongPressFired(true);
+                      setWasLongPress(true);
                       setSelectionMode(true);
                       setSelectedIds((prev) => new Set(prev).add(group.id));
                     }, 450);
@@ -261,6 +264,11 @@ export default function ModifiersPage() {
                     }
                   }}
                   onClick={() => {
+                    // Skip toggle if it was a long press
+                    if (wasLongPress) {
+                      setWasLongPress(false);
+                      return;
+                    }
                     if (selectionMode) {
                       const next = new Set(selectedIds);
                       if (next.has(group.id)) next.delete(group.id); else next.add(group.id);

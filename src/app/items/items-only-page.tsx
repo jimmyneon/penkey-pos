@@ -42,6 +42,7 @@ export default function ItemsOnlyPage() {
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<any>(null);
   const [longPressFired, setLongPressFired] = useState(false);
+  const [wasLongPress, setWasLongPress] = useState(false);
 
   const { categories, loading: categoriesLoading } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -194,8 +195,10 @@ export default function ItemsOnlyPage() {
                   onPointerDown={() => {
                     // start long press
                     setLongPressFired(false);
+                    setWasLongPress(false);
                     const t = setTimeout(() => {
                       setLongPressFired(true);
+                      setWasLongPress(true);
                       setSelectionMode(true);
                       setSelectedIds((prev) => new Set(prev).add(item.id));
                     }, 450);
@@ -221,6 +224,11 @@ export default function ItemsOnlyPage() {
                     }
                   }}
                   onClick={() => {
+                    // Skip toggle if it was a long press
+                    if (wasLongPress) {
+                      setWasLongPress(false);
+                      return;
+                    }
                     if (selectionMode) {
                       const next = new Set(selectedIds);
                       if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
