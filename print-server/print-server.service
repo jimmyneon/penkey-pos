@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/penkey-print-server
+User=jimmy
+WorkingDirectory=/home/jimmy/print-server
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/pi/penkey-print-server/venv/bin/python /home/pi/penkey-print-server/print_server.py
+ExecStart=/home/jimmy/print-server/venv/bin/python /home/jimmy/print-server/print_server.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -18,7 +18,7 @@ SyslogIdentifier=penkey-print-server
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/tmp /var/log /home/pi/penkey-print-server /dev/ttyUSB0
+ReadWritePaths=/tmp /home/jimmy/print-server /dev/ttyUSB0
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

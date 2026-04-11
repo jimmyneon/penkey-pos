@@ -26,7 +26,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('/var/log/penkey-print-server.log')
+        logging.FileHandler('/home/jimmy/print-server/print.log')
     ]
 )
 logger = logging.getLogger(__name__)
