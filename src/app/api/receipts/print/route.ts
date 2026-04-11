@@ -21,17 +21,65 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { receipt_id, printer_id } = await request.json();
+    const { receipt_id, printer_id, receipt_data } = await request.json();
 
-    if (!receipt_id) {
+    if (!receipt_id && !receipt_data) {
       return NextResponse.json(
-        { error: "Receipt ID is required" },
+        { error: "Receipt ID or receipt data is required" },
         { status: 400 }
       );
     }
 
+    // If full receipt data is provided (for temp receipts), use it directly
+    if (receipt_data) {
+      let selectedPrinterId = printer_id;
+
+      // If no printer specified, try to find default printer for this register
+      if (!selectedPrinterId) {
+        const registerId = receipt_data.register_id;
+        const printers = await getPrinters(supabaseUrl, supabaseKey, {
+          register_id: registerId
+        });
+
+        if (printers.length > 0) {
+          selectedPrinterId = printers[0].id;
+        }
+      }
+
+      if (!selectedPrinterId) {
+        // No printer available - return receipt for browser printing
+        const receiptText = generateReceiptText(receipt_data);
+
+        return NextResponse.json({
+          success: true,
+          queued: false,
+          message: "No printer configured - use browser print",
+          receipt_text: receiptText,
+          receipt_data: receipt_data,
+        });
+      }
+
+      // Create print job in queue
+      const printJob = await createReceiptPrintJob(
+        supabaseUrl,
+        supabaseKey,
+        selectedPrinterId,
+        receipt_data,
+        receipt_id
+      );
+
+      return NextResponse.json({
+        success: true,
+        queued: true,
+        job_id: printJob.id,
+        printer_id: selectedPrinterId,
+        message: "Receipt queued for printing",
+        receipt_data: receipt_data,
+      });
+    }
+
     // Check for temp receipt IDs (still syncing to database)
-    if (receipt_id.startsWith('temp_')) {
+    if (receipt_id && receipt_id.startsWith('temp_')) {
       return NextResponse.json(
         { error: "Receipt is still syncing to database. Please try again in a few seconds." },
         { status: 409 }

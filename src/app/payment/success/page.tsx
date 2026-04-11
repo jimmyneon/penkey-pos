@@ -125,10 +125,25 @@ function PaymentSuccessContent() {
     setCountdownActive(false);
 
     try {
+      // For temp receipts, fetch data from IndexedDB
+      let receiptData = null;
+      if (receiptId.startsWith('temp_')) {
+        try {
+          const { getDB } = await import('@/lib/idb/db');
+          const db = await getDB();
+          receiptData = await db.get('receipts', receiptId);
+        } catch (err) {
+          console.error('Failed to fetch temp receipt from IndexedDB:', err);
+        }
+      }
+
       const response = await fetch("/api/receipts/print", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receipt_id: receiptId }),
+        body: JSON.stringify({
+          receipt_id: receiptId,
+          receipt_data: receiptData
+        }),
       });
 
       const data = await response.json();
