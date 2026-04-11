@@ -33,7 +33,7 @@ export function RefundDialog({
   items = []
 }: RefundDialogProps) {
   const [refundAmount, setRefundAmount] = useState(maxAmount.toString());
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("Mistake"); // Pre-select most common reason
   const [isPartial, setIsPartial] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showPinEntry, setShowPinEntry] = useState(false);
@@ -41,6 +41,16 @@ export function RefundDialog({
   const [pinError, setPinError] = useState("");
   const [verifyingPin, setVerifyingPin] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [customReason, setCustomReason] = useState("");
+
+  const refundReasons = [
+    "Mistake",
+    "Wrong amount",
+    "Customer request",
+    "Duplicate transaction",
+    "Product quality issue",
+    "Other"
+  ];
 
   // Get org_id from session on mount
   useEffect(() => {
@@ -74,7 +84,8 @@ export function RefundDialog({
       alert("Invalid refund amount");
       return;
     }
-    if (!reason.trim()) {
+    const finalReason = reason === "Other" ? customReason : reason;
+    if (!finalReason.trim()) {
       alert("Please provide a reason for the refund");
       return;
     }
@@ -120,7 +131,8 @@ export function RefundDialog({
 
       if (verified) {
         const amount = isPartial ? calculateSelectedItemsTotal() : parseFloat(refundAmount);
-        onRefund(amount, reason, isPartial ? Array.from(selectedItems) : undefined);
+        const finalReason = reason === "Other" ? customReason : reason;
+        onRefund(amount, finalReason, isPartial ? Array.from(selectedItems) : undefined);
         handleClose();
       } else {
         setPinError("Invalid PIN");
@@ -170,7 +182,8 @@ export function RefundDialog({
 
   const handleClose = () => {
     setRefundAmount(maxAmount.toString());
-    setReason("");
+    setReason("Mistake");
+    setCustomReason("");
     setIsPartial(false);
     setSelectedItems(new Set());
     setShowPinEntry(false);
@@ -180,7 +193,8 @@ export function RefundDialog({
   };
 
   const amount = parseFloat(refundAmount) || 0;
-  const isValid = amount > 0 && amount <= maxAmount && reason.trim().length > 0;
+  const finalReason = reason === "Other" ? customReason : reason;
+  const isValid = amount > 0 && amount <= maxAmount && finalReason.trim().length > 0;
 
   // Auto-submit PIN when 4 digits entered
   useEffect(() => {
@@ -368,13 +382,31 @@ export function RefundDialog({
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Reason for Refund *
             </label>
-            <textarea
+            <select
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Enter reason for refund..."
-              className="w-full px-3 py-2 bg-[#2d2d2d] border border-gray-600 text-white placeholder-gray-500 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm sm:text-base"
-              rows={2}
-            />
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (e.target.value !== "Other") {
+                  setCustomReason("");
+                }
+              }}
+              className="w-full px-3 py-2 bg-[#2d2d2d] border border-gray-600 text-white rounded-lg focus:border-red-500 focus:outline-none text-sm sm:text-base"
+            >
+              {refundReasons.map((r) => (
+                <option key={r} value={r} className="bg-[#2d2d2d]">
+                  {r}
+                </option>
+              ))}
+            </select>
+            {reason === "Other" && (
+              <textarea
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Please specify the reason..."
+                className="w-full mt-2 px-3 py-2 bg-[#2d2d2d] border border-gray-600 text-white placeholder-gray-500 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm sm:text-base"
+                rows={2}
+              />
+            )}
           </div>
 
           {/* Warning */}

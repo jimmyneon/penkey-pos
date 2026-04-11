@@ -162,106 +162,76 @@ export default function PaymentTerminalsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Payment Terminals</h1>
-          <p className="text-zinc-400 mt-1">Manage your SumUp Solo card readers</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Payment Terminals</h1>
+          <p className="text-zinc-400 mt-1 text-sm sm:text-base">Manage your SumUp Solo card readers</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={fetchSumUpReaders}
             disabled={loadingReaders}
-            className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
           >
             <RefreshCw className={`w-4 h-4 ${loadingReaders ? 'animate-spin' : ''}`} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
           <button
             onClick={handleUnpairAll}
             disabled={sumUpReaders.length === 0 && terminals.length === 0}
-            className="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 text-red-400 font-medium px-4 py-2 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 text-red-400 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
           >
             <Trash2 className="w-4 h-4" />
-            Reset All
+            <span className="hidden sm:inline">Reset All</span>
           </button>
           <button
             onClick={() => { setPairingError(''); setShowModal(true); }}
-            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
           >
             <Plus className="w-4 h-4" />
-            Pair New Reader
+            <span className="hidden sm:inline">Pair New Reader</span>
           </button>
         </div>
       </div>
-
-      {/* SumUp API Readers (for recovery when pairing fails locally) */}
-      {sumUpReaders.length > 0 && (
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="w-5 h-5 text-orange-400" />
-            <h2 className="font-semibold text-white">Readers paired on SumUp (not in local DB)</h2>
-          </div>
-          <p className="text-sm text-orange-200/80 mb-4">
-            These readers are paired on your SumUp account but not saved locally. Unpair them to generate a new pairing code on your device.
-          </p>
-          <div className="space-y-2">
-            {sumUpReaders.map((reader) => (
-              <div key={reader.id} className="rounded-lg bg-zinc-800/50 p-3 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-white">{reader.name}</p>
-                  <p className="text-xs text-zinc-400">ID: {reader.id}</p>
-                </div>
-                <button
-                  onClick={() => handleUnpairFromSumUp(reader.id)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-medium transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Unpair
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
         </div>
       ) : terminals.length === 0 ? (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 flex flex-col items-center justify-center py-16 gap-4">
-          <CreditCard className="w-12 h-12 text-zinc-500" />
-          <div className="text-center">
-            <p className="text-white font-semibold">No terminals paired</p>
-            <p className="text-zinc-400 text-sm mt-1">Pair your SumUp Solo to start accepting card payments</p>
+        <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 flex flex-col items-center justify-center py-12 sm:py-16 gap-4">
+          <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-500" />
+          <div className="text-center px-4">
+            <p className="text-white font-semibold text-sm sm:text-base">No terminals paired</p>
+            <p className="text-zinc-400 text-xs sm:text-sm mt-1">Pair your SumUp Solo to start accepting card payments</p>
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm sm:text-base"
           >
             <Plus className="w-4 h-4" />
             Pair First Reader
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {terminals.map((t) => (
-            <div key={t.id} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-zinc-700 flex items-center justify-center">
+            <div key={t.id} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
                   <CreditCard className="w-5 h-5 text-zinc-300" />
                 </div>
-                <div>
-                  <p className="font-semibold text-white">{t.name}</p>
-                  <p className="text-xs text-zinc-400">ID: {t.reader_id}{t.location ? ' · ' + t.location : ''}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-white text-sm sm:text-base truncate">{t.name}</p>
+                  <p className="text-xs text-zinc-400 truncate">ID: {t.reader_id}{t.location ? ' · ' + t.location : ''}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 {statusBadge(t.status)}
                 <button
                   onClick={() => handleDelete(t.id)}
-                  className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors"
+                  className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0"
                   title="Remove terminal"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -274,8 +244,8 @@ export default function PaymentTerminalsPage() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-700">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-zinc-700">
               <div>
                 <h2 className="text-lg font-bold text-white">Pair SumUp Solo Reader</h2>
                 <p className="text-sm text-zinc-400 mt-0.5">Enter the code shown on your card reader</p>
@@ -288,7 +258,7 @@ export default function PaymentTerminalsPage() {
               </button>
             </div>
 
-            <div className="mx-6 mt-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-sm text-blue-300">
+            <div className="mx-4 sm:mx-6 mt-4 sm:mt-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs sm:text-sm text-blue-300">
               <p className="font-semibold mb-2">How to get your pairing code:</p>
               <ol className="list-decimal list-inside space-y-1 text-blue-200/80">
                 <li>Make sure your Solo reader is <strong>logged out</strong></li>
@@ -299,7 +269,7 @@ export default function PaymentTerminalsPage() {
               <p className="mt-2 text-xs text-blue-300/60">Code expires in 5 minutes</p>
             </div>
 
-            <form onSubmit={handlePair} className="p-6 space-y-4">
+            <form onSubmit={handlePair} className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1.5" htmlFor="terminalName">
                   Reader Name
@@ -326,7 +296,7 @@ export default function PaymentTerminalsPage() {
                   onChange={(e) => setPairingCode(e.target.value.replace(/\s/g, ''))}
                   placeholder="Enter code from Solo screen"
                   required
-                  className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors font-mono text-lg tracking-widest"
+                  className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors font-mono text-base sm:text-lg tracking-widest"
                 />
               </div>
 

@@ -289,7 +289,7 @@ export default function SellPage() {
   }, []);
 
   const triggerFlyingAnimation = (itemName: string, event: React.MouseEvent) => {
-    const button = event.target as HTMLElement;
+    const button = event.currentTarget as HTMLElement;
     if (!button) return; // Guard against null button
     
     const animateItemToTicket = (itemName: string, buttonRect: DOMRect) => {
