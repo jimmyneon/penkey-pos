@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
     const results = {
       categories: { created: 0, errors: 0 },
       items: { created: 0, errors: 0 },
+      item_variants: { created: 0, errors: 0 },
       modifier_groups: { created: 0, errors: 0 },
       modifier_options: { created: 0, errors: 0 },
       item_modifier_links: { created: 0, errors: 0 }
@@ -311,6 +312,41 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             console.error("Failed to import item:", name, err);
             results.items.errors++;
+          }
+        } else if (type === 'item variant') {
+          try {
+            const variantName = unescapeCSV(values[headerMap.get('name') || 1] || '');
+            const price = parseFloat(values[headerMap.get('price') || 3] || '0') || 0;
+            const isDefault = values[headerMap.get('is default') || 10]?.toLowerCase() === 'true';
+
+            // Find the most recently created item (the parent of this variant)
+            const recentItemId = Array.from(itemMap.values()).pop();
+            
+            if (!recentItemId) {
+              console.error("No item found for variant:", variantName);
+              results.item_variants.errors++;
+              continue;
+            }
+
+            await supabase
+              .from("item_variants")
+              .insert({
+                item_id: recentItemId,
+                name: variantName,
+                price,
+                is_default: isDefault
+              } as any);
+
+            // Update the parent item to has_variants = true
+            await supabase
+              .from("items")
+              .update({ has_variants: true })
+              .eq("id", recentItemId);
+
+            results.item_variants.created++;
+          } catch (err) {
+            console.error("Failed to import item variant:", name, err);
+            results.item_variants.errors++;
           }
         } else if (type === 'modifier group') {
           try {

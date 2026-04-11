@@ -173,6 +173,15 @@ export async function GET(request: NextRequest) {
       csvLines.push(
         `Item,${escapeCSV(item.name)},${escapeCSV(categoryName)},${price},${escapeCSV(item.sku)},${escapeCSV(item.description)},,,,,,${item.is_active},,`
       );
+
+      // Add item variants
+      if (item.has_variants && item.item_variants && item.item_variants.length > 0) {
+        item.item_variants.forEach(variant => {
+          csvLines.push(
+            `Item Variant,${escapeCSV(variant.name)},,${variant.price},,,,,,,,${variant.is_default},,`
+          );
+        });
+      }
     });
     
     // Add modifier groups

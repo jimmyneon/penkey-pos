@@ -107,7 +107,7 @@ export default function ItemsHubPage() {
       const result = await response.json();
       setImportDialogOpen(false);
       
-      const message = `Import complete!\n\nCategories: ${result.results.categories.created} created, ${result.results.categories.errors} errors\nItems: ${result.results.items.created} created, ${result.results.items.errors} errors\nModifier Groups: ${result.results.modifier_groups.created} created, ${result.results.modifier_groups.errors} errors\nModifier Options: ${result.results.modifier_options.created} created, ${result.results.modifier_options.errors} errors\nItem-Modifier Links: ${result.results.item_modifier_links?.created || 0} created, ${result.results.item_modifier_links?.errors || 0} errors`;
+      const message = `Import complete!\n\nCategories: ${result.results.categories.created} created, ${result.results.categories.errors} errors\nItems: ${result.results.items.created} created, ${result.results.items.errors} errors\nItem Variants: ${result.results.item_variants?.created || 0} created, ${result.results.item_variants?.errors || 0} errors\nModifier Groups: ${result.results.modifier_groups.created} created, ${result.results.modifier_groups.errors} errors\nModifier Options: ${result.results.modifier_options.created} created, ${result.results.modifier_options.errors} errors\nItem-Modifier Links: ${result.results.item_modifier_links?.created || 0} created, ${result.results.item_modifier_links?.errors || 0} errors`;
       alert(message);
     } catch (error) {
       console.error('Import failed:', error);
