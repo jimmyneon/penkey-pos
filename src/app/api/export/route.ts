@@ -51,6 +51,12 @@ interface ModifierGroup {
   modifier_options: ModifierOption[];
 }
 
+interface ItemModifier {
+  item_id: string;
+  modifier_group_id: string;
+  sort_order: number;
+}
+
 function escapeCSV(str: string | null | undefined): string {
   if (str === null || str === undefined) return '';
   const escaped = str.toString().replace(/"/g, '""');
@@ -130,19 +136,33 @@ export async function GET(request: NextRequest) {
 
     if (modifiersError) throw modifiersError;
 
+    // Fetch item-modifier links
+    const { data: itemModifiers, error: itemModifiersError } = await supabase
+      .from("item_modifiers")
+      .select("item_id, modifier_group_id, sort_order")
+      .eq("org_id", session.org_id);
+
+    if (itemModifiersError) throw itemModifiersError;
+
     // Build category name map
     const categoryMap = new Map((categories as Category[] || []).map(c => [c.id, c.name]));
+    
+    // Build item name map
+    const itemNameMap = new Map((items as Item[] || []).map(i => [i.id, i.name]));
+    
+    // Build modifier group name map
+    const modifierGroupNameMap = new Map((modifierGroups as ModifierGroup[] || []).map(m => [m.id, m.name]));
     
     // Generate CSV content
     const csvLines: string[] = [];
     
     // Add header
-    csvLines.push('Type,Name,Category,Price,SKU,Description,Color,Selection Type,Min Selections,Max Selections,Sort Order,Is Active');
+    csvLines.push('Type,Name,Category,Price,SKU,Description,Color,Selection Type,Min Selections,Max Selections,Sort Order,Is Active,Item,Modifier Group');
     
     // Add categories
     (categories as Category[] || []).forEach(cat => {
       csvLines.push(
-        `Category,${escapeCSV(cat.name)},,,${escapeCSV(cat.description)},${escapeCSV(cat.color)},,,,${cat.sort_order},${cat.is_active}`
+        `Category,${escapeCSV(cat.name)},,,${escapeCSV(cat.description)},${escapeCSV(cat.color)},,,,${cat.sort_order},${cat.is_active},,`
       );
     });
     
@@ -151,22 +171,31 @@ export async function GET(request: NextRequest) {
       const categoryName = item.category_id ? categoryMap.get(item.category_id) || '' : '';
       const price = item.base_price || 0;
       csvLines.push(
-        `Item,${escapeCSV(item.name)},${escapeCSV(categoryName)},${price},${escapeCSV(item.sku)},${escapeCSV(item.description)},,,,,,${item.is_active}`
+        `Item,${escapeCSV(item.name)},${escapeCSV(categoryName)},${price},${escapeCSV(item.sku)},${escapeCSV(item.description)},,,,,,${item.is_active},,`
       );
     });
     
     // Add modifier groups
     (modifierGroups as ModifierGroup[] || []).forEach(group => {
       csvLines.push(
-        `Modifier Group,${escapeCSV(group.name)},,,,,${escapeCSV(group.selection_type)},${group.min_selections},${group.max_selections || ''},${group.sort_order},`
+        `Modifier Group,${escapeCSV(group.name)},,,,,${escapeCSV(group.selection_type)},${group.min_selections},${group.max_selections || ''},${group.sort_order},,,`
       );
       
       // Add modifier options
       (group.modifier_options || []).forEach(opt => {
         csvLines.push(
-          `Modifier Option,${escapeCSV(opt.name)},,${opt.price_adjustment},,,,,,,,${opt.sort_order},${opt.is_active}`
+          `Modifier Option,${escapeCSV(opt.name)},,${opt.price_adjustment},,,,,,,,${opt.sort_order},${opt.is_active},,`
         );
       });
+    });
+    
+    // Add item-modifier links
+    (itemModifiers as ItemModifier[] || []).forEach(im => {
+      const itemName = itemNameMap.get(im.item_id) || '';
+      const modifierGroupName = modifierGroupNameMap.get(im.modifier_group_id) || '';
+      csvLines.push(
+        `Item Modifier Link,,,,,,,${im.sort_order},,,${escapeCSV(itemName)},${escapeCSV(modifierGroupName)}`
+      );
     });
     
     const csvContent = csvLines.join('\n');

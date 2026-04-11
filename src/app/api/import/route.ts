@@ -80,11 +80,13 @@ export async function POST(request: NextRequest) {
       categories: { created: 0, errors: 0 },
       items: { created: 0, errors: 0 },
       modifier_groups: { created: 0, errors: 0 },
-      modifier_options: { created: 0, errors: 0 }
+      modifier_options: { created: 0, errors: 0 },
+      item_modifier_links: { created: 0, errors: 0 }
     };
 
     const categoryMap = new Map<string, string>();
     const modifierGroupMap = new Map<string, string>();
+    const itemMap = new Map<string, string>();
 
     if (isLoyverse) {
       // Loyverse format: Handle, SKU, Name, Category, Description, Sold by weight, Option 1 name, Option 1 value, Option 2 name, Option 2 value, Option 3 name, Option 3 value, Cost, Barcode, SKU of included item, Quantity of included item, Track stock, Available for sale [Store], Price [Store], In stock [Store], Low stock [Store], Modifier columns...
@@ -304,6 +306,7 @@ export async function POST(request: NextRequest) {
 
             if (itemError) throw itemError;
 
+            itemMap.set(name, newItem.id);
             results.items.created++;
           } catch (err) {
             console.error("Failed to import item:", name, err);
@@ -366,6 +369,34 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             console.error("Failed to import modifier option:", name, err);
             results.modifier_options.errors++;
+          }
+        } else if (type === 'item modifier link') {
+          try {
+            const itemName = unescapeCSV(values[headerMap.get('item') || 11] || '');
+            const modifierGroupName = unescapeCSV(values[headerMap.get('modifier group') || 12] || '');
+            const sortOrder = parseInt(values[headerMap.get('sort order') || 7] || '0') || 0;
+
+            const itemId = itemName ? itemMap.get(itemName) || null : null;
+            const modifierGroupId = modifierGroupName ? modifierGroupMap.get(modifierGroupName) || null : null;
+
+            if (!itemId || !modifierGroupId) {
+              console.error("Missing item or modifier group for link:", itemName, modifierGroupName);
+              results.item_modifier_links.errors++;
+              continue;
+            }
+
+            await supabase
+              .from("item_modifiers")
+              .insert({
+                item_id: itemId,
+                modifier_group_id: modifierGroupId,
+                sort_order: sortOrder
+              } as any);
+
+            results.item_modifier_links.created++;
+          } catch (err) {
+            console.error("Failed to import item modifier link:", name, err);
+            results.item_modifier_links.errors++;
           }
         }
       }
