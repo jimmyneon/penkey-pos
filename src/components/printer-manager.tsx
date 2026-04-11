@@ -166,7 +166,7 @@ function PrinterCard({
   onViewJobs: () => void;
   onDelete: () => void;
 }) {
-  const { jobs } = usePrintJobs({ printer_id: printer.id, limit: 5 });
+  const { jobs } = usePrintJobs({ printer_id: printer.id, limit: 20 });
 
   const statusColors = {
     online: "bg-green-500",
