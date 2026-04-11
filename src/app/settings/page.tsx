@@ -114,10 +114,22 @@ export default function SettingsPage() {
       setUserEmail(session.employee?.email || session.employee?.name || "User");
       console.log("[Settings] Loading settings for register:", regId);
 
-      // Load settings from database
-      const loadedSettings = await registerSettings.get(regId);
-      console.log("[Settings] Loaded settings:", loadedSettings);
-      setSettings(loadedSettings);
+      // Load settings from database via API endpoint
+      const sessionDataForApi = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const settingsRes = await fetch(`/api/register/settings?register_id=${regId}`, {
+        headers: {
+          ...(sessionDataForApi && { "x-pos-session": sessionDataForApi }),
+        },
+      });
+
+      if (settingsRes.ok) {
+        const loadedSettings = await settingsRes.json();
+        console.log("[Settings] Loaded settings:", loadedSettings);
+        setSettings(loadedSettings);
+      } else {
+        console.warn("[Settings] Failed to load settings from API, using defaults");
+        setSettings(DEFAULT_SETTINGS);
+      }
 
       // Load SumUp connection status from DB (persists across devices)
       try {
@@ -353,10 +365,19 @@ export default function SettingsPage() {
       // Show success message
       showToast("Settings saved successfully!", "success");
 
-      // Reload settings to confirm
-      const reloadedSettings = await registerSettings.get(registerId);
-      console.log("[Settings] Reloaded settings:", reloadedSettings);
-      setSettings(reloadedSettings);
+      // Reload settings to confirm via API
+      const sessionDataForReload = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const reloadRes = await fetch(`/api/register/settings?register_id=${registerId}`, {
+        headers: {
+          ...(sessionDataForReload && { "x-pos-session": sessionDataForReload }),
+        },
+      });
+
+      if (reloadRes.ok) {
+        const reloadedSettings = await reloadRes.json();
+        console.log("[Settings] Reloaded settings:", reloadedSettings);
+        setSettings(reloadedSettings);
+      }
 
       // Navigate back to sell page to apply changes
       setTimeout(() => {
