@@ -45,9 +45,9 @@ INSERT INTO print_jobs (
       'width', 48
     ),
     'transaction_id', 'TXN-' || to_char(now(), 'YYYYMMDDHH24MISS') || '-' || substr(md5(random()::text), 1, 8),
-    'receipt_text', '        **Penkey Delicaf & Gifts**
-          123 Test Street
-          Tel: 01234 567890
+    'receipt_text', '       **Penkey Delicaf & Gifts**
+         123 Test Street
+         Tel: 01234 567890
 
 Receipt #12345
 ' || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || '
@@ -64,7 +64,7 @@ Register: Main Till
 Subtotal:                         11.00
 Tax (20%):                         2.20
 **========================================**
-         TOTAL: 13.20
+           TOTAL: 13.20
 **========================================**
 
 Payment:                         Cash

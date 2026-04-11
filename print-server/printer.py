@@ -9,7 +9,6 @@ import logging
 from typing import Optional, Dict
 from datetime import datetime
 import os
-import qrcode
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +61,11 @@ class EpsonSerialPrinter:
             self.serial_conn.close()
             logger.info(f"[Serial] Connection closed")
 
-    def print_receipt(self, receipt_text: str, settings: Optional[Dict] = None, transaction_id: Optional[str] = None) -> bool:
+    def print_receipt(self, receipt_text: str, settings: Optional[Dict] = None) -> bool:
         """Print a formatted receipt"""
         try:
             logger.info("[Print] Starting receipt print")
-            commands = self._build_escpos_receipt(receipt_text, settings, transaction_id)
+            commands = self._build_escpos_receipt(receipt_text, settings)
             self._print_raw(commands)
             logger.info("[Print] Receipt printed successfully")
             return True
@@ -134,7 +133,7 @@ Status: Online
             logger.error(f"[Serial] Unexpected error writing to printer: {e}")
             raise
 
-    def _build_escpos_receipt(self, text: str, settings: Optional[Dict] = None, transaction_id: Optional[str] = None) -> bytes:
+    def _build_escpos_receipt(self, text: str, settings: Optional[Dict] = None) -> bytes:
         """Build ESC/POS commands for receipt printing"""
         commands = bytearray()
 
@@ -182,13 +181,6 @@ Status: Online
             commands.extend(line.encode('latin-1', errors='replace'))
             commands.append(0x0A)  # Line feed
 
-        # Add QR code if transaction_id is present
-        if transaction_id:
-            commands.append(0x0A)  # Line feed
-            commands.append(0x0A)  # Line feed
-            qr_commands = self._generate_qr_code(transaction_id)
-            commands.extend(qr_commands)
-
         # Reset formatting
         commands.extend([0x1B, 0x45, 0x00])  # Bold off
         commands.extend([0x1D, 0x21, 0x00])  # Normal size
@@ -235,50 +227,6 @@ Status: Online
         width = 58
         padding = (width - len(text)) // 2
         return ' ' * max(0, padding) + text
-
-    def _generate_qr_code(self, data: str) -> bytes:
-        """Generate QR code as ESC/POS commands"""
-        try:
-            # Create QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=4,
-                border=2,
-            )
-            qr.add_data(data)
-            qr.make(fit=True)
-            
-            # Get QR code as bytes
-            img = qr.make_image(fill_color="black", back_color="white")
-            
-            # Convert to bytes for ESC/POS
-            from io import BytesIO
-            buf = BytesIO()
-            img.save(buf, format='PNG')
-            img_bytes = buf.getvalue()
-            
-            # ESC/POS commands for printing image
-            commands = bytearray()
-            
-            # Set graphics mode
-            commands.extend([0x1D, 0x76, 0x30, 0x00])  # GS v 0
-            
-            # Image width and height
-            width = img.width
-            height = img.height
-            
-            # Convert to monochrome and send
-            commands.extend([0x1D, 0x76, 0x30, 0x00])  # GS v 0
-            commands.extend([0x1D, 0x76, 0x30, 0x00])  # GS v 0
-            
-            # Add line feed after QR code
-            commands.append(0x0A)
-            
-            return bytes(commands)
-        except Exception as e:
-            logger.error(f"Failed to generate QR code: {e}")
-            return b''
 
     def __del__(self):
         """Cleanup on deletion"""
