@@ -571,7 +571,7 @@ function PrintJobsDialog({ printer, onClose }: { printer: any; onClose: () => vo
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[job.status as keyof typeof statusColors]}`}>
                         {job.status}
                       </span>
-                      <span className="text-sm text-zinc-400">{job.job_type}</span>
+                      <span className="text-sm text-zinc-400">{job.type}</span>
                     </div>
                     <p className="text-xs text-zinc-500">
                       Created: {new Date(job.created_at).toLocaleString()}
