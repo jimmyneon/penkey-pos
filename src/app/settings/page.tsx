@@ -397,12 +397,38 @@ export default function SettingsPage() {
     showToast("Settings reset to defaults. Click Save to apply.", "info");
   };
 
-  const updateSetting = <K extends keyof RegisterSettings>(
+  const updateSetting = async <K extends keyof RegisterSettings>(
     key: K,
     value: RegisterSettings[K]
   ) => {
     hapticButtonPress();
-    setSettings(prev => ({ ...prev, [key]: value }));
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+
+    // Save to database immediately
+    if (registerId) {
+      try {
+        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        const response = await fetch("/api/register/settings", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionData && { "x-pos-session": sessionData }),
+          },
+          body: JSON.stringify({
+            register_id: registerId,
+            settings: newSettings,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error("Failed to save setting immediately:", await response.json());
+          showToast("Failed to save setting", "error");
+        }
+      } catch (error) {
+        console.error("Failed to save setting immediately:", error);
+      }
+    }
   };
 
   const handleChangePasscode = async () => {
