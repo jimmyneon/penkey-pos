@@ -179,6 +179,7 @@ class PrintServer:
 
             if status == 'printing':
                 try:
+                    logger.info(f"[DB] Fetching current attempts for job {job_id}")
                     resp = await self.supabase.table('print_jobs') \
                         .select('attempts') \
                         .eq('id', job_id) \
@@ -186,8 +187,9 @@ class PrintServer:
                         .execute()
                     current = resp.data.get('attempts', 0) if resp.data else 0
                     updates['attempts'] = current + 1
+                    logger.info(f"[DB] Job {job_id} current attempts: {current}, new attempts: {updates['attempts']}")
                 except Exception as e:
-                    logger.warning(f"Failed to fetch attempts for job {job_id}: {e}, defaulting to 0")
+                    logger.warning(f"[DB] Failed to fetch attempts for job {job_id}: {e}, defaulting to 0")
                     updates['attempts'] = 0
 
             elif status == 'completed':
@@ -196,15 +198,16 @@ class PrintServer:
 
             if error:
                 updates['error_message'] = error
+                logger.info(f"[DB] Adding error message for job {job_id}: {error}")
 
-            logger.debug(f"[DB] Updating job {job_id} to status: {status}, updates: {updates}")
+            logger.info(f"[DB] Updating job {job_id} to status: {status}, updates: {updates}")
             result = await self.supabase.table('print_jobs') \
                 .update(updates) \
                 .eq('id', job_id) \
                 .execute()
-            logger.info(f"Job {job_id} → {status} (update successful)")
+            logger.info(f"[DB] Job {job_id} → {status} (update successful)")
         except Exception as e:
-            logger.error(f"Failed to update job {job_id} status: {e}")
+            logger.error(f"[DB] Failed to update job {job_id} status: {e}", exc_info=True)
 
     # ------------------------------------------------------------------
     # Job dispatch (shared by realtime + fallback poll)
