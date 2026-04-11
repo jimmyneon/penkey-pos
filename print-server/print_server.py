@@ -7,15 +7,14 @@ Fallback: Periodic poll to catch any jobs missed during reconnect/downtime
 
 import os
 import sys
-import time
-import threading
+import asyncio
 import signal
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 
-from supabase import create_client, Client
+from supabase import create_client, AsyncClient
 from printer import EpsonSerialPrinter
 
 # Load environment variables
@@ -52,14 +51,14 @@ class PrintServer:
         self.printer_device = os.getenv('PRINTER_DEVICE', '/dev/ttyUSB0')
         self.printer_baud = int(os.getenv('PRINTER_BAUD', '38400'))
 
-        self.supabase: Optional[Client] = None
+        self.supabase: Optional[AsyncClient] = None
         self.printer: Optional[EpsonSerialPrinter] = None
         self.running = False
+        self._shutdown_event = asyncio.Event()
 
-        # Mutex so realtime + fallback poll never process the same job twice
-        self._job_lock = threading.Lock()
         # Track jobs currently being processed to avoid double-dispatch
         self._processing: set = set()
+        self._job_lock = asyncio.Lock()
 
         if not all([self.supabase_url, self.supabase_key, self.printer_id]):
             raise ValueError(
@@ -71,9 +70,9 @@ class PrintServer:
     # Connection
     # ------------------------------------------------------------------
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """Connect to Supabase and initialise printer"""
-        self.supabase = create_client(self.supabase_url, self.supabase_key)
+        self.supabase = AsyncClient(self.supabase_url, self.supabase_key)
         self.printer = EpsonSerialPrinter(
             device=self.printer_device,
             baudrate=self.printer_baud
@@ -84,12 +83,12 @@ class PrintServer:
     # Realtime subscription
     # ------------------------------------------------------------------
 
-    def _subscribe_realtime(self) -> None:
+    async def _subscribe_realtime(self) -> None:
         """
         Subscribe to INSERT events on print_jobs filtered to this printer.
         The callback fires immediately when the POS queues a new job.
         """
-        def on_insert(payload):
+        async def on_insert(payload):
             record = payload.get('data', {}).get('record') or payload.get('record', {})
             if not record:
                 logger.warning(f"[Realtime] Received payload with no record: {payload}")
@@ -102,7 +101,7 @@ class PrintServer:
                 return  # only care about fresh pending jobs
 
             logger.info(f"[Realtime] New job received: {job_id}")
-            self._dispatch_job(record)
+            await self._dispatch_job(record)
 
         def on_subscribe(status, err=None):
             if status == 'SUBSCRIBED':
@@ -128,12 +127,12 @@ class PrintServer:
         self._realtime_channel = channel
         logger.info("[Realtime] Subscribed to print_jobs INSERT events")
 
-    def _unsubscribe_realtime(self) -> None:
+    async def _unsubscribe_realtime(self) -> None:
         """Gracefully unsubscribe from the realtime channel"""
         try:
             channel = getattr(self, '_realtime_channel', None)
             if channel:
-                self.supabase.remove_channel(channel)
+                await self.supabase.remove_channel(channel)
                 logger.info("[Realtime] Unsubscribed from channel")
         except Exception as e:
             logger.warning(f"[Realtime] Error unsubscribing: {e}")
@@ -142,27 +141,39 @@ class PrintServer:
     # Database helpers
     # ------------------------------------------------------------------
 
-    def update_printer_status(self, status: str, error: Optional[str] = None) -> None:
+    async def update_printer_status(self, status: str, error: Optional[str] = None) -> None:
         """Update printer heartbeat + status in Supabase"""
         try:
             updates: Dict[str, Any] = {
-                'status': status,
                 'last_seen_at': datetime.utcnow().isoformat()
             }
             if error:
                 updates['last_error'] = error
 
-            self.supabase.table('printers') \
-                .update(updates) \
-                .eq('id', self.printer_id) \
-                .execute()
+            # Try to update status column if it exists, otherwise skip
+            try:
+                updates['status'] = status
+                await self.supabase.table('printers') \
+                    .update(updates) \
+                    .eq('id', self.printer_id) \
+                    .execute()
+            except Exception as e:
+                if 'status' in str(e):
+                    # Column doesn't exist, skip status update
+                    logger.debug(f"[Printer] Status column not found, skipping status update: {e}")
+                    await self.supabase.table('printers') \
+                        .update(updates) \
+                        .eq('id', self.printer_id) \
+                        .execute()
+                else:
+                    raise
         except Exception as e:
             logger.error(f"Failed to update printer status: {e}")
 
-    def get_pending_jobs(self) -> list:
+    async def get_pending_jobs(self) -> list:
         """Fetch all pending jobs for this printer (fallback poll)"""
         try:
-            response = self.supabase.table('print_jobs') \
+            response = await self.supabase.table('print_jobs') \
                 .select('*') \
                 .eq('printer_id', self.printer_id) \
                 .eq('status', 'pending') \
@@ -173,13 +184,13 @@ class PrintServer:
             logger.error(f"Failed to fetch pending jobs: {e}")
             return []
 
-    def update_job_status(self, job_id: str, status: str, error: Optional[str] = None) -> None:
+    async def update_job_status(self, job_id: str, status: str, error: Optional[str] = None) -> None:
         """Update a job's status, incrementing attempts when moving to 'printing'"""
         try:
             updates: Dict[str, Any] = {'status': status}
 
             if status == 'printing':
-                resp = self.supabase.table('print_jobs') \
+                resp = await self.supabase.table('print_jobs') \
                     .select('attempts') \
                     .eq('id', job_id) \
                     .single() \
@@ -193,7 +204,7 @@ class PrintServer:
             if error:
                 updates['error_message'] = error
 
-            self.supabase.table('print_jobs') \
+            await self.supabase.table('print_jobs') \
                 .update(updates) \
                 .eq('id', job_id) \
                 .execute()
@@ -206,7 +217,7 @@ class PrintServer:
     # Job dispatch (shared by realtime + fallback poll)
     # ------------------------------------------------------------------
 
-    def _dispatch_job(self, job: Dict[str, Any]) -> None:
+    async def _dispatch_job(self, job: Dict[str, Any]) -> None:
         """
         Thread-safe entry point for processing a job.
         Skips jobs already being processed (prevents double-print when
@@ -216,19 +227,19 @@ class PrintServer:
         if not job_id:
             return
 
-        with self._job_lock:
+        async with self._job_lock:
             if job_id in self._processing:
                 logger.debug(f"Job {job_id} already in flight, skipping")
                 return
             self._processing.add(job_id)
 
         try:
-            self.process_job(job)
+            await self.process_job(job)
         finally:
-            with self._job_lock:
+            async with self._job_lock:
                 self._processing.discard(job_id)
 
-    def process_job(self, job: Dict[str, Any]) -> bool:
+    async def process_job(self, job: Dict[str, Any]) -> bool:
         """Process a single print job end-to-end"""
         job_id = job['id']
         job_type = job['job_type']
@@ -240,10 +251,10 @@ class PrintServer:
 
         if attempts >= max_attempts:
             logger.error(f"Job {job_id} exceeded max attempts")
-            self.update_job_status(job_id, 'failed', 'Exceeded maximum retry attempts')
+            await self.update_job_status(job_id, 'failed', 'Exceeded maximum retry attempts')
             return False
 
-        self.update_job_status(job_id, 'printing')
+        await self.update_job_status(job_id, 'printing')
 
         try:
             if job_type == 'receipt':
@@ -257,7 +268,7 @@ class PrintServer:
                 success = False
 
             if success:
-                self.update_job_status(job_id, 'completed')
+                await self.update_job_status(job_id, 'completed')
                 return True
             else:
                 raise Exception("Print command returned failure")
@@ -266,7 +277,7 @@ class PrintServer:
             err = str(e)
             logger.error(f"Job {job_id} failed: {err}")
             next_status = 'failed' if (attempts + 1 >= max_attempts) else 'pending'
-            self.update_job_status(job_id, next_status, err)
+            await self.update_job_status(job_id, next_status, err)
             return False
 
     # ------------------------------------------------------------------
@@ -312,79 +323,87 @@ class PrintServer:
     # Main run loop
     # ------------------------------------------------------------------
 
-    def run(self) -> None:
+    async def run(self) -> None:
         """
         Start realtime subscription then enter a lightweight heartbeat loop.
         The fallback poll runs every POLL_INTERVAL seconds to catch any jobs
         that arrived while the websocket was reconnecting.
         """
-        logger.info("Starting Penkey print server (realtime + fallback poll)...")
+        logger.info("Starting Penkey print server (async realtime + fallback poll)...")
         self.running = True
 
-        signal.signal(signal.SIGTERM, self._signal_handler)
-        signal.signal(signal.SIGINT, self._signal_handler)
+        await self.connect()
+        await self.update_printer_status('online')
 
-        self.connect()
-        self.update_printer_status('online')
-
-        # Start realtime subscription (runs on supabase-py's internal thread)
-        self._subscribe_realtime()
+        # Start realtime subscription
+        await self._subscribe_realtime()
 
         # Process any jobs that were queued before we started (startup drain)
         logger.info("Draining any jobs queued before startup...")
-        for job in self.get_pending_jobs():
-            self._dispatch_job(job)
+        for job in await self.get_pending_jobs():
+            await self._dispatch_job(job)
 
-        last_poll = time.monotonic()
-
-        while self.running:
+        # Main event loop
+        while self.running and not self._shutdown_event.is_set():
             try:
-                now = time.monotonic()
+                # Wait for shutdown event or poll interval
+                try:
+                    await asyncio.wait_for(self._shutdown_event.wait(), timeout=self.poll_interval)
+                except asyncio.TimeoutError:
+                    # Poll interval elapsed, do fallback poll
+                    pass
+
+                if not self.running:
+                    break
 
                 # Fallback poll — catches anything missed during realtime downtime
-                if now - last_poll >= self.poll_interval:
-                    logger.debug("[Fallback] Polling for missed pending jobs...")
-                    for job in self.get_pending_jobs():
-                        self._dispatch_job(job)
-                    # Heartbeat: keep printer status fresh
-                    self.update_printer_status('online')
-                    last_poll = now
-
-                time.sleep(1)  # tight sleep so shutdown is responsive
+                logger.debug("[Fallback] Polling for missed pending jobs...")
+                for job in await self.get_pending_jobs():
+                    await self._dispatch_job(job)
+                # Heartbeat: keep printer status fresh
+                await self.update_printer_status('online')
 
             except Exception as e:
                 logger.error(f"Error in main loop: {e}")
                 try:
-                    self.update_printer_status('error', str(e))
+                    await self.update_printer_status('error', str(e))
                 except Exception:
                     pass
-                time.sleep(5)
+                await asyncio.sleep(5)
 
         logger.info("Print server stopped")
 
     def _signal_handler(self, signum, frame) -> None:
         logger.info(f"Received signal {signum}, shutting down...")
         self.running = False
-        self._unsubscribe_realtime()
+        self._shutdown_event.set()
+
+    async def shutdown(self) -> None:
+        """Graceful shutdown"""
+        logger.info("Shutting down print server...")
+        await self._unsubscribe_realtime()
         try:
-            self.update_printer_status('offline')
+            await self.update_printer_status('offline')
         except Exception:
             pass
+        if self.printer:
+            self.printer._disconnect()
+        await self.supabase.close()
 
     # ------------------------------------------------------------------
     # Test mode
     # ------------------------------------------------------------------
 
-    def test_mode(self) -> None:
+    async def test_mode(self) -> None:
         """Print a test page and exercise the job pipeline"""
         logger.info("Running in test mode...")
-        self.connect()
+        await self.connect()
 
         logger.info("Printing hardware test page...")
         self.printer.test_print()
 
         logger.info("Simulating a test job through the pipeline...")
-        self.process_job({
+        await self.process_job({
             'id': 'test-job',
             'job_type': 'test',
             'template': 'test',
@@ -394,13 +413,24 @@ class PrintServer:
         })
 
 
-def main():
+async def main():
+    server = PrintServer()
+    
+    # Setup signal handlers
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, server._signal_handler, sig, None)
+
     if '--test' in sys.argv:
-        PrintServer().test_mode()
+        await server.test_mode()
+        await server.shutdown()
         return
 
-    PrintServer().run()
+    try:
+        await server.run()
+    finally:
+        await server.shutdown()
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
