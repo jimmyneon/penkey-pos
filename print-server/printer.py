@@ -142,14 +142,13 @@ Status: Online
 
         # Get settings or use defaults
         settings = settings or {}
-        code_page = settings.get('code_page', 0x02)  # CP850 by default
+        code_page = settings.get('code_page', 19)  # CP858 for £ symbol
         feed_lines = settings.get('feed_lines_before_cut', 6)
 
         # Initialize printer
-        commands.extend([0x1B, 0x40])  # ESC @
-
-        # Set code page from settings
-        commands.extend([0x1B, 0x74, code_page])
+        commands.extend([0x1B, 0x40])  # ESC @ - Initialize printer
+        commands.extend([0x1B, 0x21, 0x00])  # ESC ! 0 - Reset font mode (Font A, no scaling)
+        commands.extend([0x1B, 0x74, code_page])  # ESC t n - Set code page (CP858)
 
         # Process each line
         for line in text.split('\n'):
@@ -180,8 +179,12 @@ Status: Online
             else:
                 commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-            # Add text (use latin-1 for better character support)
-            commands.extend(line.encode('latin-1', errors='replace'))
+            # Add text using CP858 encoding for £ symbol
+            try:
+                commands.extend(line.encode('cp858', errors='replace'))
+            except (LookupError, UnicodeEncodeError):
+                # Fallback to latin-1 if cp858 not available
+                commands.extend(line.encode('latin-1', errors='replace'))
             commands.append(0x0A)  # Line feed
 
         # Reset formatting

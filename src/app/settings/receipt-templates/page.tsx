@@ -131,7 +131,7 @@ ${template.footer}
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] text-white p-4 sm:p-6">
-      <ToastContainer toasts={toasts} />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
