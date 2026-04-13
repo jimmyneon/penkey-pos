@@ -307,13 +307,13 @@ class PrintServer:
     def _print_receipt(self, data: Dict[str, Any], settings: Optional[Dict] = None) -> bool:
         """
         Print receipt - app is responsible for all layout and content.
-        Print server only renders the provided text using ESC/POS commands.
+        Print server renders using dynamic receipt builder if structured data is provided.
         """
         receipt_text = data.get('receipt_text')
         if not receipt_text:
             logger.error("Print job missing 'receipt_text' - app must provide formatted receipt content")
             return False
-        return self.printer.print_receipt(receipt_text, settings)
+        return self.printer.print_receipt(receipt_text, settings, data)
 
     # ------------------------------------------------------------------
     # Main run loop

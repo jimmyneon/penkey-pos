@@ -61,11 +61,16 @@ class EpsonSerialPrinter:
             self.serial_conn.close()
             logger.info(f"[Serial] Connection closed")
 
-    def print_receipt(self, receipt_text: str, settings: Optional[Dict] = None) -> bool:
+    def print_receipt(self, receipt_text: str, settings: Optional[Dict] = None, data: Optional[Dict] = None) -> bool:
         """Print a formatted receipt"""
         try:
             logger.info("[Print] Starting receipt print")
-            commands = self._build_escpos_receipt(receipt_text, settings)
+            # Use dynamic receipt building if structured data is provided
+            if data and data.get('lines'):
+                commands = self._build_dynamic_receipt(data, settings)
+            else:
+                # Fall back to text-based receipt for compatibility
+                commands = self._build_escpos_receipt(receipt_text, settings)
             self._print_raw(commands)
             logger.info("[Print] Receipt printed successfully")
             return True
@@ -230,6 +235,176 @@ Status: Online
         width = 58
         padding = (width - len(text)) // 2
         return ' ' * max(0, padding) + text
+
+    def _horizontal_rule(self, width: int = 42) -> str:
+        """Generate a horizontal rule of specified width"""
+        return '-' * width
+
+    def _build_aligned_line(self, left: str, right: str, width: int = 42) -> str:
+        """Build a line with left and right aligned text"""
+        # Calculate spacing needed
+        spacing = width - len(left) - len(right)
+        if spacing < 1:
+            spacing = 1
+        return left + ' ' * spacing + right
+
+    def _wrap_text(self, text: str, width: int = 42) -> list:
+        """Wrap text to fit within specified width"""
+        words = text.split()
+        lines = []
+        current_line = ''
+        
+        for word in words:
+            if len(current_line) + len(word) + 1 <= width:
+                if current_line:
+                    current_line += ' ' + word
+                else:
+                    current_line = word
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+        
+        if current_line:
+            lines.append(current_line)
+        
+        return lines
+
+    def _build_dynamic_receipt(self, data: Dict, settings: Optional[Dict] = None) -> bytes:
+        """
+        Build a dynamic receipt using ESC/POS commands and helper functions.
+        This replaces the hardcoded template approach.
+        """
+        commands = bytearray()
+        
+        # Get settings or use defaults
+        settings = settings or {}
+        code_page = settings.get('code_page', 19)  # CP858 for £ symbol
+        feed_lines = settings.get('feed_lines_before_cut', 6)
+        width = 42  # 42 characters per line for 80mm paper
+
+        # Initialize printer
+        commands.extend([0x1B, 0x40])  # ESC @ - Initialize
+        commands.extend([0x1B, 0x74, code_page])  # Set code page
+
+        # Header (centre aligned using ESC/POS commands)
+        commands.extend([0x1B, 0x61, 0x01])  # Center align
+        commands.extend('PENKEY DELICAF'.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        commands.extend('5 New Street, Lymington'.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        commands.extend('WhatsApp Pre-orders: 01590 619472'.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        
+        # Blank line
+        commands.append(0x0A)
+
+        # Divider (left aligned)
+        commands.extend([0x1B, 0x61, 0x00])  # Left align
+        commands.extend(self._horizontal_rule(width).encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+
+        # Items (left/right aligned)
+        items = data.get('lines', [])
+        for item in items:
+            item_name = item.get('item_name', 'Item')
+            price = f"£{item.get('line_total', 0):.2f}"
+            line = self._build_aligned_line(item_name, price, width)
+            commands.extend(line.encode('latin-1', errors='replace'))
+            commands.append(0x0A)
+
+        # Divider
+        commands.extend(self._horizontal_rule(width).encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+
+        # Totals
+        subtotal = f"£{data.get('subtotal', 0):.2f}"
+        total = f"£{data.get('total', 0):.2f}"
+        
+        commands.extend(self._build_aligned_line('Subtotal', subtotal, width).encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        
+        # TOTAL (bold)
+        commands.extend([0x1B, 0x45, 0x01])  # Bold on
+        commands.extend(self._build_aligned_line('TOTAL', total, width).encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        commands.extend([0x1B, 0x45, 0x00])  # Bold off
+
+        # Blank line
+        commands.append(0x0A)
+
+        # Payment + metadata
+        payment_method = data.get('payment_method', 'Cash')
+        date = data.get('date', '')
+        time = data.get('time', '')
+        receipt_number = data.get('receipt_number', '')
+        
+        commands.extend(payment_method.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        commands.extend(f'{date} {time}'.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+        commands.extend(f'Order #{receipt_number}'.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+
+        # Blank line
+        commands.append(0x0A)
+
+        # Footer (centre aligned)
+        commands.extend([0x1B, 0x61, 0x01])  # Center align
+        commands.extend('Thank you for visiting'.encode('latin-1', errors='replace'))
+        commands.append(0x0A)
+
+        # Blank lines
+        commands.extend([0x0A] * 3)
+
+        # Reset formatting
+        commands.extend([0x1B, 0x45, 0x00])  # Bold off
+        commands.extend([0x1B, 0x61, 0x00])  # Left align
+
+        # Feed lines before cut
+        commands.extend([0x0A] * feed_lines)
+
+        # Cut paper
+        commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0 - feed and cut
+
+        return bytes(commands)
+
+    def print_debug_alignment(self) -> bool:
+        """Print alignment debug mode to verify centering"""
+        try:
+            logger.info("[Print] Starting alignment debug print")
+            commands = bytearray()
+            
+            # Initialize printer
+            commands.extend([0x1B, 0x40])  # ESC @
+            commands.extend([0x1B, 0x74, 19])  # CP858
+
+            # Debug line 1: 42-character ruler
+            commands.extend('123456789012345678901234567890123456789012'.encode('latin-1', errors='replace'))
+            commands.append(0x0A)
+
+            # Debug line 2: Centre X
+            commands.extend([0x1B, 0x61, 0x01])  # Center align
+            commands.extend('X'.encode('latin-1', errors='replace'))
+            commands.append(0x0A)
+
+            # Debug line 3: Header
+            commands.extend('PENKEY DELICAF'.encode('latin-1', errors='replace'))
+            commands.append(0x0A)
+
+            # Reset
+            commands.extend([0x1B, 0x61, 0x00])  # Left align
+
+            # Feed and cut
+            commands.extend([0x0A] * 6)
+            commands.extend([0x1D, 0x56, 0x42, 0x00])
+
+            self._print_raw(commands)
+            logger.info("[Print] Alignment debug print successful")
+            return True
+        except Exception as e:
+            logger.error(f"[Print] Alignment debug print failed: {e}")
+            return False
 
     def __del__(self):
         """Cleanup on deletion"""
