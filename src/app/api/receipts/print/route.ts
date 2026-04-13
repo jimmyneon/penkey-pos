@@ -94,55 +94,120 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseServerClient(supabaseUrl, supabaseKey);
 
-    // Fetch receipt with all details
+    // Fetch receipt base data
     const { data: receipt, error: receiptError } = await supabase
       .from("receipts")
-      .select(`
-        *,
-        registers(name, stores(name, address)),
-        org_members(display_name, first_name),
-        receipt_lines(
-          quantity,
-          unit_price,
-          line_total,
-          name,
-          modifiers
-        ),
-        payments(method, amount, reference)
-      `)
+      .select("*")
       .eq("id", receipt_id)
       .single();
 
-    if (receiptError) throw receiptError;
+    if (receiptError) {
+      console.error("[Print] Receipt fetch error:", receiptError);
+      throw new Error(`Receipt fetch failed: ${receiptError.message}`);
+    }
+
+    if (!receipt) {
+      return NextResponse.json(
+        { error: "Receipt not found" },
+        { status: 404 }
+      );
+    }
+
+    const r = receipt as any;
+
+    // Fetch related data separately to avoid complex nested selects
+    let storeName = "Penkey Délicaf & Gifts";
+    let storeAddress: string | undefined = undefined;
+    let registerName = "Main Till";
+    let employeeName = "Staff";
+
+    try {
+      if (r.register_id) {
+        const { data: register } = await supabase
+          .from("registers")
+          .select("name, stores(name, address)")
+          .eq("id", r.register_id)
+          .maybeSingle();
+        if (register) {
+          registerName = (register as any).name || "Main Till";
+          if ((register as any).stores) {
+            storeName = (register as any).stores.name || storeName;
+            storeAddress = (register as any).stores.address;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[Print] Failed to fetch register/store info:", e);
+    }
+
+    try {
+      if (r.member_id) {
+        const { data: member } = await supabase
+          .from("org_members")
+          .select("display_name, first_name")
+          .eq("id", r.member_id)
+          .maybeSingle();
+        if (member) {
+          employeeName = (member as any).display_name || (member as any).first_name || "Staff";
+        }
+      }
+    } catch (e) {
+      console.warn("[Print] Failed to fetch employee info:", e);
+    }
+
+    // Fetch receipt lines
+    let lines: any[] = [];
+    try {
+      const { data: receiptLines } = await supabase
+        .from("receipt_lines")
+        .select("quantity, unit_price, line_total, name, modifiers")
+        .eq("receipt_id", receipt_id)
+        .order("sort_order", { ascending: true });
+      lines = receiptLines || [];
+    } catch (e) {
+      console.warn("[Print] Failed to fetch receipt lines:", e);
+    }
+
+    // Fetch payment method
+    let paymentMethod = "cash";
+    try {
+      const { data: payments } = await supabase
+        .from("payments")
+        .select("method")
+        .eq("receipt_id", receipt_id)
+        .limit(1);
+      if (payments && payments.length > 0) {
+        paymentMethod = payments[0].method || "cash";
+      }
+    } catch (e) {
+      console.warn("[Print] Failed to fetch payment method:", e);
+    }
 
     // Format receipt data
     const receiptData: ReceiptTemplateData = {
-      store_name: (receipt as any).registers?.stores?.name || "Penkey Délicaf & Gifts",
-      store_address: (receipt as any).registers?.stores?.address,
-      receipt_number: (receipt as any).receipt_number,
-      date: new Date((receipt as any).created_at).toLocaleDateString("en-GB"),
-      time: new Date((receipt as any).created_at).toLocaleTimeString("en-GB", {
+      store_name: storeName,
+      store_address: storeAddress,
+      receipt_number: r.receipt_number ?? 0,
+      date: new Date(r.created_at).toLocaleDateString("en-GB"),
+      time: new Date(r.created_at).toLocaleTimeString("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      employee_name:
-        (receipt as any).org_members?.display_name ||
-        (receipt as any).org_members?.first_name ||
-        "Staff",
-      register_name: (receipt as any).registers?.name || "Main Till",
-      lines: (receipt as any).receipt_lines.map((line: any) => ({
-        quantity: line.quantity,
-        item_name: line.name,
+      employee_name: employeeName,
+      register_name: registerName,
+      lines: lines.map((line: any) => ({
+        quantity: line.quantity ?? 1,
+        item_name: line.name || line.item_name || "Item",
         variant_name: null,
         modifiers: line.modifiers || [],
-        line_total: line.line_total,
+        line_total: line.line_total ?? 0,
       })),
-      subtotal: (receipt as any).subtotal,
-      tax: (receipt as any).tax_total,
-      total: (receipt as any).total,
-      payment_method: (receipt as any).payments?.[0]?.method || "cash",
-      cash_tendered: (receipt as any).paid_amount,
-      cash_change: (receipt as any).change_amount,
+      subtotal: r.subtotal ?? r.total ?? 0,
+      tax: r.tax_total ?? 0,
+      total: r.total ?? 0,
+      payment_method: paymentMethod,
+      cash_tendered: r.paid_amount,
+      cash_change: r.change_amount,
     };
 
     let selectedPrinterId = printer_id;
@@ -200,7 +265,7 @@ export async function POST(request: NextRequest) {
       name: error?.name,
     });
     return NextResponse.json(
-      { error: "Failed to queue receipt for printing", details: error?.message },
+      { error: error?.message || "Failed to queue receipt for printing", details: error?.message },
       { status: 500 }
     );
   }
