@@ -70,9 +70,7 @@ export default function SettingsPage() {
       const data = await resp.json();
       const printers: any[] = data.printers || [];
       setPrinterCount(printers.length);
-      // Check if any printer was seen in the last 30 seconds
-      const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
-      const anyOnline = printers.some((p: any) => p.last_seen_at && p.last_seen_at > thirtySecondsAgo);
+      const anyOnline = printers.some((p: any) => p.status === "online");
       setPrinterStatus(printers.length === 0 ? "offline" : anyOnline ? "online" : "offline");
     } catch {
       setPrinterStatus("offline");
