@@ -48,7 +48,7 @@ function horizontalRule(width: number = RECEIPT_WIDTH): string {
 
 /**
  * Format a number as currency with £ symbol.
- * Uses \xA3 (pound sign in latin-1/CP858) so the print server can encode it.
+ * \xA3 = Unicode U+00A3 = £. Print server encodes with cp858 → byte 0x9C → prints as £.
  */
 function currency(value: number): string {
   return `\xA3${value.toFixed(2)}`;

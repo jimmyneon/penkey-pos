@@ -176,8 +176,9 @@ Status: Online
             # Alignment — left by default, app uses markers or text structure
             commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-            # Encode text using latin-1 (maps £ to 0xA3 which CP858 renders correctly)
-            commands.extend(line.encode('latin-1', errors='replace'))
+            # Encode text using cp858 to match the printer's code page
+            # In cp858: £ = 0x9C (latin-1 would give 0xA3 which prints as ú)
+            commands.extend(line.encode('cp858', errors='replace'))
             commands.append(0x0A)
 
         # Reset formatting
@@ -199,7 +200,7 @@ Status: Online
 
         # Get settings or use defaults
         settings = settings or {}
-        code_page = settings.get('code_page', 0x02)  # CP850 by default
+        code_page = settings.get('code_page', 19)  # CP858 by default
         feed_lines = settings.get('feed_lines_before_cut', 6)
 
         # Initialize
@@ -210,7 +211,7 @@ Status: Online
 
         # Add text
         for line in text.split('\n'):
-            commands.extend(line.encode('latin-1', errors='replace'))
+            commands.extend(line.encode('cp858', errors='replace'))
             commands.append(0x0A)
 
         # Feed lines before cut
@@ -222,8 +223,8 @@ Status: Online
         return bytes(commands)
 
     def _center(self, text: str) -> str:
-        """Center text in a 58-character line (80mm paper)"""
-        width = 58
+        """Center text in a 42-character line (80mm paper, Font A)"""
+        width = 42
         padding = (width - len(text)) // 2
         return ' ' * max(0, padding) + text
 
