@@ -788,6 +788,24 @@ export default function SettingsPage() {
             </SettingRow>
           </SettingsSection>
 
+          {/* Receipt Template Editor */}
+          <SettingsSection title="Receipt Templates" icon={Receipt}>
+            <SettingRow
+              label="Template Editor"
+              description="Create and preview receipt templates"
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push("/settings/receipt-templates")}
+                className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
+              >
+                <Receipt className="h-4 w-4 mr-2" />
+                Edit Templates
+              </Button>
+            </SettingRow>
+          </SettingsSection>
+
           {/* SumUp Payment Settings */}
           <SettingsSection title="SumUp Payments" icon={CreditCard}>
             {sumUpConnected ? (
