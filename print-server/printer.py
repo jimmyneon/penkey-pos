@@ -134,7 +134,10 @@ Status: Online
             raise
 
     def _build_escpos_receipt(self, text: str, settings: Optional[Dict] = None) -> bytes:
-        """Build ESC/POS commands for receipt printing"""
+        """
+        Build ESC/POS commands for receipt printing.
+        Device-specific rendering only - app controls all layout and content.
+        """
         commands = bytearray()
 
         # Get settings or use defaults

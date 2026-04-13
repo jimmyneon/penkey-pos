@@ -305,39 +305,15 @@ class PrintServer:
     # ------------------------------------------------------------------
 
     def _print_receipt(self, data: Dict[str, Any], settings: Optional[Dict] = None) -> bool:
-        receipt_text = data.get('receipt_text') or self._format_receipt(data)
+        """
+        Print receipt - app is responsible for all layout and content.
+        Print server only renders the provided text using ESC/POS commands.
+        """
+        receipt_text = data.get('receipt_text')
+        if not receipt_text:
+            logger.error("Print job missing 'receipt_text' - app must provide formatted receipt content")
+            return False
         return self.printer.print_receipt(receipt_text, settings)
-
-    def _format_receipt(self, data: Dict[str, Any]) -> str:
-        """Fallback formatter when receipt_text is not pre-built"""
-        lines = [
-            "Penkey Delicaf & Gifts",
-            "------------------------",
-            f"Receipt #{data.get('receipt_number', 'N/A')}",
-            f"Date: {data.get('date', '')} {data.get('time', '')}",
-            f"Served by: {data.get('employee_name', 'Staff')}",
-            "",
-            "------------------------",
-        ]
-        for line in data.get('lines', []):
-            lines.append(f"{line.get('quantity', 1)}x {line.get('item_name', 'Item')}")
-            for mod in line.get('modifiers', []):
-                lines.append(f"  + {mod.get('name', '')}")
-            lines.append(f"            \u00a3{line.get('line_total', 0):.2f}")
-            lines.append("")
-        lines += [
-            "------------------------",
-            f"Subtotal:       \u00a3{data.get('subtotal', 0):.2f}",
-            f"Tax:            \u00a3{data.get('tax', 0):.2f}",
-            "------------------------",
-            f"TOTAL:          \u00a3{data.get('total', 0):.2f}",
-            "------------------------",
-            "",
-            "Thank you for your custom!",
-            "Please visit again soon",
-            "", "",
-        ]
-        return "\n".join(lines)
 
     # ------------------------------------------------------------------
     # Main run loop
