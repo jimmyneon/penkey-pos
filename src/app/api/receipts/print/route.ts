@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
 
     // If full receipt data is provided (for temp receipts), use it directly
     if (receipt_data) {
+      console.log("[Print] receipt_data keys:", Object.keys(receipt_data));
+      console.log("[Print] receipt_data sample:", JSON.stringify(receipt_data).substring(0, 500));
+
       let selectedPrinterId = printer_id;
 
       // If no printer specified, try to find any active printer
