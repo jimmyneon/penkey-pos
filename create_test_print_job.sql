@@ -46,7 +46,7 @@ INSERT INTO print_jobs (
     ),
     'receipt_text', '              ##PENKEY DELICAF##
           5 New Street, Lymington
- WhatsApp Pre-orders: 01590 619472
+  WhatsApp Pre-orders: 01590 619472
 
 ========================================
 1x Test Item                     5.00
