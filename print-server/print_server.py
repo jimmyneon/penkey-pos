@@ -127,15 +127,53 @@ class PrintServer:
         self._realtime_channel = channel
         logger.info("[Realtime] Subscribed to print_jobs INSERT events")
 
+        # Also subscribe to printer config changes for remote restart
+        def on_printer_update(payload):
+            try:
+                new_config = payload.get('new', {}).get('config', {}) or {}
+                command = new_config.get('command')
+                if command == 'restart':
+                    logger.info("[Remote] Restart command received — exiting for systemd restart")
+                    self.running = False
+                    self._shutdown_event.set()
+                elif command == 'test_print':
+                    logger.info("[Remote] Test print command received")
+                    if self.printer:
+                        self.printer.test_print()
+            except Exception as e:
+                logger.error(f"[Remote] Error processing printer command: {e}")
+
+        def on_cmd_subscribe(status, err=None):
+            if status == 'SUBSCRIBED':
+                logger.info("[Realtime] Subscribed to printer config changes (remote commands)")
+            elif status in ('CHANNEL_ERROR', 'TIMED_OUT'):
+                logger.warning(f"[Realtime] Printer config channel issue ({status}): {err}")
+
+        cmd_channel = (
+            self.supabase
+            .channel(f"printer-cmd-{self.printer_id}")
+            .on_postgres_changes(
+                event="UPDATE",
+                schema="public",
+                table="printers",
+                filter=f"id=eq.{self.printer_id}",
+                callback=on_printer_update,
+            )
+            .subscribe(on_cmd_subscribe)
+        )
+
+        self._cmd_channel = cmd_channel
+
     async def _unsubscribe_realtime(self) -> None:
-        """Gracefully unsubscribe from the realtime channel"""
-        try:
-            channel = getattr(self, '_realtime_channel', None)
-            if channel:
-                await self.supabase.remove_channel(channel)
-                logger.info("[Realtime] Unsubscribed from channel")
-        except Exception as e:
-            logger.warning(f"[Realtime] Error unsubscribing: {e}")
+        """Gracefully unsubscribe from all realtime channels"""
+        for attr in ('_realtime_channel', '_cmd_channel'):
+            try:
+                channel = getattr(self, attr, None)
+                if channel:
+                    await self.supabase.remove_channel(channel)
+                    logger.info(f"[Realtime] Unsubscribed from {attr}")
+            except Exception as e:
+                logger.warning(f"[Realtime] Error unsubscribing {attr}: {e}")
 
     # ------------------------------------------------------------------
     # Database helpers

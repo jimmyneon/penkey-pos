@@ -61,6 +61,8 @@ export default function SettingsPage() {
   // Printer status
   const [printerStatus, setPrinterStatus] = useState<"unknown" | "online" | "offline" | "checking">("unknown");
   const [printerCount, setPrinterCount] = useState(0);
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [sendingCommand, setSendingCommand] = useState(false);
 
   const checkPrinterStatus = async () => {
     setPrinterStatus("checking");
@@ -68,13 +70,39 @@ export default function SettingsPage() {
       const resp = await fetch("/api/printers");
       if (!resp.ok) throw new Error("Failed to fetch printers");
       const data = await resp.json();
-      const printers: any[] = data.printers || [];
-      const activePrinters = printers.filter((p: any) => p.is_active);
+      const printerList: any[] = data.printers || [];
+      const activePrinters = printerList.filter((p: any) => p.is_active);
+      setPrinters(activePrinters);
       setPrinterCount(activePrinters.length);
       const anyOnline = activePrinters.some((p: any) => p.status === "online");
       setPrinterStatus(activePrinters.length === 0 ? "offline" : anyOnline ? "online" : "offline");
     } catch {
       setPrinterStatus("offline");
+    }
+  };
+
+  const sendPrinterCommand = async (command: "restart" | "test_print") => {
+    if (sendingCommand || printers.length === 0) return;
+    setSendingCommand(true);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session");
+      if (!sessionData) {
+        showToast("Session expired", "error");
+        return;
+      }
+      // Send to first active printer
+      const resp = await fetch("/api/printers/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-pos-session": sessionData },
+        body: JSON.stringify({ printer_id: printers[0].id, command }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to send command");
+      showToast(data.message, "success");
+    } catch (e: any) {
+      showToast(e.message || "Failed to send command", "error");
+    } finally {
+      setSendingCommand(false);
     }
   };
   const [showSumUpForm, setShowSumUpForm] = useState(false);
@@ -768,6 +796,34 @@ export default function SettingsPage() {
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${printerStatus === "checking" ? "animate-spin" : ""}`} />
                   Check
+                </Button>
+              </div>
+            </SettingRow>
+
+            <SettingRow
+              label="Remote Commands"
+              description="Restart the print server or send a test print"
+            >
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { hapticButtonPress(); sendPrinterCommand("restart"); }}
+                  disabled={sendingCommand || printers.length === 0}
+                  className="min-h-[44px] min-w-[140px] border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+                >
+                  <RotateCcw className={`h-4 w-4 mr-2 ${sendingCommand ? "animate-spin" : ""}`} />
+                  Restart
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { hapticButtonPress(); sendPrinterCommand("test_print"); }}
+                  disabled={sendingCommand || printers.length === 0}
+                  className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Test Print
                 </Button>
               </div>
             </SettingRow>
