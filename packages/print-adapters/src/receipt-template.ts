@@ -1,8 +1,11 @@
 import Handlebars from "handlebars";
 
+const RECEIPT_WIDTH = 42;
+
 export interface ReceiptData {
   store_name: string;
   store_address?: string;
+  store_phone?: string;
   receipt_number: number;
   date: string;
   time: string;
@@ -23,56 +26,110 @@ export interface ReceiptData {
   cash_change?: number;
 }
 
-// Register Handlebars helpers
-Handlebars.registerHelper("currency", (value: number) => {
-  // Use ASCII pound sign for CP850 encoding compatibility
+// ── Helper functions for alignment ──
+
+/**
+ * Build a left/right aligned line padded to exactly RECEIPT_WIDTH characters.
+ * If the left text is too long it is truncated with "...".
+ */
+function alignLine(left: string, right: string, width: number = RECEIPT_WIDTH): string {
+  const maxLeft = width - right.length - 1;
+  const truncated = left.length > maxLeft ? left.substring(0, maxLeft - 3) + '...' : left;
+  const padding = width - truncated.length - right.length;
+  return truncated + ' '.repeat(Math.max(1, padding)) + right;
+}
+
+/**
+ * Build a horizontal rule of exactly RECEIPT_WIDTH dashes.
+ */
+function horizontalRule(width: number = RECEIPT_WIDTH): string {
+  return '-'.repeat(width);
+}
+
+/**
+ * Format a number as currency with £ symbol.
+ * Uses \xA3 (pound sign in latin-1/CP858) so the print server can encode it.
+ */
+function currency(value: number): string {
   return `\xA3${value.toFixed(2)}`;
-});
+}
 
+// ── Register Handlebars helpers ──
+
+Handlebars.registerHelper("currency", (value: number) => currency(value));
 Handlebars.registerHelper("eq", (a: any, b: any) => a === b);
+Handlebars.registerHelper("alignLine", (left: string, right: string) => alignLine(left, right));
+Handlebars.registerHelper("hr", () => horizontalRule());
 
-const receiptTemplate = `
-{{store_name}}
-{{#if store_address}}{{store_address}}{{/if}}
-
-Receipt #{{receipt_number}}
-{{date}} {{time}}
-
-Served by: {{employee_name}}
-Register: {{register_name}}
-
-==================================================
-{{#each lines}}
-{{quantity}}x {{item_name}}{{#if variant_name}} - {{variant_name}}{{/if}}
-{{#if modifiers}}
-  {{#each modifiers}}
-  + {{name}}{{#if price_adjustment}} ({{currency price_adjustment}}){{/if}}
-  {{/each}}
-{{/if}}
-{{currency line_total}}
-{{/each}}
-==================================================
-
-Subtotal:      {{currency subtotal}}
-Tax (20%):     {{currency tax}}
-==================================================
-TOTAL:         {{currency total}}
-==================================================
-
-{{#if (eq payment_method "cash")}}
-Cash Tendered: {{currency cash_tendered}}
-Change:        {{currency cash_change}}
-{{/if}}
-
-Thank you for your custom!
-
-Please visit again soon
-`;
+// ── Receipt text generator (no Handlebars – direct builder for reliability) ──
 
 export function generateReceiptText(data: ReceiptData): string {
-  const template = Handlebars.compile(receiptTemplate);
-  return template(data);
+  const lines: string[] = [];
+
+  // Header (centre-aligned by print server when it sees these lines)
+  lines.push(data.store_name);
+  if (data.store_address) lines.push(data.store_address);
+  if (data.store_phone) lines.push(data.store_phone);
+  lines.push('');
+
+  // Divider
+  lines.push(horizontalRule());
+
+  // Items
+  for (const item of data.lines) {
+    const name = item.variant_name
+      ? `${item.quantity}x ${item.item_name} - ${item.variant_name}`
+      : `${item.quantity}x ${item.item_name}`;
+    lines.push(alignLine(name, currency(item.line_total)));
+
+    if (item.modifiers && item.modifiers.length > 0) {
+      for (const mod of item.modifiers) {
+        const modText = mod.price_adjustment
+          ? `  + ${mod.name} (${currency(mod.price_adjustment)})`
+          : `  + ${mod.name}`;
+        lines.push(modText);
+      }
+    }
+  }
+
+  // Divider
+  lines.push(horizontalRule());
+  lines.push('');
+
+  // Totals
+  lines.push(alignLine('Subtotal', currency(data.subtotal)));
+  if (data.tax > 0) {
+    lines.push(alignLine('Tax (20%)', currency(data.tax)));
+  }
+
+  // TOTAL – bold markers for the print server
+  lines.push(`**${alignLine('TOTAL', currency(data.total))}**`);
+
+  lines.push('');
+
+  // Cash details
+  if (data.payment_method === 'cash' && data.cash_tendered != null) {
+    lines.push(alignLine('Cash Tendered', currency(data.cash_tendered)));
+    if (data.cash_change != null) {
+      lines.push(alignLine('Change', currency(data.cash_change)));
+    }
+    lines.push('');
+  }
+
+  // Payment + metadata
+  lines.push(data.payment_method);
+  lines.push(`${data.date} ${data.time}`);
+  lines.push(`Order #${data.receipt_number}`);
+  lines.push('');
+
+  // Footer
+  lines.push('Thank you for visiting');
+
+  return lines.join('\n');
 }
+
+// ── Exported helpers for use by other modules ──
+export { alignLine, horizontalRule, currency, RECEIPT_WIDTH };
 
 export function generateReceiptHTML(data: ReceiptData): string {
   const htmlTemplate = `

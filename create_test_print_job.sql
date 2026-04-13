@@ -1,4 +1,6 @@
--- Create a test print job with updated receipt data
+-- Create a test print job
+-- receipt_text is built exactly as the app's generateReceiptText() would produce it.
+-- printer_settings tell the print server which hardware commands to apply.
 INSERT INTO print_jobs (
   id,
   org_id,
@@ -17,50 +19,29 @@ INSERT INTO print_jobs (
   '00000000-0000-0000-0000-0000000000a0',
   'receipt',
   jsonb_build_object(
-    'store_name', 'Penkey Délicaf & Gifts',
-    'store_address', '123 Test Street',
-    'receipt_number', 12345,
-    'date', to_char(now(), 'DD/MM/YYYY'),
-    'time', to_char(now(), 'HH24:MI'),
-    'employee_name', 'Test Staff',
-    'register_name', 'Main Till',
-    'lines', jsonb_build_array(
-      jsonb_build_object(
-        'quantity', 1,
-        'item_name', 'Test Item',
-        'variant_name', null,
-        'modifiers', '[]'::jsonb,
-        'line_total', 5.00
-      )
-    ),
-    'subtotal', 5.00,
-    'tax', 1.00,
-    'total', 6.00,
-    'payment_method', 'cash',
-    'cash_tendered', 10.00,
-    'cash_change', 4.00,
     'printer_settings', jsonb_build_object(
       'code_page', 19,
       'feed_lines_before_cut', 6,
       'width', 42
     ),
-    'receipt_text', 'PENKEY DELICAF
-5 New Street, Lymington
-WhatsApp Pre-orders: 01590 619472
-
-------------------------------------------
-Ham Baguette                     £6.50
-Tea                              £3.00
-------------------------------------------
-
-Subtotal                        £9.50
-**TOTAL:                         £9.50**
-
-Card
-' || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || '
-Order #1024
-
-Thank you for visiting'
+    'receipt_text',
+      'PENKEY DELICAF' || chr(10)
+      || '5 New Street, Lymington' || chr(10)
+      || 'WhatsApp Pre-orders: 01590 619472' || chr(10)
+      || chr(10)
+      || '------------------------------------------' || chr(10)
+      || '1x Ham Baguette                    £6.50' || chr(10)
+      || '1x Tea                             £3.00' || chr(10)
+      || '------------------------------------------' || chr(10)
+      || chr(10)
+      || 'Subtotal                           £9.50' || chr(10)
+      || '**TOTAL                            £9.50**' || chr(10)
+      || chr(10)
+      || 'Card' || chr(10)
+      || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || chr(10)
+      || 'Order #1024' || chr(10)
+      || chr(10)
+      || 'Thank you for visiting'
   ),
   'pending',
   'normal',

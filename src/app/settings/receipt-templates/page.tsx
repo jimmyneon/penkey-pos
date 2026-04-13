@@ -15,7 +15,8 @@ import {
 import { hapticButtonPress, hapticSuccess } from "@/lib/utils/haptics";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
-import { buildReceipt, formatCurrency, type ReceiptData } from "@/lib/services/receipt-builder";
+import { buildReceipt } from "@/lib/services/receipt-builder";
+import type { ReceiptData } from "@penkey/print-adapters";
 
 interface ReceiptTemplate {
   id: string;
@@ -75,11 +76,15 @@ export default function ReceiptTemplatesPage() {
     if (!selectedTemplate) return;
     
     // Generate preview using the template and receipt builder
+    // Parse header lines into store_name, store_address, store_phone
+    const headerLines = selectedTemplate.header.split('\n').filter(Boolean);
     const receiptData: ReceiptData = {
-      header: selectedTemplate.header,
-      items: [
-        { item_name: "Ham Baguette", quantity: 1, line_total: 6.50 },
-        { item_name: "Tea", quantity: 1, line_total: 3.00 },
+      store_name: headerLines[0] || 'Store Name',
+      store_address: headerLines[1] || '',
+      store_phone: headerLines[2] || '',
+      lines: [
+        { quantity: 1, item_name: "Ham Baguette", line_total: 6.50 },
+        { quantity: 1, item_name: "Tea", line_total: 3.00 },
       ],
       subtotal: 9.50,
       tax: 0.00,
@@ -88,7 +93,8 @@ export default function ReceiptTemplatesPage() {
       date: new Date().toLocaleDateString('en-GB'),
       time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
       receipt_number: 1024,
-      footer: selectedTemplate.footer,
+      employee_name: 'Staff',
+      register_name: 'Till 1',
     };
     
     const preview = buildReceipt(receiptData);

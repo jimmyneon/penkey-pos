@@ -136,60 +136,60 @@ Status: Online
     def _build_escpos_receipt(self, text: str, settings: Optional[Dict] = None) -> bytes:
         """
         Build ESC/POS commands for receipt printing.
-        Device-specific rendering only - app controls all layout and content.
+        App controls all layout, content, and settings.
+        Print server applies those settings as hardware commands and renders text.
         """
         commands = bytearray()
 
-        # Get settings or use defaults
+        # All settings come from the app via printer_settings in the job data
         settings = settings or {}
+        code_page = settings.get('code_page', 19)       # App decides code page (default CP858)
         feed_lines = settings.get('feed_lines_before_cut', 6)
 
-        # Initialize printer
-        commands.extend([0x1B, 0x40])  # ESC @
+        # Initialize printer (clean state)
+        commands.extend([0x1B, 0x40])          # ESC @ — initialize/reset
+        commands.extend([0x1B, 0x21, 0x00])    # ESC ! 0 — Font A, no scaling
+        commands.extend([0x1B, 0x74, code_page])  # ESC t n — set code page from app settings
 
-        # Process each line
+        # Process each line — app controls content, we just render
         for line in text.split('\n'):
             stripped = line.strip()
 
             if not stripped:
-                commands.append(0x0A)  # Line feed
+                commands.append(0x0A)
                 continue
 
-            # Check for formatting markers
+            # Bold markers (**text**) — app decides what is bold
             if stripped.startswith('**') and stripped.endswith('**'):
-                # Bold text
                 commands.extend([0x1B, 0x45, 0x01])  # Bold on
                 line = stripped[2:-2]
             else:
                 commands.extend([0x1B, 0x45, 0x00])  # Bold off
 
+            # Double-size markers (##text##) — app decides what is large
             if stripped.startswith('##') and stripped.endswith('##'):
-                # Double size
-                commands.extend([0x1D, 0x21, 0x11])  # Double width and height
+                commands.extend([0x1D, 0x21, 0x11])  # Double width + height
                 line = stripped[2:-2]
             else:
                 commands.extend([0x1D, 0x21, 0x00])  # Normal size
 
-            # Center alignment for headers
-            if stripped == stripped.upper() and len(stripped) < 30 and ('=' in stripped or any(x in stripped for x in ['Penkey', 'RECEIPT', 'TOTAL'])):
-                commands.extend([0x1B, 0x61, 0x01])  # Center align
-            else:
-                commands.extend([0x1B, 0x61, 0x00])  # Left align
+            # Alignment — left by default, app uses markers or text structure
+            commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-            # Add text (use latin-1 for better character support)
+            # Encode text using latin-1 (maps £ to 0xA3 which CP858 renders correctly)
             commands.extend(line.encode('latin-1', errors='replace'))
-            commands.append(0x0A)  # Line feed
+            commands.append(0x0A)
 
         # Reset formatting
         commands.extend([0x1B, 0x45, 0x00])  # Bold off
         commands.extend([0x1D, 0x21, 0x00])  # Normal size
         commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-        # Feed lines before cut
+        # Feed lines before cut (app setting)
         commands.extend([0x0A] * feed_lines)
 
-        # Cut paper (full cut with feed)
-        commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0 - feed and cut
+        # Cut paper
+        commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0
 
         return bytes(commands)
 

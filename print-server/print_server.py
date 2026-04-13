@@ -312,6 +312,7 @@ class PrintServer:
         receipt_text = data.get('receipt_text')
         if not receipt_text:
             logger.error("Print job missing 'receipt_text' - app must provide formatted receipt content")
+            return False
         return self.printer.print_receipt(receipt_text, settings)
 
     # ------------------------------------------------------------------
