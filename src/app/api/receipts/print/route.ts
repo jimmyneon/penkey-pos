@@ -41,6 +41,34 @@ export async function POST(request: NextRequest) {
       console.log("[Print] receipt_data keys:", Object.keys(receipt_data));
       console.log("[Print] receipt_data sample:", JSON.stringify(receipt_data).substring(0, 500));
 
+      // Normalize receipt data to ensure all required fields exist with safe defaults
+      const normalizedReceiptData = {
+        store_name: receipt_data.store_name || "Penkey Délicaf & Gifts",
+        store_address: receipt_data.store_address,
+        store_phone: receipt_data.store_phone,
+        receipt_number: receipt_data.receipt_number ?? 0,
+        date: receipt_data.date || new Date().toLocaleDateString("en-GB"),
+        time: receipt_data.time || new Date().toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        employee_name: receipt_data.employee_name || "Staff",
+        register_name: receipt_data.register_name || "Main Till",
+        lines: (receipt_data.lines || []).map((line: any) => ({
+          quantity: line.quantity ?? 1,
+          item_name: line.item_name || line.name || "Item",
+          variant_name: line.variant_name || null,
+          modifiers: line.modifiers || [],
+          line_total: line.line_total ?? 0,
+        })),
+        subtotal: receipt_data.subtotal ?? 0,
+        tax: receipt_data.tax ?? 0,
+        total: receipt_data.total ?? 0,
+        payment_method: receipt_data.payment_method || "cash",
+        cash_tendered: receipt_data.cash_tendered,
+        cash_change: receipt_data.cash_change,
+      };
+
       let selectedPrinterId = printer_id;
 
       // If no printer specified, try to find any active printer
@@ -62,13 +90,13 @@ export async function POST(request: NextRequest) {
       if (!selectedPrinterId) {
         // No printer available - return receipt for browser printing
         try {
-          const receiptText = generateReceiptText(receipt_data);
+          const receiptText = generateReceiptText(normalizedReceiptData);
           return NextResponse.json({
             success: true,
             queued: false,
             message: "No printer configured - use browser print",
             receipt_text: receiptText,
-            receipt_data: receipt_data,
+            receipt_data: normalizedReceiptData,
           });
         } catch (genError: any) {
           console.error("[Print] generateReceiptText failed:", genError);
@@ -87,7 +115,7 @@ export async function POST(request: NextRequest) {
             supabaseUrl,
             supabaseKey,
             selectedPrinterId,
-            receipt_data,
+            normalizedReceiptData,
             receipt_id
           );
         }
@@ -105,7 +133,7 @@ export async function POST(request: NextRequest) {
         copies: numCopies,
         printer_id: selectedPrinterId,
         message: `Receipt queued for printing (${numCopies} ${numCopies === 1 ? 'copy' : 'copies'})`,
-        receipt_data: receipt_data,
+        receipt_data: normalizedReceiptData,
       });
     }
 
