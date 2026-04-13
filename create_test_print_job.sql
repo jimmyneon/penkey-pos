@@ -40,19 +40,13 @@ INSERT INTO print_jobs (
     'cash_tendered', 10.00,
     'cash_change', 4.00,
     'printer_settings', jsonb_build_object(
-      'code_page', 1,
+      'code_page', 19,
       'feed_lines_before_cut', 6,
-      'width', 48
+      'width', 42
     ),
-    'receipt_text', '      **Penkey Delicaf & Gifts**
-        123 Test Street
-        Tel: 01234 567890
-
-Receipt #12345
-' || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || '
-
-Served by: Test Staff
-Register: Main Till
+    'receipt_text', '##PENKEY DELICAF##
+5 New Street, Lymington
+WhatsApp Pre-orders: 01590 619472
 
 ========================================
 1x Test Item                     5.00
@@ -62,17 +56,15 @@ Register: Main Till
 
 Subtotal:                       11.00
 Tax (20%):                       2.20
-**========================================**
-        TOTAL: 13.20
-**========================================**
+========================================
+**TOTAL:                         13.20**
+========================================
 
-Payment:                       Cash
-Cash Tendered:                 15.00
-Change:                        1.80
+Payment:                        Cash
+' || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || '
+Order #12345
 
-Thank you for your custom!
-
-Please visit again soon'
+      Thank you for visiting'
   ),
   'pending',
   'normal',
