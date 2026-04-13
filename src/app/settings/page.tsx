@@ -69,9 +69,10 @@ export default function SettingsPage() {
       if (!resp.ok) throw new Error("Failed to fetch printers");
       const data = await resp.json();
       const printers: any[] = data.printers || [];
-      setPrinterCount(printers.length);
-      const anyOnline = printers.some((p: any) => p.status === "online");
-      setPrinterStatus(printers.length === 0 ? "offline" : anyOnline ? "online" : "offline");
+      const activePrinters = printers.filter((p: any) => p.is_active);
+      setPrinterCount(activePrinters.length);
+      const anyOnline = activePrinters.some((p: any) => p.status === "online");
+      setPrinterStatus(activePrinters.length === 0 ? "offline" : anyOnline ? "online" : "offline");
     } catch {
       setPrinterStatus("offline");
     }
