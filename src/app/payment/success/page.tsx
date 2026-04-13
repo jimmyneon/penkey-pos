@@ -132,6 +132,7 @@ function PaymentSuccessContent() {
           const { getDB } = await import('@/lib/idb/db');
           const db = await getDB();
           receiptData = await db.get('receipts', receiptId);
+          console.log('[PaymentSuccess] Fetched receipt from IndexedDB:', receiptData ? 'found' : 'not found');
         } catch (err) {
           console.error('Failed to fetch temp receipt from IndexedDB:', err);
         }
@@ -150,6 +151,12 @@ function PaymentSuccessContent() {
           }
         }
       } catch {}
+
+      console.log('[PaymentSuccess] Sending to print API:', {
+        receipt_id: receiptId,
+        has_receipt_data: !!receiptData,
+        copies,
+      });
 
       const response = await fetch("/api/receipts/print", {
         method: "POST",

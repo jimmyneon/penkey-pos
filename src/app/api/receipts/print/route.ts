@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    const { receipt_id, printer_id, receipt_data, copies = 1 } = await request.json();
+    const body = await request.json();
+    console.log("[Print] Request body:", JSON.stringify(body, null, 2));
+
+    const { receipt_id, printer_id, receipt_data, copies = 1 } = body;
 
     if (!receipt_id && !receipt_data) {
       return NextResponse.json(
