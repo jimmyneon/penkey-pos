@@ -142,14 +142,14 @@ class PrintServer:
     # ------------------------------------------------------------------
 
     async def update_printer_status(self, status: str, error: Optional[str] = None) -> None:
-        """Update printer status and heartbeat in Supabase"""
+        """Update printer heartbeat in Supabase (status column doesn't exist, use last_seen_at instead)"""
         try:
             updates: Dict[str, Any] = {
-                'status': status,
                 'last_seen_at': datetime.utcnow().isoformat()
             }
             if error:
-                updates['last_error'] = error
+                # Store error in config as last_error since status column doesn't exist
+                updates['config'] = {'last_error': error}
 
             await self.supabase.table('printers') \
                 .update(updates) \

@@ -65,15 +65,14 @@ export default function SettingsPage() {
   const checkPrinterStatus = async () => {
     setPrinterStatus("checking");
     try {
-      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
-      const resp = await fetch("/api/printers", {
-        headers: sessionData ? { "x-pos-session": sessionData } : {},
-      });
+      const resp = await fetch("/api/printers");
       if (!resp.ok) throw new Error("Failed to fetch printers");
       const data = await resp.json();
       const printers: any[] = data.printers || [];
       setPrinterCount(printers.length);
-      const anyOnline = printers.some((p: any) => p.status === "online");
+      // Check if any printer was seen in the last 30 seconds
+      const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
+      const anyOnline = printers.some((p: any) => p.last_seen_at && p.last_seen_at > thirtySecondsAgo);
       setPrinterStatus(printers.length === 0 ? "offline" : anyOnline ? "online" : "offline");
     } catch {
       setPrinterStatus("offline");
