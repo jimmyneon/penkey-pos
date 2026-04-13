@@ -54,26 +54,41 @@ export async function POST(request: NextRequest) {
 
       if (!selectedPrinterId) {
         // No printer available - return receipt for browser printing
-        const receiptText = generateReceiptText(receipt_data);
-
-        return NextResponse.json({
-          success: true,
-          queued: false,
-          message: "No printer configured - use browser print",
-          receipt_text: receiptText,
-          receipt_data: receipt_data,
-        });
+        try {
+          const receiptText = generateReceiptText(receipt_data);
+          return NextResponse.json({
+            success: true,
+            queued: false,
+            message: "No printer configured - use browser print",
+            receipt_text: receiptText,
+            receipt_data: receipt_data,
+          });
+        } catch (genError: any) {
+          console.error("[Print] generateReceiptText failed:", genError);
+          return NextResponse.json(
+            { error: `Failed to generate receipt text: ${genError?.message}` },
+            { status: 500 }
+          );
+        }
       }
 
       // Create print jobs (one per copy)
       const numCopies = Math.min(Math.max(1, copies), 3);
-      for (let i = 0; i < numCopies; i++) {
-        await createReceiptPrintJob(
-          supabaseUrl,
-          supabaseKey,
-          selectedPrinterId,
-          receipt_data,
-          receipt_id
+      try {
+        for (let i = 0; i < numCopies; i++) {
+          await createReceiptPrintJob(
+            supabaseUrl,
+            supabaseKey,
+            selectedPrinterId,
+            receipt_data,
+            receipt_id
+          );
+        }
+      } catch (jobError: any) {
+        console.error("[Print] createReceiptPrintJob failed:", jobError);
+        return NextResponse.json(
+          { error: `Failed to create print job: ${jobError?.message}` },
+          { status: 500 }
         );
       }
 
