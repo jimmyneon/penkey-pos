@@ -62,11 +62,11 @@ export async function POST(request: NextRequest) {
           line_total: line.line_total ?? 0,
         })),
         subtotal: receipt_data.subtotal ?? 0,
-        tax: receipt_data.tax ?? 0,
+        tax: receipt_data.tax_total ?? receipt_data.tax ?? 0,
         total: receipt_data.total ?? 0,
         payment_method: receipt_data.payment_method || "cash",
-        cash_tendered: receipt_data.cash_tendered,
-        cash_change: receipt_data.cash_change,
+        cash_tendered: receipt_data.paid_amount ?? receipt_data.cash_tendered,
+        cash_change: receipt_data.change_amount ?? receipt_data.cash_change,
       };
 
       let selectedPrinterId = printer_id;
@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
     // Fetch related data separately to avoid complex nested selects
     let storeName = "Penkey Délicaf & Gifts";
     let storeAddress: string | undefined = undefined;
+    let storePhone: string | undefined = undefined;
     let registerName = "Main Till";
     let employeeName = "Staff";
 
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
       if (r.register_id) {
         const { data: register } = await supabase
           .from("registers")
-          .select("name, stores(name, address)")
+          .select("name, stores(name, address, phone)")
           .eq("id", r.register_id)
           .maybeSingle();
         if (register) {
@@ -189,6 +190,7 @@ export async function POST(request: NextRequest) {
           if ((register as any).stores) {
             storeName = (register as any).stores.name || storeName;
             storeAddress = (register as any).stores.address;
+            storePhone = (register as any).stores.phone;
           }
         }
       }
@@ -243,6 +245,7 @@ export async function POST(request: NextRequest) {
     const receiptData: ReceiptTemplateData = {
       store_name: storeName,
       store_address: storeAddress,
+      store_phone: storePhone,
       receipt_number: r.receipt_number ?? 0,
       date: new Date(r.created_at).toLocaleDateString("en-GB"),
       time: new Date(r.created_at).toLocaleTimeString("en-GB", {
