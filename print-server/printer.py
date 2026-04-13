@@ -176,9 +176,15 @@ Status: Online
             # Alignment — left by default, app uses markers or text structure
             commands.extend([0x1B, 0x61, 0x00])  # Left align
 
-            # Encode text using cp858 to match the printer's code page
-            # In cp858: £ = 0x9C (latin-1 would give 0xA3 which prints as ú)
-            commands.extend(line.encode('cp858', errors='replace'))
+            # Encode text: replace £ with raw byte 0x9C (correct on CP437/CP850/CP858)
+            # then encode the rest as ascii. This avoids codec mismatches entirely.
+            encoded = bytearray()
+            for ch in line:
+                if ch == '£':
+                    encoded.append(0x9C)
+                else:
+                    encoded.extend(ch.encode('ascii', errors='replace'))
+            commands.extend(encoded)
             commands.append(0x0A)
 
         # Reset formatting
@@ -211,7 +217,13 @@ Status: Online
 
         # Add text
         for line in text.split('\n'):
-            commands.extend(line.encode('cp858', errors='replace'))
+            encoded = bytearray()
+            for ch in line:
+                if ch == '£':
+                    encoded.append(0x9C)
+                else:
+                    encoded.extend(ch.encode('ascii', errors='replace'))
+            commands.extend(encoded)
             commands.append(0x0A)
 
         # Feed lines before cut
