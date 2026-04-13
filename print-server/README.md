@@ -75,7 +75,7 @@ SUPABASE_KEY=your-service-role-key
 PRINTER_ID=your-printer-uuid-from-database
 PRINTER_DEVICE=/dev/ttyUSB0
 PRINTER_BAUD=38400
-POLL_INTERVAL=5
+POLL_INTERVAL=30
 ```
 
 **Environment Variables:**

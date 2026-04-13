@@ -356,7 +356,7 @@ class PrintServer:
                 logger.debug("[Fallback] Polling for missed pending jobs...")
                 for job in await self.get_pending_jobs():
                     await self._dispatch_job(job)
-                # Heartbeat: keep printer status fresh
+                # Heartbeat: keep printer status fresh (every 30 seconds to avoid rate limits)
                 await self.update_printer_status('online')
 
             except Exception as e:
