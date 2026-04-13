@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
 
       // Create print jobs (one per copy)
       const numCopies = Math.min(Math.max(1, copies), 3);
+      // Only pass receipt_id if it's a valid UUID (not a temp ID)
+      const validReceiptId = receipt_id && !receipt_id.startsWith('temp_') ? receipt_id : undefined;
       try {
         for (let i = 0; i < numCopies; i++) {
           await createReceiptPrintJob(
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
             supabaseKey,
             selectedPrinterId,
             normalizedReceiptData,
-            receipt_id
+            validReceiptId
           );
         }
       } catch (jobError: any) {
