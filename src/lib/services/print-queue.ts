@@ -14,6 +14,7 @@ export interface CreatePrintJobInput {
   data: Record<string, any>;
   priority?: "high" | "normal" | "low";
   receipt_id?: string | null;
+  org_id?: string;
 }
 
 export interface PrinterConfig {
@@ -48,6 +49,7 @@ export async function createPrintJob(
       data: input.data,
       priority: input.priority || "normal",
       receipt_id: input.receipt_id || null,
+      org_id: input.org_id || null,
       status: "pending",
       attempts: 0,
       max_attempts: 3,
@@ -65,7 +67,8 @@ export async function createReceiptPrintJob(
   supabaseKey: string,
   printer_id: string,
   receiptData: ReceiptTemplateData,
-  receipt_id?: string
+  receipt_id?: string,
+  org_id?: string
 ): Promise<PrintJob> {
   const receiptText = generateReceiptText(receiptData);
 
@@ -90,6 +93,7 @@ export async function createReceiptPrintJob(
     },
     priority: "normal",
     receipt_id,
+    org_id,
   });
 }
 

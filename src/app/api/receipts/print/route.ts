@@ -118,7 +118,8 @@ export async function POST(request: NextRequest) {
             supabaseKey,
             selectedPrinterId,
             normalizedReceiptData,
-            validReceiptId
+            validReceiptId,
+            session.org_id
           );
         }
       } catch (jobError: any) {
@@ -303,7 +304,8 @@ export async function POST(request: NextRequest) {
         supabaseKey,
         selectedPrinterId,
         receiptData,
-        receipt_id
+        receipt_id,
+        session.org_id
       );
     }
 
