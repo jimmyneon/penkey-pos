@@ -65,7 +65,25 @@ class EpsonSerialPrinter:
         """Print a formatted receipt - app handles all layout and formatting"""
         try:
             logger.info("[Print] Starting receipt print")
+            # DEBUG: log first 200 chars and their hex to trace £ encoding
+            sample = receipt_text[:200] if receipt_text else ''
+            logger.info(f"[Print] receipt_text type={type(receipt_text).__name__}, len={len(receipt_text)}")
+            logger.info(f"[Print] first 200 chars repr: {repr(sample)}")
+            logger.info(f"[Print] first 200 chars hex: {sample.encode('utf-8').hex()}")
+            # Check if £ is present
+            pound_idx = receipt_text.find('£')
+            if pound_idx >= 0:
+                logger.info(f"[Print] Found £ at index {pound_idx}, ord={ord(receipt_text[pound_idx])}")
+            else:
+                logger.info("[Print] WARNING: No £ character found in receipt_text!")
+                # Check for common alternatives
+                for i, ch in enumerate(receipt_text):
+                    if ord(ch) > 127:
+                        logger.info(f"[Print] Non-ASCII at idx {i}: char={repr(ch)} ord={ord(ch)}")
+                        if i > 20:
+                            break
             commands = self._build_escpos_receipt(receipt_text, settings)
+            logger.info(f"[Print] Built {len(commands)} bytes of ESC/POS commands")
             self._print_raw(commands)
             logger.info("[Print] Receipt printed successfully")
             return True
