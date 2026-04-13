@@ -15,6 +15,7 @@ import {
 import { hapticButtonPress, hapticSuccess } from "@/lib/utils/haptics";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
+import { buildReceipt, formatCurrency, type ReceiptData } from "@/lib/services/receipt-builder";
 
 interface ReceiptTemplate {
   id: string;
@@ -73,30 +74,26 @@ export default function ReceiptTemplatesPage() {
   const handlePreview = () => {
     if (!selectedTemplate) return;
     
-    // Generate preview using the template
-    const preview = generatePreview(selectedTemplate);
+    // Generate preview using the template and receipt builder
+    const receiptData: ReceiptData = {
+      header: selectedTemplate.header,
+      items: [
+        { item_name: "Ham Baguette", quantity: 1, line_total: 6.50 },
+        { item_name: "Tea", quantity: 1, line_total: 3.00 },
+      ],
+      subtotal: 9.50,
+      tax: 0.00,
+      total: 9.50,
+      payment_method: "Card",
+      date: new Date().toLocaleDateString('en-GB'),
+      time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      receipt_number: 1024,
+      footer: selectedTemplate.footer,
+    };
+    
+    const preview = buildReceipt(receiptData);
     setPreviewData(preview);
     setPreviewMode(true);
-  };
-
-  const generatePreview = (template: ReceiptTemplate): string => {
-    return `
-${template.header}
-
-========================================
-Ham Baguette                     £6.50
-Tea                              £3.00
-========================================
-
-Subtotal                        £9.50
-TOTAL                           £9.50
-
-Card
-11/04/2026 13:25
-Order #1024
-
-${template.footer}
-    `.trim();
   };
 
   const handleCreateNew = () => {

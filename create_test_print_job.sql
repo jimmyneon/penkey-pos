@@ -44,23 +44,23 @@ INSERT INTO print_jobs (
       'feed_lines_before_cut', 6,
       'width', 42
     ),
-    'receipt_text', '',
-    'lines', jsonb_build_array(
-      jsonb_build_object(
-        'item_name', 'Ham Baguette',
-        'line_total', 6.50
-      ),
-      jsonb_build_object(
-        'item_name', 'Tea',
-        'line_total', 3.00
-      )
-    ),
-    'subtotal', 9.50,
-    'total', 9.50,
-    'payment_method', 'Card',
-    'date', to_char(now(), 'DD/MM/YYYY'),
-    'time', to_char(now(), 'HH24:MI'),
-    'receipt_number', '1024'
+    'receipt_text', 'PENKEY DELICAF
+5 New Street, Lymington
+WhatsApp Pre-orders: 01590 619472
+
+------------------------------------------
+Ham Baguette                     £6.50
+Tea                              £3.00
+------------------------------------------
+
+Subtotal                        £9.50
+**TOTAL:                         £9.50**
+
+Card
+' || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || '
+Order #1024
+
+Thank you for visiting'
   ),
   'pending',
   'normal',
