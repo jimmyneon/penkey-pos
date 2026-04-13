@@ -206,8 +206,42 @@ export default function TransactionDetailsPage() {
     }
   };
 
-  const handlePrint = () => {
-    router.push(`/receipts/${params.id}/template?print=1`);
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (printing) return;
+    setPrinting(true);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session");
+      if (!sessionData) {
+        showToast("Session expired. Please log in again.", "error");
+        return;
+      }
+
+      const response = await fetch("/api/receipts/print", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pos-session": sessionData,
+        },
+        body: JSON.stringify({ receipt_id: params.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to print");
+
+      if (data.queued) {
+        showToast(data.message || "Receipt sent to printer", "success");
+      } else if (data.receipt_text) {
+        // Fallback: no printer configured — open browser print dialog
+        router.push(`/receipts/${params.id}/template?print=1`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      showToast(e.message || "Failed to print receipt", "error");
+    } finally {
+      setPrinting(false);
+    }
   };
 
   const handleEmail = async (email: string) => {

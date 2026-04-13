@@ -21,7 +21,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { receipt_id, printer_id, receipt_data } = await request.json();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    const { receipt_id, printer_id, receipt_data, copies = 1 } = await request.json();
 
     if (!receipt_id && !receipt_data) {
       return NextResponse.json(
@@ -59,21 +62,24 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Create print job in queue
-      const printJob = await createReceiptPrintJob(
-        supabaseUrl,
-        supabaseKey,
-        selectedPrinterId,
-        receipt_data,
-        receipt_id
-      );
+      // Create print jobs (one per copy)
+      const numCopies = Math.min(Math.max(1, copies), 3);
+      for (let i = 0; i < numCopies; i++) {
+        await createReceiptPrintJob(
+          supabaseUrl,
+          supabaseKey,
+          selectedPrinterId,
+          receipt_data,
+          receipt_id
+        );
+      }
 
       return NextResponse.json({
         success: true,
         queued: true,
-        job_id: printJob.id,
+        copies: numCopies,
         printer_id: selectedPrinterId,
-        message: "Receipt queued for printing",
+        message: `Receipt queued for printing (${numCopies} ${numCopies === 1 ? 'copy' : 'copies'})`,
         receipt_data: receipt_data,
       });
     }
@@ -86,9 +92,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supabase = createSupabaseServerClient(supabaseUrl, supabaseKey);
 
     // Fetch receipt with all details
@@ -169,21 +172,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create print job in queue
-    const printJob = await createReceiptPrintJob(
-      supabaseUrl,
-      supabaseKey,
-      selectedPrinterId,
-      receiptData,
-      receipt_id
-    );
+    // Create print jobs (one per copy)
+    const numCopies = Math.min(Math.max(1, copies), 3);
+    for (let i = 0; i < numCopies; i++) {
+      await createReceiptPrintJob(
+        supabaseUrl,
+        supabaseKey,
+        selectedPrinterId,
+        receiptData,
+        receipt_id
+      );
+    }
 
     return NextResponse.json({
       success: true,
       queued: true,
-      job_id: printJob.id,
+      copies: numCopies,
       printer_id: selectedPrinterId,
-      message: "Receipt queued for printing",
+      message: `Receipt queued for printing (${numCopies} ${numCopies === 1 ? 'copy' : 'copies'})`,
       receipt_data: receiptData,
     });
   } catch (error: any) {

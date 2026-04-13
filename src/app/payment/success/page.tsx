@@ -137,12 +137,27 @@ function PaymentSuccessContent() {
         }
       }
 
+      // Read receipt_copies from register settings
+      let copies = 1;
+      try {
+        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        if (sessionData) {
+          const session = JSON.parse(sessionData);
+          const regId = session.register?.id;
+          if (regId) {
+            const s = await registerSettings.get(regId);
+            copies = s.receipt_copies || 1;
+          }
+        }
+      } catch {}
+
       const response = await fetch("/api/receipts/print", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           receipt_id: receiptId,
-          receipt_data: receiptData
+          receipt_data: receiptData,
+          copies,
         }),
       });
 
