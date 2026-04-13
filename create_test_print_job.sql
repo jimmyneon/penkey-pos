@@ -44,9 +44,9 @@ INSERT INTO print_jobs (
       'feed_lines_before_cut', 6,
       'width', 42
     ),
-    'receipt_text', '         ##PENKEY DELICAF##
-      5 New Street, Lymington
-WhatsApp Pre-orders: 01590 619472
+    'receipt_text', '          ##PENKEY DELICAF##
+          5 New Street, Lymington
+  WhatsApp Pre-orders: 01590 619472
 
 ========================================
 1x Test Item                     5.00
@@ -64,7 +64,7 @@ Payment:                        Cash
 ' || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || '
 Order #12345
 
-      Thank you for visiting'
+        Thank you for visiting'
   ),
   'pending',
   'normal',
