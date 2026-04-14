@@ -327,15 +327,19 @@ export default function PaymentPage() {
 
       // OFFLINE-FIRST: Save locally immediately for instant response
       // Parallel writes instead of sequential (50-100ms faster)
+      const receiptToSave = {
+        id: tempReceiptId,
+        ...receiptData,
+        created_at: new Date().toISOString(),
+        total: total,
+        change: change,
+        offline: true,
+      };
+      console.log('[Payment] Saving receipt to IndexedDB:', receiptToSave);
+      console.log('[Payment] Receipt id field:', receiptToSave.id);
+
       await Promise.all([
-        putMany("receipts", [{
-          id: tempReceiptId,
-          ...receiptData,
-          created_at: new Date().toISOString(),
-          total: total,
-          change: change,
-          offline: true,
-        }]),
+        putMany("receipts", [receiptToSave]),
         OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, false)
       ]);
 
