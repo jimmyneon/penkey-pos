@@ -386,8 +386,10 @@ export default function PaymentPage() {
 
       await Promise.all([
         putMany("receipts", [receiptToSave]),
-        OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, false)
+        OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true) // Trigger immediate sync
       ]);
+      
+      console.log('[Payment] Receipt saved locally and queued for sync:', tempReceiptId);
 
       // Clear cart and ticket assignment immediately
       clearCart();
@@ -1261,8 +1263,10 @@ export default function PaymentPage() {
         cash_change: 0,
       }]);
 
-      // Queue for sync via outbox (same as cash)
-      await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, false);
+      // Queue for sync via outbox and trigger immediate sync
+      await OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true);
+      
+      console.log('[Payment] Card receipt saved locally and queued for sync:', tempReceiptId);
 
       clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
