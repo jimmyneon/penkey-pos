@@ -11,6 +11,16 @@ function isValidUUID(str: string | null | undefined): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 }
+
+// Convert any string to a deterministic UUID v5 (for temp IDs)
+function stringToUUID(str: string): string {
+  // Use a simple hash to create a deterministic UUID
+  // This ensures the same temp ID always generates the same UUID
+  const crypto = require('crypto');
+  const hash = crypto.createHash('sha256').update(str).digest('hex');
+  // Format as UUID v5
+  return `${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
+}
 import { validateCSRF, csrfErrorResponse } from "@/lib/api/csrf-middleware";
 
 export async function POST(request: NextRequest) {
@@ -202,7 +212,7 @@ export async function POST(request: NextRequest) {
         change_amount: payment_method === "cash" ? (cash_tendered || 0) - total : 0,
         status: "completed",
         dining_option: dining_option || "takeaway",
-        idempotency_key: isValidUUID(id) ? id : null,
+        idempotency_key: id ? (isValidUUID(id) ? id : stringToUUID(id)) : null,
         // Preserve original transaction time if provided (offline sync), otherwise use database default
         created_at: created_at || undefined,
       })
