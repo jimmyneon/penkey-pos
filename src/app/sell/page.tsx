@@ -1107,10 +1107,13 @@ export default function SellPage() {
     return null;
   }
 
+  // Calculate total quantity of items (sum of all line quantities)
+  const totalItemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
+
   return (
     <div className="min-h-screen bg-[#2d2d2d] flex flex-col">
       <SellHeader
-        linesCount={lines.length}
+        linesCount={totalItemCount}
         savedTicketsCount={savedTickets.length}
         total={getTotal()}
         syncing={syncing}
