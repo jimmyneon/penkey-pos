@@ -147,10 +147,16 @@ function PaymentSuccessContent() {
           const regId = session.register?.id;
           if (regId) {
             const s = await registerSettings.get(regId);
+            console.log('[PaymentSuccess] Register settings:', {
+              receipt_copies: s.receipt_copies,
+              print_behaviour: s.print_behaviour,
+            });
             copies = s.receipt_copies || 1;
           }
         }
-      } catch {}
+      } catch (error) {
+        console.error('[PaymentSuccess] Failed to get receipt_copies:', error);
+      }
 
       console.log('[PaymentSuccess] Sending to print API:', {
         receipt_id: receiptId,
