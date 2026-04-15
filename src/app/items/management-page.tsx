@@ -21,6 +21,8 @@ import { dataCache } from "@/lib/services/data-cache";
 import { invalidateAllModifiers } from "@/lib/services/modifier-cache";
 import { createSupabaseClient } from "@/lib/database";
 import { SyncManager } from "@/lib/services/sync-manager";
+import { ImportResultsDialog } from "@/components/import-results-dialog";
+import { ImportDuplicateDialog } from "@/components/import-duplicate-dialog";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -71,6 +73,11 @@ export default function ManagementPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
+  const [importResultsOpen, setImportResultsOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<any>(null);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
   const { categories, loading: categoriesLoading, reload: reloadCategories } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -148,20 +155,24 @@ export default function ManagementPage() {
     try {
       setExporting(true);
       const response = await fetch('/api/export');
-      if (!response.ok) throw new Error('Export failed');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Export failed with status ${response.status}`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'penkey-export.json';
+      a.download = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'penkey-export.csv';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      alert(`Export failed: ${error.message || 'Please try again.'}`);
     } finally {
       setExporting(false);
     }
@@ -172,13 +183,53 @@ export default function ManagementPage() {
       setImporting(true);
       const text = await file.text();
       
-      const response = await fetch('/api/import', {
+      // First check for duplicates
+      const checkResponse = await fetch('/api/import?check_duplicates=true', {
         method: 'POST',
         headers: { 'Content-Type': 'text/csv' },
         body: text,
       });
       
-      if (!response.ok) throw new Error('Import failed');
+      if (!checkResponse.ok) {
+        const errorData = await checkResponse.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to check duplicates');
+      }
+      
+      const { duplicates } = await checkResponse.json();
+      const totalDuplicates = duplicates.categories + duplicates.items + duplicates.modifier_groups;
+      
+      if (totalDuplicates > 0) {
+        // Show duplicate dialog
+        setDuplicateInfo(duplicates);
+        setPendingImportFile(file);
+        setDuplicateDialogOpen(true);
+        setImporting(false);
+      } else {
+        // No duplicates, proceed with import
+        await performImport(text, false);
+      }
+    } catch (error: any) {
+      console.error('Import failed:', error);
+      alert(`Import failed: ${error.message || 'Please check the file format and try again.'}`);
+      setImporting(false);
+    }
+  };
+
+  const performImport = async (csvText: string, skipDuplicates: boolean) => {
+    try {
+      setImporting(true);
+      setDuplicateDialogOpen(false);
+      
+      const response = await fetch(`/api/import?skip_duplicates=${skipDuplicates}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv' },
+        body: csvText,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Import failed');
+      }
       
       const result = await response.json();
       
@@ -193,14 +244,28 @@ export default function ManagementPage() {
       fetchModifierGroups();
       
       setImportDialogOpen(false);
-      
-      const message = `Import complete!\n\nCategories: ${result.results.categories.created} created, ${result.results.categories.errors} errors\nItems: ${result.results.items.created} created, ${result.results.items.errors} errors\nModifier Groups: ${result.results.modifier_groups.created} created, ${result.results.modifier_groups.errors} errors\nModifier Options: ${result.results.modifier_options.created} created, ${result.results.modifier_options.errors} errors`;
-      alert(message);
-    } catch (error) {
+      setImportResults(result);
+      setImportResultsOpen(true);
+      setPendingImportFile(null);
+    } catch (error: any) {
       console.error('Import failed:', error);
-      alert('Import failed. Please check the file format and try again.');
+      alert(`Import failed: ${error.message || 'Please try again.'}`);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleSkipDuplicates = async () => {
+    if (pendingImportFile) {
+      const text = await pendingImportFile.text();
+      await performImport(text, true);
+    }
+  };
+
+  const handleOverwriteDuplicates = async () => {
+    if (pendingImportFile) {
+      const text = await pendingImportFile.text();
+      await performImport(text, false);
     }
   };
 
@@ -832,6 +897,26 @@ export default function ManagementPage() {
           </div>
         </div>
       )}
+
+      {/* Import Results Dialog */}
+      <ImportResultsDialog
+        open={importResultsOpen}
+        onClose={() => setImportResultsOpen(false)}
+        results={importResults?.results}
+        format={importResults?.format}
+      />
+
+      {/* Duplicate Detection Dialog */}
+      <ImportDuplicateDialog
+        open={duplicateDialogOpen}
+        onClose={() => {
+          setDuplicateDialogOpen(false);
+          setPendingImportFile(null);
+        }}
+        duplicates={duplicateInfo}
+        onSkip={handleSkipDuplicates}
+        onOverwrite={handleOverwriteDuplicates}
+      />
     </div>
   );
 }

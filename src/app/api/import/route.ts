@@ -39,6 +39,75 @@ function isLoyverseFormat(headers: string[]): boolean {
   return headerLower.includes('handle') && headerLower.includes('sku') && headerLower.includes('name');
 }
 
+async function detectDuplicates(csvText: string, orgId: string) {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length < 2) return { categories: 0, items: 0, modifier_groups: 0 };
+
+  const headers = parseCSVLine(lines[0]);
+  const headerMap = new Map(headers.map((h, i) => [h.toLowerCase().trim(), i]));
+  const isLoyverse = isLoyverseFormat(headers);
+
+  const supabase = createSupabaseServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const duplicates = { categories: 0, items: 0, modifier_groups: 0 };
+  const categoryNames = new Set<string>();
+  const itemNames = new Set<string>();
+  const modifierGroupNames = new Set<string>();
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    
+    if (isLoyverse) {
+      const name = unescapeCSV(values[headerMap.get('name') || 2] || '');
+      const category = unescapeCSV(values[headerMap.get('category') || 3] || '');
+      
+      if (name) itemNames.add(name);
+      if (category) categoryNames.add(category);
+    } else {
+      const type = values[headerMap.get('type') || 0]?.toLowerCase().trim();
+      const name = unescapeCSV(values[headerMap.get('name') || 1] || '');
+      
+      if (!name) continue;
+      
+      if (type === 'category') categoryNames.add(name);
+      else if (type === 'item') itemNames.add(name);
+      else if (type === 'modifier group') modifierGroupNames.add(name);
+    }
+  }
+
+  if (categoryNames.size > 0) {
+    const { data } = await supabase
+      .from('categories')
+      .select('name')
+      .eq('org_id', orgId)
+      .in('name', Array.from(categoryNames));
+    duplicates.categories = data?.length || 0;
+  }
+
+  if (itemNames.size > 0) {
+    const { data } = await supabase
+      .from('items')
+      .select('name')
+      .eq('org_id', orgId)
+      .in('name', Array.from(itemNames));
+    duplicates.items = data?.length || 0;
+  }
+
+  if (modifierGroupNames.size > 0) {
+    const { data } = await supabase
+      .from('modifier_groups')
+      .select('name')
+      .eq('org_id', orgId)
+      .in('name', Array.from(modifierGroupNames));
+    duplicates.modifier_groups = data?.length || 0;
+  }
+
+  return duplicates;
+}
+
 export async function POST(request: NextRequest) {
   const session = await validatePOSSession(request);
   if (!session) {
@@ -54,8 +123,26 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Too many requests", { status: 429 });
   }
 
+  const url = new URL(request.url);
+  const checkDuplicates = url.searchParams.get('check_duplicates') === 'true';
+  const skipDuplicates = url.searchParams.get('skip_duplicates') === 'true';
+
+  const body = await request.text();
+
+  if (checkDuplicates) {
+    try {
+      const duplicates = await detectDuplicates(body, session.org_id);
+      return NextResponse.json({ duplicates });
+    } catch (error: any) {
+      console.error("Failed to check duplicates:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to check duplicates" },
+        { status: 500 }
+      );
+    }
+  }
+
   try {
-    const body = await request.text();
     const lines = body.split('\n').filter(line => line.trim());
     
     if (lines.length < 2) {
@@ -77,12 +164,12 @@ export async function POST(request: NextRequest) {
     );
 
     const results = {
-      categories: { created: 0, errors: 0 },
-      items: { created: 0, errors: 0 },
-      item_variants: { created: 0, errors: 0 },
-      modifier_groups: { created: 0, errors: 0 },
-      modifier_options: { created: 0, errors: 0 },
-      item_modifier_links: { created: 0, errors: 0 }
+      categories: { created: 0, updated: 0, skipped: 0, errors: 0 },
+      items: { created: 0, updated: 0, skipped: 0, errors: 0 },
+      item_variants: { created: 0, updated: 0, skipped: 0, errors: 0 },
+      modifier_groups: { created: 0, updated: 0, skipped: 0, errors: 0 },
+      modifier_options: { created: 0, updated: 0, skipped: 0, errors: 0 },
+      item_modifier_links: { created: 0, updated: 0, skipped: 0, errors: 0 }
     };
 
     const categoryMap = new Map<string, string>();
@@ -120,6 +207,18 @@ export async function POST(request: NextRequest) {
 
               if (existing) {
                 categoryMap.set(category, existing.id);
+                if (skipDuplicates) {
+                  results.categories.skipped++;
+                } else {
+                  await supabase
+                    .from("categories")
+                    .update({
+                      color: '#f97316',
+                      is_active: true
+                    } as any)
+                    .eq("id", existing.id);
+                  results.categories.updated++;
+                }
               } else {
                 const { data: newCat, error: catError } = await supabase
                   .from("categories")
@@ -186,6 +285,23 @@ export async function POST(request: NextRequest) {
           for (const groupName of Array.from(itemModifierGroups)) {
             if (!modifierGroupMap.has(groupName)) {
               try {
+                const { data: existingGroup } = await supabase
+                  .from("modifier_groups")
+                  .select("id")
+                  .eq("org_id", session.org_id)
+                  .eq("name", groupName)
+                  .single() as { data: { id: string } | null };
+
+                if (existingGroup) {
+                  modifierGroupMap.set(groupName, existingGroup.id);
+                  if (skipDuplicates) {
+                    results.modifier_groups.skipped++;
+                  } else {
+                    results.modifier_groups.updated++;
+                  }
+                  continue;
+                }
+
                 const { data: newGroup, error: groupError } = await supabase
                   .from("modifier_groups")
                   .insert({
@@ -256,6 +372,20 @@ export async function POST(request: NextRequest) {
 
             if (existing) {
               categoryMap.set(name, existing.id);
+              if (skipDuplicates) {
+                results.categories.skipped++;
+              } else {
+                await supabase
+                  .from("categories")
+                  .update({
+                    color,
+                    sort_order: sortOrder,
+                    description,
+                    is_active: isActive
+                  } as any)
+                  .eq("id", existing.id);
+                results.categories.updated++;
+              }
               continue;
             }
 
@@ -289,6 +419,35 @@ export async function POST(request: NextRequest) {
             const isActive = values[headerMap.get('is active') || 11]?.toLowerCase() === 'true';
 
             const categoryId = categoryName ? categoryMap.get(categoryName) || null : null;
+
+            const { data: existingItem } = await supabase
+              .from("items")
+              .select("id")
+              .eq("org_id", session.org_id)
+              .eq("name", name)
+              .single() as { data: { id: string } | null };
+
+            if (existingItem) {
+              if (skipDuplicates) {
+                results.items.skipped++;
+                itemMap.set(name, existingItem.id);
+                continue;
+              } else {
+                await supabase
+                  .from("items")
+                  .update({
+                    category_id: categoryId,
+                    base_price: price,
+                    sku,
+                    description,
+                    is_active: isActive
+                  } as any)
+                  .eq("id", existingItem.id);
+                results.items.updated++;
+                itemMap.set(name, existingItem.id);
+                continue;
+              }
+            }
 
             const { data: newItem, error: itemError } = await supabase
               .from("items")

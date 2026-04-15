@@ -288,14 +288,14 @@ export default function SellPage() {
     }
   }, [router]);
 
-  // Initialize cart sync when session is loaded
+  // Initialize cart sync when session is loaded - LOAD ONLY, no polling
   useEffect(() => {
     if (!session) return;
 
     const initCartSync = async () => {
       try {
-        // Load cart from database
-        const { lines: syncedLines, ticketAssignment: syncedAssignment } = await CartSyncService.initialize(
+        // Load cart from database ONCE on mount
+        const { lines: syncedLines, ticketAssignment: syncedAssignment} = await CartSyncService.initialize(
           session.org_id,
           session.register.id,
           session.employee.id
@@ -307,38 +307,27 @@ export default function SellPage() {
           if (syncedAssignment) {
             setTicketAssignment(syncedAssignment);
           }
-          console.log('[CartSync] Loaded cart from database');
+          console.log('[CartSync] Loaded cart from database on mount');
         }
 
-        // Start polling for updates from other devices
-        CartSyncService.startSync((updatedLines, updatedAssignment) => {
-          console.log('[CartSync] Received update from another device');
-          loadLines(updatedLines);
-          if (updatedAssignment) {
-            setTicketAssignment(updatedAssignment);
-          }
-        });
+        // DO NOT start polling - causes sync loops
+        // Multi-device sync will happen via page refresh
       } catch (error) {
         console.error('[CartSync] Failed to initialize:', error);
       }
     };
 
     initCartSync();
-
-    // Cleanup on unmount
-    return () => {
-      CartSyncService.stopSync();
-    };
   }, [session]);
 
-  // Sync cart to database whenever it changes
+  // Sync cart to database in background (write-only, no read)
   useEffect(() => {
-    if (!session) return;
+    if (!session || lines.length === 0) return;
     
     // Debounce to avoid too many writes
     const timer = setTimeout(() => {
       CartSyncService.saveCart(lines, ticketAssignment);
-    }, 500);
+    }, 1000); // Increased debounce to 1 second
 
     return () => clearTimeout(timer);
   }, [lines, ticketAssignment, session]);
