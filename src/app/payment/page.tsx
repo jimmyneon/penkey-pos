@@ -1359,6 +1359,36 @@ export default function PaymentPage() {
         </div>
       </div>
 
+      {/* Dining Option Toggle - only show if not assigned to a table */}
+      {ticketAssignment?.type !== 'table' && (
+        <div className="bg-[#3d3d3d] px-4 py-3 border-b border-gray-700">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setDefaultDiningOption('eat-in')}
+                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
+                  defaultDiningOption === 'eat-in'
+                    ? 'bg-penkey-orange text-white'
+                    : 'bg-[#5d5d5d] text-gray-300 hover:bg-[#6d6d6d]'
+                }`}
+              >
+                🍽️ Eat In
+              </button>
+              <button
+                onClick={() => setDefaultDiningOption('takeaway')}
+                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
+                  defaultDiningOption === 'takeaway'
+                    ? 'bg-penkey-orange text-white'
+                    : 'bg-[#5d5d5d] text-gray-300 hover:bg-[#6d6d6d]'
+                }`}
+              >
+                🥡 Takeaway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
           {/* Payment Methods */}
