@@ -51,15 +51,27 @@ export async function POST(request: NextRequest) {
       return unauthorizedResponse();
     }
 
-    const template = await request.json();
-    
-    const supabase = createSupabaseServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const body = await request.json();
+    const { template } = body;
+
+    console.log('[Receipt Templates] POST request received:', {
+      hasTemplate: !!template,
+      templateId: template?.id,
+      templateName: template?.name,
+      headerLength: template?.header?.length,
+      headerPreview: template?.header?.substring(0, 50)
+    });
+
+    if (!template) {
+      return NextResponse.json(
+        { error: "Template data required" },
+        { status: 400 }
+      );
+    }
 
     let result;
     if (template.id) {
+      console.log('[Receipt Templates] Updating existing template:', template.id);
       // Update existing template
       const { data, error } = await supabase
         .from("print_templates")
@@ -76,7 +88,11 @@ export async function POST(request: NextRequest) {
         console.error('[Receipt Templates] Update error:', error);
         throw error;
       }
-      console.log('[Receipt Templates] Template updated:', data);
+      console.log('[Receipt Templates] Template updated successfully:', {
+        id: data.id,
+        name: data.name,
+        templatePreview: data.template?.substring(0, 50)
+      });
       result = data;
     } else {
       // Create new template
