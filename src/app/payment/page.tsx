@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { CashTenderedDialog } from "./cash-tendered-dialog";
+import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
@@ -35,6 +36,7 @@ export default function PaymentPage() {
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
   const [terminalDialogOpen, setTerminalDialogOpen] = useState(false);
+  const [assignTicketOpen, setAssignTicketOpen] = useState(false);
   const [availableTerminals, setAvailableTerminals] = useState<any[]>([]);
   const [cachedTerminals, setCachedTerminals] = useState<any[]>([]); // Cache from page mount
   const [selectedTerminal, setSelectedTerminal] = useState<any | null>(null);
@@ -1343,7 +1345,15 @@ export default function PaymentPage() {
           Back
         </Button>
         <h1 className="font-semibold text-lg">Payment</h1>
-        <div className="w-20"></div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setAssignTicketOpen(true)}
+          className="text-white hover:bg-white/10"
+        >
+          <UserPlus className="h-5 w-5 mr-2" />
+          Assign
+        </Button>
       </header>
 
       {/* Total Display Bar */}
@@ -1594,6 +1604,18 @@ export default function PaymentPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Assign Ticket Dialog */}
+      <AssignTicketDialog
+        open={assignTicketOpen}
+        onClose={() => setAssignTicketOpen(false)}
+        onAssign={(assignee) => {
+          setTicketAssignment(assignee);
+          sessionStorage.setItem("pos_ticket_assignment", JSON.stringify(assignee));
+          setAssignTicketOpen(false);
+          showToast(`Assigned to ${assignee.name}`, "success");
+        }}
+      />
 
       {/* Processing Overlay */}
       {processing && (
