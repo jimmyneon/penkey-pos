@@ -102,6 +102,13 @@ export async function POST(request: NextRequest) {
         transaction_id: receipt_data.transaction_id || receipt_data.id,
         customer_name: receipt_data.customer_name,
       };
+      
+      console.log('[Print] Customer/Table data:', {
+        dining_option: normalizedReceiptData.dining_option,
+        table_number: normalizedReceiptData.table_number,
+        customer_name: normalizedReceiptData.customer_name,
+        transaction_id: normalizedReceiptData.transaction_id
+      });
 
       let selectedPrinterId = printer_id;
 
