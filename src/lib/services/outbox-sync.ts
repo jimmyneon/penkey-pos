@@ -259,19 +259,6 @@ export class OutboxSyncService {
           const db = await getDB();
           await db.delete('receipts', data.id);
           console.log('[Outbox] Deleted temp receipt from IndexedDB:', data.id);
-          
-          // Also delete temp receipt lines
-          const tx = db.transaction('receipt_lines', 'readwrite');
-          const linesStore = tx.objectStore('receipt_lines');
-          const linesIndex = linesStore.index('by_receipt');
-          const lines = await linesIndex.getAll(data.id);
-          
-          for (const line of lines) {
-            if (line.id) {
-              await linesStore.delete(line.id);
-            }
-          }
-          console.log('[Outbox] Deleted', lines.length, 'temp receipt lines from IndexedDB');
         } catch (cleanupError) {
           console.warn('[Outbox] Failed to clean up temp receipt:', cleanupError);
           // Don't fail the sync if cleanup fails

@@ -68,10 +68,15 @@ export async function POST(request: NextRequest) {
           template: template.header, // Store header as template content
         })
         .eq("id", template.id)
+        .eq("org_id", session.org_id) // Security: only update own templates
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Receipt Templates] Update error:', error);
+        throw error;
+      }
+      console.log('[Receipt Templates] Template updated:', data);
       result = data;
     } else {
       // Create new template
