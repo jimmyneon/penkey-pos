@@ -52,6 +52,7 @@ export default function PaymentPage() {
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
+  const [defaultDiningOption, setDefaultDiningOption] = useState<'eat-in' | 'takeaway'>('takeaway');
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -61,8 +62,8 @@ export default function PaymentPage() {
     window.addEventListener("online", handleOnline);
     window.removeEventListener("offline", handleOffline);
 
-    // Load sound enabled setting
-    const loadSoundSetting = async () => {
+    // Load sound enabled setting and default dining option
+    const loadSettings = async () => {
       try {
         const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
         if (sessionData) {
@@ -73,13 +74,17 @@ export default function PaymentPage() {
             const settings = await registerSettings.get(registerId);
             setSoundEnabled(settings.sound_enabled);
             setSoundEnabledCheck(() => settings.sound_enabled);
+            // Load default dining option
+            if (settings.default_dining_option) {
+              setDefaultDiningOption(settings.default_dining_option);
+            }
           }
         }
       } catch (error) {
-        console.error('Failed to load sound settings:', error);
+        console.error('Failed to load settings:', error);
       }
     };
-    loadSoundSetting();
+    loadSettings();
 
     // Check localStorage first (instant), then confirm from DB in background
     setSumUpConfigured(hasSumUpCredentials());
@@ -309,8 +314,8 @@ export default function PaymentPage() {
       customer_email: ticketAssignment?.customer?.email || null,
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
-      // Dining option: eat-in for table assignments, takeaway for customer assignments
-      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : 'takeaway',
+      // Use global default dining option setting (can be overridden by table assignment)
+      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
     };
     
     console.log('[Payment] Creating receipt with customer data:', {
@@ -1216,8 +1221,8 @@ export default function PaymentPage() {
         customer_email: ticketAssignment?.customer?.email || null,
         customer_phone: ticketAssignment?.customer?.phone || null,
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
-        // Dining option: eat-in for table assignments, takeaway for customer assignments
-        dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : 'takeaway',
+        // Use global default dining option setting (can be overridden by table assignment)
+        dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
         payment_provider: "sumup",
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,
