@@ -136,13 +136,21 @@ export async function GET(request: NextRequest) {
 
     if (modifiersError) throw modifiersError;
 
-    // Fetch item-modifier links
-    const { data: itemModifiers, error: itemModifiersError } = await supabase
-      .from("item_modifiers")
-      .select("item_id, modifier_group_id, sort_order")
-      .eq("org_id", session.org_id);
+    // Fetch item-modifier links (no org_id on this table, filter by item_id instead)
+    const itemIds = (items as Item[] || []).map(i => i.id);
+    const modifierGroupIds = (modifierGroups as ModifierGroup[] || []).map(m => m.id);
+    
+    let itemModifiers: ItemModifier[] = [];
+    if (itemIds.length > 0 && modifierGroupIds.length > 0) {
+      const { data, error: itemModifiersError } = await supabase
+        .from("item_modifiers")
+        .select("item_id, modifier_group_id, sort_order")
+        .in("item_id", itemIds)
+        .in("modifier_group_id", modifierGroupIds);
 
-    if (itemModifiersError) throw itemModifiersError;
+      if (itemModifiersError) throw itemModifiersError;
+      itemModifiers = data as ItemModifier[] || [];
+    }
 
     // Build category name map
     const categoryMap = new Map((categories as Category[] || []).map(c => [c.id, c.name]));
