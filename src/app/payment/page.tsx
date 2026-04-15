@@ -1348,8 +1348,8 @@ export default function PaymentPage() {
 
       {/* Total Display Bar */}
       <div className="bg-penkey-orange text-white px-4 py-4">
-        <div className="flex items-center gap-6">
-          <div className="flex-1">
+        <div className="flex items-center">
+          <div className="flex-1 min-w-0">
             <div className="text-xs uppercase tracking-wide opacity-90">Total Amount</div>
             <div className="text-3xl font-bold">{formatCurrency(total)}</div>
           </div>
@@ -1358,7 +1358,7 @@ export default function PaymentPage() {
           {ticketAssignment?.type !== 'table' && (
             <button
               onClick={() => setDefaultDiningOption(defaultDiningOption === 'eat-in' ? 'takeaway' : 'eat-in')}
-              className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg font-semibold transition-all whitespace-nowrap"
+              className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg font-semibold transition-all whitespace-nowrap mr-4"
             >
               {defaultDiningOption === 'eat-in' ? 'Eat In' : 'Takeaway'}
             </button>
@@ -1366,7 +1366,7 @@ export default function PaymentPage() {
           
           <button 
             onClick={() => setItemsDialogOpen(true)}
-            className="hover:opacity-80 transition-opacity"
+            className="hover:opacity-80 transition-opacity ml-auto"
           >
             <div className="text-sm opacity-90 underline">{lines.length} items</div>
           </button>
