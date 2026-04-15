@@ -16,10 +16,7 @@ CREATE TABLE IF NOT EXISTS active_carts (
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  -- Constraints
-  CONSTRAINT active_carts_org_id_fkey FOREIGN KEY (org_id) REFERENCES orgs(id) ON DELETE CASCADE
+  last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Index for fast lookups by register
@@ -80,10 +77,7 @@ CREATE TABLE IF NOT EXISTS saved_tickets (
   
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  -- Constraints
-  CONSTRAINT saved_tickets_org_id_fkey FOREIGN KEY (org_id) REFERENCES orgs(id) ON DELETE CASCADE
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Index for fast lookups by org
