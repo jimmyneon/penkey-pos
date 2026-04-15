@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     console.log("[Print] Request body:", JSON.stringify(body, null, 2));
 
     const { receipt_id, printer_id, receipt_data, copies = 1 } = body;
+    console.log("[Print] Copies requested:", copies, "Type:", typeof copies);
 
     if (!receipt_id && !receipt_data) {
       return NextResponse.json(
