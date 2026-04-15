@@ -16,13 +16,24 @@ export async function GET(request: NextRequest) {
     );
 
     const { data, error } = await supabase
-      .from("receipt_templates")
+      .from("print_templates")
       .select("*")
+      .eq("org_id", session.org_id)
+      .eq("type", "receipt")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json({ templates: data || [] });
+    // Map print_templates format to UI format (split template into header/footer)
+    const mappedTemplates = (data || []).map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      header: t.template,
+      footer: "Thank you for visiting",
+      created_at: t.created_at
+    }));
+
+    return NextResponse.json({ templates: mappedTemplates });
   } catch (error: any) {
     console.error("Failed to fetch receipt templates:", error);
     return NextResponse.json(
@@ -51,11 +62,10 @@ export async function POST(request: NextRequest) {
     if (template.id) {
       // Update existing template
       const { data, error } = await supabase
-        .from("receipt_templates")
+        .from("print_templates")
         .update({
           name: template.name,
-          header: template.header,
-          footer: template.footer,
+          template: template.header, // Store header as template content
         })
         .eq("id", template.id)
         .select()
@@ -66,11 +76,14 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new template
       const { data, error } = await supabase
-        .from("receipt_templates")
+        .from("print_templates")
         .insert({
+          org_id: session.org_id,
           name: template.name,
-          header: template.header,
-          footer: template.footer,
+          type: "receipt",
+          template: template.header, // Store header as template content
+          paper_width: 80,
+          is_default: false,
         })
         .select()
         .single();
@@ -113,9 +126,10 @@ export async function DELETE(request: NextRequest) {
     );
 
     const { error } = await supabase
-      .from("receipt_templates")
+      .from("print_templates")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("org_id", session.org_id);
 
     if (error) throw error;
 

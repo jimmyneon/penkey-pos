@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       console.log("[Print] receipt_data sample:", JSON.stringify(receipt_data).substring(0, 500));
 
       // Fetch receipt template from print_templates table
-      let templateHeader = "PENKEY DÉLICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
+      let templateHeader = "PENKEY DELICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
       
       if (session.org_id) {
         try {
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
       // Parse header to extract store info
       const headerLines = templateHeader.split('\n');
-      const storeName = headerLines[0] || "Penkey Délicaf & Gifts";
+      const storeName = headerLines[0] || "Penkey Delicaf & Gifts";
       const storeAddress = headerLines[1] || undefined;
       const storePhone = headerLines[2] || undefined;
 
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     const r = receipt as any;
 
     // Fetch receipt template from print_templates table
-    let templateHeader = "PENKEY DÉLICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
+    let templateHeader = "PENKEY DELICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
     
     if (r.org_id) {
       try {
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     // Parse header to extract store info
     const headerLines = templateHeader.split('\n');
-    const storeName = headerLines[0] || "Penkey Délicaf & Gifts";
+    const storeName = headerLines[0] || "Penkey Delicaf & Gifts";
     const storeAddress = headerLines[1] || undefined;
     const storePhone = headerLines[2] || undefined;
     
