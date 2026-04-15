@@ -40,6 +40,7 @@ import { getAll, getByKey } from "@/lib/idb/db";
 import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { CartSyncService } from "@/lib/services/cart-sync";
+import { TicketSyncService } from "@/lib/services/ticket-sync";
 
 interface Session {
   employee: {
@@ -122,17 +123,32 @@ export default function SellPage() {
     setSoundEnabledCheck(() => registerSettingsData.sound_enabled);
   }, [registerSettingsData.theme, registerSettingsData.font_size, registerSettingsData.haptic_enabled, registerSettingsData.sound_enabled]);
 
-  // Load saved tickets (TODO: migrate to database)
+  // Load saved tickets from database
   useEffect(() => {
-    const ticketsData = localStorage.getItem("pos_saved_tickets");
-    if (ticketsData) {
+    if (!session) return;
+
+    const loadTickets = async () => {
       try {
-        setSavedTickets(JSON.parse(ticketsData));
-      } catch (err) {
-        console.error("Failed to load saved tickets:", err);
+        // First, migrate any existing localStorage tickets
+        const migrated = await TicketSyncService.migrateLocalTickets(
+          session.org_id,
+          session.register.id,
+          session.employee.id
+        );
+        if (migrated > 0) {
+          console.log(`[Tickets] Migrated ${migrated} tickets from localStorage`);
+        }
+
+        // Load all tickets from database
+        const tickets = await TicketSyncService.loadTickets(session.org_id);
+        setSavedTickets(tickets);
+      } catch (error) {
+        console.error('[Tickets] Failed to load:', error);
       }
-    }
-  }, []);
+    };
+
+    loadTickets();
+  }, [session]);
 
   // Periodic background sync every 15 seconds — sync pending + reset failed items
   useEffect(() => {
@@ -805,36 +821,45 @@ export default function SellPage() {
     setModifierDialogOpen(false);
   };
 
-  const handleSaveTicket = (name: string, comment: string) => {
-    const newTicket = {
-      id: Date.now().toString(),
-      name,
-      comment,
-      items: lines.length,
-      total: getTotal(),
-      lines: lines,
-      savedAt: new Date().toISOString(),
-      assignment: ticketAssignment, // Save the assignment with the ticket
-    };
+  const handleSaveTicket = async (name: string, comment: string) => {
+    if (!session) return;
 
-    const updatedTickets = [...savedTickets, newTicket];
-    setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
+    try {
+      // Save to database
+      const savedTicket = await TicketSyncService.saveTicket(
+        session.org_id,
+        session.register.id,
+        session.employee.id,
+        name,
+        comment,
+        lines,
+        ticketAssignment,
+        getTotal()
+      );
 
-    // Clear current ticket first
-    lines.forEach(line => removeLine(line.id));
-    
-    // Clear upsell suggestions
-    setUpsellSuggestions([]);
-    setUpsellTriggerItem(null);
-    
-    // Clear ticket name/comment and assignment so next save will prompt
-    setCurrentTicketName("");
-    setCurrentTicketComment("");
-    setTicketAssignment(null);
+      if (!savedTicket) {
+        showToast('Failed to save ticket', 'error');
+        return;
+      }
 
-    // Trigger flying animation AFTER clearing (so button appears)
-    setTimeout(() => {
+      // Update local state
+      const updatedTickets = [...savedTickets, savedTicket];
+      setSavedTickets(updatedTickets);
+
+      // Clear current ticket first
+      lines.forEach(line => removeLine(line.id));
+      
+      // Clear upsell suggestions
+      setUpsellSuggestions([]);
+      setUpsellTriggerItem(null);
+      
+      // Clear ticket name/comment and assignment so next save will prompt
+      setCurrentTicketName("");
+      setCurrentTicketComment("");
+      setTicketAssignment(null);
+
+      // Trigger flying animation AFTER clearing (so button appears)
+      setTimeout(() => {
       const ticketIndicator = document.querySelector('[data-ticket-indicator]');
       const openTicketsButton = document.querySelector('[data-open-tickets-button]');
       
@@ -889,10 +914,14 @@ export default function SellPage() {
           }
         }, 600);
       }
-    }, 50); // Small delay to let DOM update
-    
-    hapticSuccess();
-    playSuccessSound();
+      }, 50); // Small delay to let DOM update
+      
+      hapticSuccess();
+      playSuccessSound();
+    } catch (error) {
+      console.error('[Tickets] Failed to save:', error);
+      showToast('Failed to save ticket', 'error');
+    }
   };
 
   const handleLoadTicket = (ticketId: string) => {
@@ -921,13 +950,22 @@ export default function SellPage() {
     playSuccessSound();
   };
 
-  const handleDeleteTicket = (ticketId: string | string[]) => {
+  const handleDeleteTicket = async (ticketId: string | string[]) => {
     hapticDelete();
     playDeleteSound();
     const idsToDelete = Array.isArray(ticketId) ? ticketId : [ticketId];
-    const updatedTickets = savedTickets.filter(t => !idsToDelete.includes(t.id));
-    setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
+    
+    try {
+      // Delete from database
+      await TicketSyncService.deleteTickets(idsToDelete);
+      
+      // Update local state
+      const updatedTickets = savedTickets.filter(t => !idsToDelete.includes(t.id));
+      setSavedTickets(updatedTickets);
+    } catch (error) {
+      console.error('[Tickets] Failed to delete:', error);
+      showToast('Failed to delete ticket', 'error');
+    }
   };
 
   const handleAssignTicket = (assignee: { type: 'customer' | 'table'; name: string; customer?: any }) => {
