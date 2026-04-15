@@ -125,11 +125,10 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push(data.payment_method);
   lines.push(`${data.date} ${data.time}`);
   
-  // Transaction details
-  if (data.transaction_id) {
-    lines.push(`Transaction ID: ${data.transaction_id}`);
+  // Order number
+  if (data.receipt_number && data.receipt_number > 0) {
+    lines.push(`Order #${data.receipt_number}`);
   }
-  lines.push(`Order #${data.receipt_number}`);
   
   // Dining option and table
   if (data.dining_option) {
@@ -139,6 +138,11 @@ export function generateReceiptText(data: ReceiptData): string {
     } else {
       lines.push(diningText);
     }
+  }
+  
+  // Transaction ID only for card payments (not temp IDs)
+  if (data.transaction_id && !data.transaction_id.startsWith('temp_')) {
+    lines.push(`Transaction ID: ${data.transaction_id}`);
   }
   
   // Customer name if provided
