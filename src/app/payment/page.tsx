@@ -352,7 +352,7 @@ export default function PaymentPage() {
       created_at: new Date().toISOString(),
       // Customer data from ticket assignment
       customer_id: ticketAssignment?.customer?.id || null,
-      customer_name: ticketAssignment?.name || null,
+      customer_name: ticketAssignment?.type === 'customer' ? ticketAssignment.name : null,
       customer_email: ticketAssignment?.customer?.email || null,
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
@@ -1262,7 +1262,7 @@ export default function PaymentPage() {
         org_id: session.org_id,
         created_at: new Date().toISOString(),
         customer_id: ticketAssignment?.customer?.id || null,
-        customer_name: ticketAssignment?.name || null,
+        customer_name: ticketAssignment?.type === 'customer' ? ticketAssignment.name : null,
         customer_email: ticketAssignment?.customer?.email || null,
         customer_phone: ticketAssignment?.customer?.phone || null,
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
