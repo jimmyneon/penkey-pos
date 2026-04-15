@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export interface CartModifier {
   id: string;
@@ -31,8 +32,10 @@ interface CartStore {
   getTotal: () => number;
 }
 
-export const useCartStore = create<CartStore>((set, get) => ({
-  lines: [],
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
+      lines: [],
 
   addLine: (line) => {
     set((state) => {
@@ -132,4 +135,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
   getTotal: () => {
     return get().getSubtotal() + get().getTaxTotal();
   },
-}));
+    }),
+    {
+      name: 'pos-cart-storage', // localStorage key
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
