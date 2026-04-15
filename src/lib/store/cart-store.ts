@@ -27,6 +27,7 @@ interface CartStore {
   removeLine: (lineId: string) => void;
   updateNotes: (lineId: string, notes: string) => void;
   clearCart: () => void;
+  loadLines: (lines: CartLine[]) => void; // For syncing from database
   getSubtotal: () => number;
   getTaxTotal: () => number;
   getTotal: () => number;
@@ -108,6 +109,10 @@ export const useCartStore = create<CartStore>()(
 
   clearCart: () => {
     set({ lines: [] });
+  },
+
+  loadLines: (lines) => {
+    set({ lines });
   },
 
   getSubtotal: () => {

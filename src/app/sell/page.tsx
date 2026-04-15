@@ -39,6 +39,7 @@ import { useRegisterSettings } from "@/lib/hooks/use-register-settings";
 import { getAll, getByKey } from "@/lib/idb/db";
 import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
+import { CartSyncService } from "@/lib/services/cart-sync";
 
 interface Session {
   employee: {
@@ -178,8 +179,7 @@ export default function SellPage() {
   const { items: popularItems, loading: popularLoading } = usePopularItems(session?.org_id || "skip", forceRefresh);
   const { syncing, lastSync, syncData, getCacheInfo } = useDataSync(session?.org_id || "skip");
   const { stats } = useDailyStats(session?.org_id, forceRefresh);
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal } =
-    useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines } = useCartStore();
 
   // Determine which items to show based on selected category and popular filter
   // When Popular is ON: show ALL items (from category if selected), sorted by popularity
@@ -271,6 +271,61 @@ export default function SellPage() {
       setLoading(false);
     }
   }, [router]);
+
+  // Initialize cart sync when session is loaded
+  useEffect(() => {
+    if (!session) return;
+
+    const initCartSync = async () => {
+      try {
+        // Load cart from database
+        const { lines: syncedLines, ticketAssignment: syncedAssignment } = await CartSyncService.initialize(
+          session.org_id,
+          session.register.id,
+          session.employee.id
+        );
+
+        // If we have synced data and local cart is empty, load it
+        if (syncedLines.length > 0 && lines.length === 0) {
+          loadLines(syncedLines);
+          if (syncedAssignment) {
+            setTicketAssignment(syncedAssignment);
+          }
+          console.log('[CartSync] Loaded cart from database');
+        }
+
+        // Start polling for updates from other devices
+        CartSyncService.startSync((updatedLines, updatedAssignment) => {
+          console.log('[CartSync] Received update from another device');
+          loadLines(updatedLines);
+          if (updatedAssignment) {
+            setTicketAssignment(updatedAssignment);
+          }
+        });
+      } catch (error) {
+        console.error('[CartSync] Failed to initialize:', error);
+      }
+    };
+
+    initCartSync();
+
+    // Cleanup on unmount
+    return () => {
+      CartSyncService.stopSync();
+    };
+  }, [session]);
+
+  // Sync cart to database whenever it changes
+  useEffect(() => {
+    if (!session) return;
+    
+    // Debounce to avoid too many writes
+    const timer = setTimeout(() => {
+      CartSyncService.saveCart(lines, ticketAssignment);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [lines, ticketAssignment, session]);
 
   // Auto-sync data after PIN entry (when session is first loaded)
   // Removed auto-sync - data hooks now handle smart caching with SyncManager

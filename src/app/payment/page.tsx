@@ -10,6 +10,7 @@ import { CashTenderedDialog } from "./cash-tendered-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
+import { CartSyncService } from "@/lib/services/cart-sync";
 import { putMany } from "@/lib/idb/db";
 import { getSumUpCredentials, hasSumUpCredentials, storeSumUpCredentials } from "@/lib/services/sumup-credentials";
 import { playPaymentInitSound, playPaymentProcessingSound, playPaymentSuccessSound, playPaymentFailedSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
@@ -434,6 +435,7 @@ export default function PaymentPage() {
 
       // Clear cart and ticket assignment immediately
       clearCart();
+      CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
 
       // Navigate immediately. Set a flag to prevent the empty-cart-redirect effect.
@@ -1310,6 +1312,7 @@ export default function PaymentPage() {
       console.log('[Payment] Card receipt saved locally and queued for sync:', tempReceiptId);
 
       clearCart();
+      CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
       setPaymentCompleted(true);
       setProcessing(false);
