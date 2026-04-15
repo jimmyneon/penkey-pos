@@ -53,6 +53,11 @@ export default function PaymentPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [defaultDiningOption, setDefaultDiningOption] = useState<'eat-in' | 'takeaway'>('takeaway');
+  const [storeInfo, setStoreInfo] = useState({
+    name: "Penkey Delicaf & Gifts",
+    address: "5 New Street, Lymington",
+    phone: "WhatsApp Pre-orders: 01590 619472"
+  });
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -62,13 +67,15 @@ export default function PaymentPage() {
     window.addEventListener("online", handleOnline);
     window.removeEventListener("offline", handleOffline);
 
-    // Load sound enabled setting and default dining option
+    // Load sound enabled setting, default dining option, and store info
     const loadSettings = async () => {
       try {
         const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
         if (sessionData) {
           const session = JSON.parse(sessionData);
           const registerId = session.register?.id;
+          const storeId = session.register?.store_id;
+          
           if (registerId) {
             const { registerSettings } = await import("@/lib/services/register-settings");
             const settings = await registerSettings.get(registerId);
@@ -77,6 +84,40 @@ export default function PaymentPage() {
             // Load default dining option
             if (settings.default_dining_option) {
               setDefaultDiningOption(settings.default_dining_option);
+            }
+          }
+          
+          // Load store info from database or localStorage cache
+          if (storeId) {
+            // Try localStorage cache first
+            const cachedStore = localStorage.getItem(`store_info_${storeId}`);
+            if (cachedStore) {
+              const store = JSON.parse(cachedStore);
+              setStoreInfo({
+                name: store.name || "Penkey Delicaf & Gifts",
+                address: store.address || "5 New Street, Lymington",
+                phone: store.phone || "WhatsApp Pre-orders: 01590 619472"
+              });
+            }
+            
+            // Fetch fresh from database if online
+            if (navigator.onLine) {
+              try {
+                const response = await fetch(`/api/stores/${storeId}`);
+                if (response.ok) {
+                  const store = await response.json();
+                  const storeData = {
+                    name: store.name || "Penkey Delicaf & Gifts",
+                    address: store.address || "5 New Street, Lymington",
+                    phone: store.phone || "WhatsApp Pre-orders: 01590 619472"
+                  };
+                  setStoreInfo(storeData);
+                  // Cache for offline use
+                  localStorage.setItem(`store_info_${storeId}`, JSON.stringify(store));
+                }
+              } catch (err) {
+                console.warn('Failed to fetch store info, using cached/default:', err);
+              }
             }
           }
         }
@@ -341,10 +382,10 @@ export default function PaymentPage() {
         return sum + (line.unit_price + modifiersTotal) * line.quantity * (line.tax_rate || 0);
       }, 0);
 
-      // Get store info from session
-      let storeName = "Penkey Delicaf & Gifts";
-      let storeAddress = "5 New Street, Lymington";
-      let storePhone = "WhatsApp Pre-orders: 01590 619472";
+      // Use store info from state (loaded from database)
+      const storeName = storeInfo.name;
+      const storeAddress = storeInfo.address;
+      const storePhone = storeInfo.phone;
       
       // Add line_total to each line for printing
       const linesWithTotals = lines.map(line => {
@@ -1204,10 +1245,10 @@ export default function PaymentPage() {
         return sum + (line.unit_price + modifiersTotal) * line.quantity * (line.tax_rate || 0);
       }, 0);
 
-      // Get store info
-      let storeName = "Penkey Delicaf & Gifts";
-      let storeAddress = "5 New Street, Lymington";
-      let storePhone = "WhatsApp Pre-orders: 01590 619472";
+      // Use store info from state (loaded from database)
+      const storeName = storeInfo.name;
+      const storeAddress = storeInfo.address;
+      const storePhone = storeInfo.phone;
       
       const receiptData = {
         id: tempReceiptId,
