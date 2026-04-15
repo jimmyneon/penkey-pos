@@ -35,11 +35,46 @@ export const useCartStore = create<CartStore>((set, get) => ({
   lines: [],
 
   addLine: (line) => {
-    const newLine: CartLine = {
-      ...line,
-      id: crypto.randomUUID(),
-    };
-    set((state) => ({ lines: [...state.lines, newLine] }));
+    set((state) => {
+      // Check if an identical line already exists (same item, variant, modifiers, and notes)
+      const existingLineIndex = state.lines.findIndex((existingLine) => {
+        // Must match: item_id, variant_id, notes
+        if (
+          existingLine.item_id !== line.item_id ||
+          existingLine.variant_id !== line.variant_id ||
+          existingLine.notes !== line.notes
+        ) {
+          return false;
+        }
+
+        // Must have same number of modifiers
+        if (existingLine.modifiers.length !== line.modifiers.length) {
+          return false;
+        }
+
+        // Must have identical modifiers (same IDs)
+        const existingModifierIds = existingLine.modifiers.map(m => m.id).sort();
+        const newModifierIds = line.modifiers.map(m => m.id).sort();
+        return existingModifierIds.every((id, i) => id === newModifierIds[i]);
+      });
+
+      if (existingLineIndex !== -1) {
+        // Increment quantity of existing line
+        const updatedLines = [...state.lines];
+        updatedLines[existingLineIndex] = {
+          ...updatedLines[existingLineIndex],
+          quantity: updatedLines[existingLineIndex].quantity + line.quantity,
+        };
+        return { lines: updatedLines };
+      } else {
+        // Add as new line
+        const newLine: CartLine = {
+          ...line,
+          id: crypto.randomUUID(),
+        };
+        return { lines: [...state.lines, newLine] };
+      }
+    });
   },
 
   updateQuantity: (lineId, quantity) => {
