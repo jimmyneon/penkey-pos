@@ -342,7 +342,7 @@ export default function PaymentPage() {
       }, 0);
 
       // Get store info from session
-      let storeName = "Penkey Délicaf & Gifts";
+      let storeName = "Penkey Delicaf & Gifts";
       let storeAddress = "5 New Street, Lymington";
       let storePhone = "WhatsApp Pre-orders: 01590 619472";
       
@@ -1205,7 +1205,7 @@ export default function PaymentPage() {
       }, 0);
 
       // Get store info
-      let storeName = "Penkey Délicaf & Gifts";
+      let storeName = "Penkey Delicaf & Gifts";
       let storeAddress = "5 New Street, Lymington";
       let storePhone = "WhatsApp Pre-orders: 01590 619472";
       
