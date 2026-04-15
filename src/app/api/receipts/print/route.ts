@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabase = createSupabaseServerClient(supabaseUrl, supabaseKey);
 
     const body = await request.json();
     console.log("[Print] Request body:", JSON.stringify(body, null, 2));
@@ -41,11 +42,39 @@ export async function POST(request: NextRequest) {
       console.log("[Print] receipt_data keys:", Object.keys(receipt_data));
       console.log("[Print] receipt_data sample:", JSON.stringify(receipt_data).substring(0, 500));
 
+      // Fetch receipt template from print_templates table
+      let templateHeader = "PENKEY DÉLICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
+      
+      if (session.org_id) {
+        try {
+          const { data: template } = await supabase
+            .from("print_templates")
+            .select("template")
+            .eq("org_id", session.org_id)
+            .eq("type", "receipt")
+            .eq("is_default", true)
+            .maybeSingle();
+          
+          if (template && template.template) {
+            templateHeader = template.template;
+            console.log("[Print] Using custom receipt template for org:", session.org_id);
+          }
+        } catch (err) {
+          console.warn("[Print] Failed to fetch receipt template, using defaults:", err);
+        }
+      }
+
+      // Parse header to extract store info
+      const headerLines = templateHeader.split('\n');
+      const storeName = headerLines[0] || "Penkey Délicaf & Gifts";
+      const storeAddress = headerLines[1] || undefined;
+      const storePhone = headerLines[2] || undefined;
+
       // Normalize receipt data to ensure all required fields exist with safe defaults
       const normalizedReceiptData = {
-        store_name: receipt_data.store_name || "Penkey Délicaf & Gifts",
-        store_address: receipt_data.store_address,
-        store_phone: receipt_data.store_phone,
+        store_name: receipt_data.store_name || storeName,
+        store_address: receipt_data.store_address || storeAddress,
+        store_phone: receipt_data.store_phone || storePhone,
         receipt_number: receipt_data.receipt_number ?? 0,
         date: receipt_data.date || new Date().toLocaleDateString("en-GB"),
         time: receipt_data.time || new Date().toLocaleTimeString("en-GB", {
@@ -67,6 +96,11 @@ export async function POST(request: NextRequest) {
         payment_method: receipt_data.payment_method || "cash",
         cash_tendered: receipt_data.paid_amount ?? receipt_data.cash_tendered,
         cash_change: receipt_data.change_amount ?? receipt_data.cash_change,
+        // Transaction metadata
+        dining_option: receipt_data.dining_option,
+        table_number: receipt_data.table_number,
+        transaction_id: receipt_data.transaction_id || receipt_data.id,
+        customer_name: receipt_data.customer_name,
       };
 
       let selectedPrinterId = printer_id;
@@ -148,8 +182,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createSupabaseServerClient(supabaseUrl, supabaseKey);
-
     // Fetch receipt base data
     const { data: receipt, error: receiptError } = await supabase
       .from("receipts")
@@ -171,10 +203,35 @@ export async function POST(request: NextRequest) {
 
     const r = receipt as any;
 
+    // Fetch receipt template from print_templates table
+    let templateHeader = "PENKEY DÉLICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
+    
+    if (r.org_id) {
+      try {
+        const { data: template } = await supabase
+          .from("print_templates")
+          .select("template")
+          .eq("org_id", r.org_id)
+          .eq("type", "receipt")
+          .eq("is_default", true)
+          .maybeSingle();
+        
+        if (template && template.template) {
+          templateHeader = template.template;
+          console.log("[Print] Using custom receipt template for org:", r.org_id);
+        }
+      } catch (err) {
+        console.warn("[Print] Failed to fetch receipt template, using defaults:", err);
+      }
+    }
+
+    // Parse header to extract store info
+    const headerLines = templateHeader.split('\n');
+    const storeName = headerLines[0] || "Penkey Délicaf & Gifts";
+    const storeAddress = headerLines[1] || undefined;
+    const storePhone = headerLines[2] || undefined;
+    
     // Fetch related data separately to avoid complex nested selects
-    let storeName = "Penkey Délicaf & Gifts";
-    let storeAddress: string | undefined = undefined;
-    let storePhone: string | undefined = undefined;
     let registerName = "Main Till";
     let employeeName = "Staff";
 
@@ -267,6 +324,11 @@ export async function POST(request: NextRequest) {
       payment_method: paymentMethod,
       cash_tendered: r.paid_amount,
       cash_change: r.change_amount,
+      // Transaction metadata
+      dining_option: r.dining_option,
+      table_number: r.table_number,
+      transaction_id: receipt_id,
+      customer_name: r.customer_name,
     };
 
     let selectedPrinterId = printer_id;

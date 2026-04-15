@@ -24,6 +24,11 @@ export interface ReceiptData {
   payment_method: string;
   cash_tendered?: number;
   cash_change?: number;
+  // Transaction metadata
+  dining_option?: string;
+  table_number?: string | null;
+  transaction_id?: string;
+  customer_name?: string | null;
 }
 
 // ── Helper functions for alignment ──
@@ -119,7 +124,28 @@ export function generateReceiptText(data: ReceiptData): string {
   // Payment + metadata
   lines.push(data.payment_method);
   lines.push(`${data.date} ${data.time}`);
+  
+  // Transaction details
+  if (data.transaction_id) {
+    lines.push(`Transaction ID: ${data.transaction_id}`);
+  }
   lines.push(`Order #${data.receipt_number}`);
+  
+  // Dining option and table
+  if (data.dining_option) {
+    const diningText = data.dining_option === 'eat-in' ? 'Eat In' : 'Takeaway';
+    if (data.table_number && data.dining_option === 'eat-in') {
+      lines.push(`${diningText} - Table ${data.table_number}`);
+    } else {
+      lines.push(diningText);
+    }
+  }
+  
+  // Customer name if provided
+  if (data.customer_name) {
+    lines.push(`Customer: ${data.customer_name}`);
+  }
+  
   lines.push('');
 
   // Footer

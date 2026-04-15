@@ -1,7 +1,7 @@
 -- Create receipt_templates table
 CREATE TABLE IF NOT EXISTS receipt_templates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   header TEXT NOT NULL,
   footer TEXT NOT NULL,

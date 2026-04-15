@@ -325,15 +325,56 @@ export default function PaymentPage() {
       const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const changeAmount = change.toFixed(2);
 
+      // Calculate subtotal and tax from lines
+      const subtotal = lines.reduce((sum, line) => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        return sum + (line.unit_price + modifiersTotal) * line.quantity;
+      }, 0);
+
+      const taxTotal = lines.reduce((sum, line) => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        return sum + (line.unit_price + modifiersTotal) * line.quantity * (line.tax_rate || 0);
+      }, 0);
+
+      // Get store info from session
+      let storeName = "Penkey Délicaf & Gifts";
+      let storeAddress = "5 New Street, Lymington";
+      let storePhone = "WhatsApp Pre-orders: 01590 619472";
+      
+      // Add line_total to each line for printing
+      const linesWithTotals = lines.map(line => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        const lineTotal = (line.unit_price + modifiersTotal) * line.quantity;
+        return {
+          ...line,
+          line_total: lineTotal
+        };
+      });
+      
       // OFFLINE-FIRST: Save locally immediately for instant response
-      // Parallel writes instead of sequential (50-100ms faster)
+      // Include ALL fields needed for printing
       const receiptToSave = {
         id: tempReceiptId,
         ...receiptData,
+        lines: linesWithTotals,
         created_at: new Date().toISOString(),
         total: total,
+        subtotal: subtotal,
+        tax_total: taxTotal,
         change: change,
+        change_amount: change,
+        cash_change: change,
+        paid_amount: amount,
         offline: true,
+        // Add formatted fields for printing
+        store_name: storeName,
+        store_address: storeAddress,
+        store_phone: storePhone,
+        employee_name: session.employee.name,
+        register_name: session.register.name,
+        date: new Date().toLocaleDateString("en-GB"),
+        time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+        receipt_number: 0, // Will be set by server
       };
       console.log('[Payment] Saving receipt to IndexedDB:', receiptToSave);
       console.log('[Payment] Receipt id field:', receiptToSave.id);
@@ -354,54 +395,7 @@ export default function PaymentPage() {
       router.push(`/payment/success?receipt_id=${tempReceiptId}&change=${changeAmount}&offline=true`);
 
       // We don't setProcessing(false) here because the component will unmount upon navigation.
-
-      // Background sync attempt (non-blocking)
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
-        // Get CSRF token from cookie
-        const getCsrfToken = () => {
-          const cookies = document.cookie.split(';').map(c => c.trim());
-          for (const cookie of cookies) {
-            if (cookie.startsWith('csrf_token=')) {
-              return cookie.substring('csrf_token='.length);
-            }
-          }
-          return null;
-        };
-        
-        const csrfToken = getCsrfToken();
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        
-        // Add CSRF token if available
-        if (csrfToken) {
-          headers["x-csrf-token"] = csrfToken;
-        }
-        
-        fetch("/api/receipts/create", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(receiptData),
-        })
-          .then(async (response) => {
-            if (response.ok) {
-              const data = await response.json();
-              console.log("[Payment] Background sync successful:", data.receipt_id);
-              // Update local receipt with real ID
-              await putMany("receipts", [{
-                id: data.receipt_id,
-                ...receiptData,
-                created_at: new Date().toISOString(),
-                total: total,
-                change: change,
-                offline: false,
-              }]);
-            } else {
-              console.log("[Payment] Background sync failed with status:", response.status);
-            }
-          })
-          .catch((err) => {
-            console.log("[Payment] Background sync failed, will retry later:", err);
-          });
-      }
+      // Note: Outbox service handles background sync automatically - no manual sync needed
     } catch (err: any) {
       console.error("[Payment] Failed to save receipt:", err);
       showToast(err.message || "Failed to complete sale", "error");
@@ -1191,6 +1185,23 @@ export default function PaymentPage() {
 
     try {
       const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Calculate subtotal and tax from lines
+      const subtotal = lines.reduce((sum, line) => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        return sum + (line.unit_price + modifiersTotal) * line.quantity;
+      }, 0);
+
+      const taxTotal = lines.reduce((sum, line) => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        return sum + (line.unit_price + modifiersTotal) * line.quantity * (line.tax_rate || 0);
+      }, 0);
+
+      // Get store info
+      let storeName = "Penkey Délicaf & Gifts";
+      let storeAddress = "5 New Street, Lymington";
+      let storePhone = "WhatsApp Pre-orders: 01590 619472";
+      
       const receiptData = {
         id: tempReceiptId,
         lines,
@@ -1212,12 +1223,37 @@ export default function PaymentPage() {
         checkout_id: paymentResult.checkoutId,
       };
 
-      // Save locally first (offline-first)
+      // Add line_total to each line for printing
+      const linesWithTotals = lines.map(line => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        const lineTotal = (line.unit_price + modifiersTotal) * line.quantity;
+        return {
+          ...line,
+          line_total: lineTotal
+        };
+      });
+      
+      // Save locally first (offline-first) with ALL fields needed for printing
       await putMany("receipts", [{
         ...receiptData,
+        lines: linesWithTotals,
         total,
+        subtotal: subtotal,
+        tax_total: taxTotal,
         created_at: new Date().toISOString(),
         offline: false,
+        // Add formatted fields for printing
+        store_name: storeName,
+        store_address: storeAddress,
+        store_phone: storePhone,
+        employee_name: session.employee.name,
+        register_name: session.register.name,
+        date: new Date().toLocaleDateString("en-GB"),
+        time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+        receipt_number: 0, // Will be set by server
+        paid_amount: total,
+        change_amount: 0,
+        cash_change: 0,
       }]);
 
       // Queue for sync via outbox (same as cash)

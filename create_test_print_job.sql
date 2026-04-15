@@ -49,7 +49,9 @@ INSERT INTO print_jobs (
       || chr(10)
       || 'Card' || chr(10)
       || to_char(now(), 'DD/MM/YYYY') || ' ' || to_char(now(), 'HH24:MI') || chr(10)
+      || 'Transaction ID: abc123xyz' || chr(10)
       || 'Order #1024' || chr(10)
+      || 'Eat In - Table 5' || chr(10)
       || chr(10)
       || 'Thank you for visiting'
   ),
