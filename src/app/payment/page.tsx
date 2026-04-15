@@ -1358,17 +1358,19 @@ export default function PaymentPage() {
 
       {/* Total Display Bar */}
       <div className="bg-penkey-orange text-white px-4 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="text-xs uppercase tracking-wide opacity-90">Total Amount</div>
             <div className="text-3xl font-bold">{formatCurrency(total)}</div>
           </div>
           
-          {/* Dining Option Toggle - centered/slightly right */}
+          <div className="flex-1"></div>
+          
+          {/* Dining Option Toggle - aligned with Card button below */}
           {ticketAssignment?.type !== 'table' && (
             <button
               onClick={() => setDefaultDiningOption(defaultDiningOption === 'eat-in' ? 'takeaway' : 'eat-in')}
-              className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg font-semibold transition-all whitespace-nowrap"
+              className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg font-semibold transition-all whitespace-nowrap mr-3"
             >
               {defaultDiningOption === 'eat-in' ? 'Eat In' : 'Takeaway'}
             </button>
