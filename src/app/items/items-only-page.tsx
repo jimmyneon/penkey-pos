@@ -356,31 +356,37 @@ export default function ItemsOnlyPage() {
               if (!confirm(`Delete ${selectedIds.size} item(s)? This cannot be undone.`)) return;
               
               try {
-                const sessionData = sessionStorage.getItem('pos_session');
-                if (!sessionData) {
+                if (!session) {
                   showToast('Session expired. Please log in again.', 'error');
                   return;
                 }
                 
                 const ids = Array.from(selectedIds);
+                console.log(`[BulkDelete] Starting deletion of ${ids.length} items:`, ids);
+                
                 const results = await Promise.all(
-                  ids.map((id) =>
-                    fetch(`/api/items/${id}`, {
+                  ids.map(async (id) => {
+                    console.log(`[BulkDelete] Deleting item ${id}...`);
+                    const response = await fetch(`/api/items/${id}`, {
                       method: 'DELETE',
-                      headers: {
-                        'x-pos-session': sessionData,
-                      },
-                    })
-                  )
+                      credentials: 'same-origin', // Include cookies
+                    });
+                    console.log(`[BulkDelete] Response for ${id}:`, response.status, response.ok);
+                    return response;
+                  })
                 );
                 
                 // Check for errors
-                for (const res of results) {
+                for (let i = 0; i < results.length; i++) {
+                  const res = results[i];
                   if (!res.ok) {
                     const error = await res.json();
+                    console.error(`[BulkDelete] Failed to delete item ${ids[i]}:`, error);
                     throw new Error(error.error || 'Failed to delete item');
                   }
                 }
+                
+                console.log(`[BulkDelete] Successfully deleted ${ids.length} items from API`);
                 
                 // Clear cache, sync timestamp, and IndexedDB
                 dataCache.clear(session.org_id, "items");

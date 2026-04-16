@@ -395,8 +395,7 @@ export default function ModifiersPage() {
               if (!confirm(`Delete ${ids.length} modifier group${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
               
               try {
-                const sessionData = sessionStorage.getItem('pos_session');
-                if (!sessionData) {
+                if (!session) {
                   showToast('Session expired. Please log in again.', 'error');
                   return;
                 }
@@ -405,9 +404,7 @@ export default function ModifiersPage() {
                   ids.map((id) =>
                     fetch(`/api/modifiers/groups/${id}`, {
                       method: 'DELETE',
-                      headers: {
-                        'x-pos-session': sessionData,
-                      },
+                      credentials: 'same-origin', // Include cookies
                     })
                   )
                 );
