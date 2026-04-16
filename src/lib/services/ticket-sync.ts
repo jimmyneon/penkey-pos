@@ -119,11 +119,27 @@ export class TicketSyncService {
     employeeId: string
   ): Promise<number> {
     try {
+      // Check if migration already happened
+      const migrationFlag = localStorage.getItem('pos_tickets_migrated');
+      if (migrationFlag === 'true') {
+        console.log('[TicketSync] Migration already completed, skipping');
+        return 0;
+      }
+
       const localTickets = localStorage.getItem('pos_saved_tickets');
-      if (!localTickets) return 0;
+      if (!localTickets) {
+        // No tickets to migrate, set flag
+        localStorage.setItem('pos_tickets_migrated', 'true');
+        return 0;
+      }
 
       const tickets = JSON.parse(localTickets);
-      if (!Array.isArray(tickets) || tickets.length === 0) return 0;
+      if (!Array.isArray(tickets) || tickets.length === 0) {
+        // No tickets to migrate, set flag
+        localStorage.setItem('pos_tickets_migrated', 'true');
+        localStorage.removeItem('pos_saved_tickets');
+        return 0;
+      }
 
       console.log('[TicketSync] Migrating', tickets.length, 'tickets from localStorage');
 
@@ -147,13 +163,15 @@ export class TicketSyncService {
 
       if (error) throw error;
 
-      // Clear localStorage after successful migration
+      // Clear localStorage and set migration flag
       localStorage.removeItem('pos_saved_tickets');
+      localStorage.setItem('pos_tickets_migrated', 'true');
       console.log('[TicketSync] Migration complete, cleared localStorage');
 
       return tickets.length;
     } catch (error) {
       console.error('[TicketSync] Migration failed:', error);
+      // Don't set flag on error so it can retry
       return 0;
     }
   }
