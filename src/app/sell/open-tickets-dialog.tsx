@@ -27,8 +27,10 @@ interface SavedTicket {
   items: number;
   total: number;
   savedAt: string;
+  created_at?: string; // Database field
   lines: TicketLine[];
   assignment?: { type: 'customer' | 'table'; name: string } | null;
+  ticket_assignment?: { type: 'customer' | 'table'; name: string } | null; // Database field
 }
 
 interface OpenTicketsDialogProps {
@@ -426,15 +428,15 @@ export function OpenTicketsDialog({
                         <h4 className="font-semibold text-white text-lg truncate">
                           {ticket.name}
                         </h4>
-                        {ticket.assignment && (
+                        {(ticket.assignment || ticket.ticket_assignment) && (
                           <div className="mt-1 inline-flex items-center gap-1.5 bg-[#2d2d2d] border border-gray-600 rounded px-2 py-1">
-                            {ticket.assignment.type === 'customer' ? (
+                            {(ticket.assignment?.type || ticket.ticket_assignment?.type) === 'customer' ? (
                               <User className="h-3 w-3 text-penkey-orange" />
                             ) : (
                               <Hash className="h-3 w-3 text-penkey-orange" />
                             )}
                             <span className="text-xs text-gray-300 font-medium">
-                              {ticket.assignment.name}
+                              {(ticket.assignment || ticket.ticket_assignment)?.name}
                             </span>
                           </div>
                         )}
@@ -444,9 +446,18 @@ export function OpenTicketsDialog({
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
-                          <span>{new Date(ticket.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>{(() => {
+                            try {
+                              const dateStr = ticket.savedAt || ticket.created_at || '';
+                              if (!dateStr) return 'Recently';
+                              const date = new Date(dateStr);
+                              return isNaN(date.getTime()) ? 'Recently' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            } catch {
+                              return 'Recently';
+                            }
+                          })()}</span>
                           <span>•</span>
-                          <span>{ticket.items} items</span>
+                          <span>{ticket.items || ticket.lines?.length || 0} items</span>
                         </div>
                       </div>
 

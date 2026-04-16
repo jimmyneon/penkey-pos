@@ -913,7 +913,7 @@ export default function SellPage() {
     }
   };
 
-  const handleLoadTicket = (ticketId: string) => {
+  const handleLoadTicket = async (ticketId: string) => {
     const ticket = savedTickets.find(t => t.id === ticketId);
     if (!ticket) return;
 
@@ -928,12 +928,17 @@ export default function SellPage() {
     // Set the ticket name, comment, and assignment so we can auto-save later
     setCurrentTicketName(ticket.name);
     setCurrentTicketComment(ticket.comment || "");
-    setTicketAssignment(ticket.assignment || null);
+    // Check both assignment and ticket_assignment fields (database uses ticket_assignment)
+    setTicketAssignment(ticket.ticket_assignment || ticket.assignment || null);
 
-    // Remove ticket from saved tickets (now it's "open" in the current cart)
-    const updatedTickets = savedTickets.filter(t => t.id !== ticketId);
-    setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
+    // Remove ticket from saved tickets (database)
+    try {
+      await TicketSyncService.deleteTickets([ticketId]);
+      const updatedTickets = savedTickets.filter(t => t.id !== ticketId);
+      setSavedTickets(updatedTickets);
+    } catch (error) {
+      console.error('[LoadTicket] Failed to delete ticket:', error);
+    }
 
     hapticSuccess();
     playSuccessSound();
@@ -968,8 +973,11 @@ export default function SellPage() {
     }
   };
 
-  const handleMergeTickets = (ticketId: string | string[]) => {
+  const handleMergeTickets = async (ticketId: string | string[]) => {
     const idsToMerge = Array.isArray(ticketId) ? ticketId : [ticketId];
+    
+    // Get the first ticket to preserve its assignment
+    const firstTicket = savedTickets.find(t => t.id === idsToMerge[0]);
     
     // Add all lines from all selected tickets to current ticket
     idsToMerge.forEach(id => {
@@ -981,10 +989,20 @@ export default function SellPage() {
       }
     });
 
-    // Remove all merged tickets from saved tickets in one operation
-    const updatedTickets = savedTickets.filter(t => !idsToMerge.includes(t.id));
-    setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
+    // If first ticket has assignment and current ticket doesn't, preserve it
+    if (firstTicket?.ticket_assignment && !ticketAssignment) {
+      setTicketAssignment(firstTicket.ticket_assignment);
+      console.log('[Merge] Preserved assignment from first ticket:', firstTicket.ticket_assignment);
+    }
+
+    // Remove all merged tickets from saved tickets (database)
+    try {
+      await TicketSyncService.deleteTickets(idsToMerge);
+      const updatedTickets = savedTickets.filter(t => !idsToMerge.includes(t.id));
+      setSavedTickets(updatedTickets);
+    } catch (error) {
+      console.error('[Merge] Failed to delete tickets:', error);
+    }
 
     hapticSuccess();
     playSuccessSound();
@@ -1033,37 +1051,52 @@ export default function SellPage() {
     setAssignTicketOpen(true);
   };
 
-  const handleSplitTicket = (selectedLineIds: string[]) => {
+  const handleSplitTicket = async (selectedLineIds: string[]) => {
+    if (!session) return;
+    
     // Get the selected lines
     const selectedLines = lines.filter(line => selectedLineIds.includes(line.id));
     
     if (selectedLines.length === 0) return;
 
-    // Create a new saved ticket with the selected lines
-    const newTicket = {
-      id: Date.now().toString(),
-      name: `Split Ticket ${savedTickets.length + 1}`,
-      comment: "Split from current ticket",
-      items: selectedLines.length,
-      total: selectedLines.reduce((sum, line) => {
-        const lineTotal = line.quantity * line.unit_price;
-        const modifiersTotal = line.modifiers.reduce((modSum: number, mod: any) => modSum + (mod.price || 0), 0);
-        return sum + lineTotal + modifiersTotal;
-      }, 0),
-      lines: selectedLines,
-      savedAt: new Date().toISOString(),
-    };
+    // Calculate total for split ticket
+    const splitTotal = selectedLines.reduce((sum, line) => {
+      const lineTotal = line.quantity * line.unit_price;
+      const modifiersTotal = line.modifiers.reduce((modSum: number, mod: any) => modSum + (mod.price || 0), 0);
+      return sum + lineTotal + modifiersTotal;
+    }, 0);
 
-    // Save the new ticket
-    const updatedTickets = [...savedTickets, newTicket];
-    setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
+    // Create name: "Split - [Assignment Name]" or just "Split"
+    const splitName = ticketAssignment ? `Split - ${ticketAssignment.name}` : "Split";
 
-    // Remove the selected lines from current ticket
-    selectedLineIds.forEach(lineId => removeLine(lineId));
+    // Save split ticket to database with preserved assignment
+    try {
+      const savedTicket = await TicketSyncService.saveTicket(
+        session.org_id,
+        session.register.id,
+        session.employee.id,
+        splitName,
+        "Split from current ticket",
+        selectedLines,
+        ticketAssignment, // Preserve the assignment
+        splitTotal
+      );
 
-    hapticSuccess();
-    playSuccessSound();
+      if (savedTicket) {
+        // Update local state
+        const updatedTickets = [...savedTickets, savedTicket];
+        setSavedTickets(updatedTickets);
+
+        // Remove the selected lines from current ticket
+        selectedLineIds.forEach(lineId => removeLine(lineId));
+
+        hapticSuccess();
+        playSuccessSound();
+      }
+    } catch (error) {
+      console.error('[Split] Failed to save split ticket:', error);
+      showToast('Failed to split ticket', 'error');
+    }
   };
 
   const handleSync = async () => {
