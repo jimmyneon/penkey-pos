@@ -165,6 +165,13 @@ export async function DELETE(
       );
     }
 
+    // Get item details to check for image
+    const { data: item } = await supabase
+      .from("items")
+      .select("image_url")
+      .eq("id", id)
+      .single();
+
     // Soft delete
     const { error } = await supabase
       .from("items")
@@ -172,6 +179,20 @@ export async function DELETE(
       .eq("id", id);
 
     if (error) throw error;
+
+    // Delete associated images from R2 if they exist
+    if (item?.image_url) {
+      try {
+        const { deleteFromR2 } = await import('@/lib/services/r2-upload');
+        // Try both formats since we don't store format in DB
+        await deleteFromR2(session.org_id, id, 'webp').catch(() => {});
+        await deleteFromR2(session.org_id, id, 'jpeg').catch(() => {});
+        console.log(`[API-AUTH] Deleted images for item ${id}`);
+      } catch (imgError) {
+        // Log but don't fail the delete if image deletion fails
+        console.warn(`[API-AUTH] Failed to delete images for item ${id}:`, imgError);
+      }
+    }
 
     console.log(`[API-AUTH] Successful DELETE /api/items/${id} - User: ${session.user_id}, Org: ${session.org_id}`);
     return NextResponse.json({ success: true });
