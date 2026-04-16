@@ -351,7 +351,7 @@ export function ModifierDialog({
                       {group.name}
                       {group.selection_type === 'required' && (
                         <span className="text-penkey-orange text-xs font-semibold bg-orange-500/10 border border-orange-700 px-2 py-0.5 rounded">
-                          Required{minRequired > 1 ? ` · Min ${minRequired}` : ''}
+                          {group.max_selections === 1 ? 'Choose one' : minRequired > 1 ? `Required · Min ${minRequired}` : 'Required'}
                         </span>
                       )}
                       {group.selection_type !== 'required' && group.min_selections > 0 && (
@@ -366,7 +366,12 @@ export function ModifierDialog({
                       )}
                     </h3>
                     {isUnmet && minRequired > 0 && (
-                      <p className="mt-1 text-xs text-red-400">Select at least {minRequired} option{minRequired > 1 ? 's' : ''}.</p>
+                      <p className="mt-1 text-xs text-red-400">
+                        {group.max_selections === 1 && minRequired === 1 
+                          ? 'Choose one option.' 
+                          : `Select at least ${minRequired} option${minRequired > 1 ? 's' : ''}.`
+                        }
+                      </p>
                     )}
                   </div>
 
