@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, Package, Tag, Boxes, Percent, Home, Download, Upload, Trash2 } from "lucide-react";
-import { hapticButtonPress } from "@/lib/utils/haptics";
+import { ArrowLeft, Package, Tag, Boxes, Percent, Trash2, Upload, Download, Home, Loader2 } from "lucide-react";
+import { hapticButtonPress } from "@/lib/haptic";
+import { ImportPreviewDialog } from "@/components/import-preview-dialog";
+import { ImportResultsDialog } from "@/components/import-results-dialog";
+import { dataCache } from "@/lib/idb/data-cache";
+import { SyncManager } from "@/lib/services/sync-manager";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -19,6 +23,12 @@ export default function ItemsHubPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
+  const [importResultsOpen, setImportResultsOpen] = useState(false);
+  const [importProgress, setImportProgress] = useState<string>('');
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session");
@@ -98,10 +108,47 @@ export default function ItemsHubPage() {
     }
   };
 
-  const handleImport = async (file: File) => {
+  const handleFileSelect = async (file: File) => {
+    try {
+      setSelectedFile(file);
+      setImportProgress('Loading preview...');
+      setImporting(true);
+      
+      const text = await file.text();
+      
+      const response = await fetch('/api/import?preview=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv' },
+        body: text,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to preview import');
+      }
+      
+      const preview = await response.json();
+      setPreviewData(preview);
+      setImportDialogOpen(false);
+      setPreviewDialogOpen(true);
+    } catch (error: any) {
+      console.error('Failed to preview import:', error);
+      alert(`Failed to preview import: ${error.message || 'Please check the file format and try again.'}`);
+      setSelectedFile(null);
+    } finally {
+      setImporting(false);
+      setImportProgress('');
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!selectedFile) return;
+    
     try {
       setImporting(true);
-      const text = await file.text();
+      setImportProgress('Importing items...');
+      
+      const text = await selectedFile.text();
       
       const response = await fetch('/api/import', {
         method: 'POST',
@@ -109,18 +156,34 @@ export default function ItemsHubPage() {
         body: text,
       });
       
-      if (!response.ok) throw new Error('Import failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Import failed');
+      }
       
       const result = await response.json();
-      setImportDialogOpen(false);
       
-      const message = `Import complete!\n\nCategories: ${result.results.categories.created} created, ${result.results.categories.errors} errors\nItems: ${result.results.items.created} created, ${result.results.items.errors} errors\nItem Variants: ${result.results.item_variants?.created || 0} created, ${result.results.item_variants?.errors || 0} errors\nModifier Groups: ${result.results.modifier_groups.created} created, ${result.results.modifier_groups.errors} errors\nModifier Options: ${result.results.modifier_options.created} created, ${result.results.modifier_options.errors} errors\nItem-Modifier Links: ${result.results.item_modifier_links?.created || 0} created, ${result.results.item_modifier_links?.errors || 0} errors`;
-      alert(message);
-    } catch (error) {
+      setImportProgress('Refreshing local database...');
+      
+      if (session?.org_id) {
+        dataCache.clear(session.org_id, "items");
+        dataCache.clear(session.org_id, "categories");
+        dataCache.clear(session.org_id, "modifier_groups");
+        SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+        SyncManager.clearSyncTimestamp(session.org_id, "CATEGORIES");
+        SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
+      }
+      
+      setPreviewDialogOpen(false);
+      setImportResults(result);
+      setImportResultsOpen(true);
+      setSelectedFile(null);
+    } catch (error: any) {
       console.error('Import failed:', error);
-      alert('Import failed. Please check the file format and try again.');
+      alert(`Import failed: ${error.message || 'Please try again.'}`);
     } finally {
       setImporting(false);
+      setImportProgress('');
     }
   };
 
@@ -220,6 +283,26 @@ export default function ItemsHubPage() {
         </div>
       </div>
 
+      {/* Import Preview Dialog */}
+      <ImportPreviewDialog
+        open={previewDialogOpen}
+        onClose={() => {
+          setPreviewDialogOpen(false);
+          setSelectedFile(null);
+        }}
+        previewData={previewData}
+        onConfirm={handleConfirmImport}
+        loading={importing}
+      />
+
+      {/* Import Results Dialog */}
+      <ImportResultsDialog
+        open={importResultsOpen}
+        onClose={() => setImportResultsOpen(false)}
+        results={importResults?.results}
+        format={importResults?.format}
+      />
+
       {/* Import Dialog */}
       {importDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -228,18 +311,31 @@ export default function ItemsHubPage() {
             <p className="text-gray-400 text-sm mb-4">
               Select a CSV file exported from Penkey or Loyverse to import items, categories, and modifiers.
             </p>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  handleImport(file);
-                }
-              }}
-              disabled={importing}
-              className="w-full text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-penkey-orange file:text-white hover:file:bg-penkey-orange/90"
-            />
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileSelect(file);
+                  }
+                }}
+                disabled={importing}
+                className="w-full text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-penkey-orange file:text-white hover:file:bg-penkey-orange/90"
+              />
+              {selectedFile && (
+                <div className="text-sm text-gray-400">
+                  Selected: <span className="text-white">{selectedFile.name}</span>
+                </div>
+              )}
+              {importing && importProgress && (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 text-penkey-orange animate-spin" />
+                  <span className="text-sm text-gray-400">{importProgress}</span>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2 mt-4">
               <Button
                 size="sm"

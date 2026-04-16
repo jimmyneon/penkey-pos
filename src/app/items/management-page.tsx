@@ -23,6 +23,7 @@ import { createSupabaseClient } from "@/lib/database";
 import { SyncManager } from "@/lib/services/sync-manager";
 import { ImportResultsDialog } from "@/components/import-results-dialog";
 import { ImportDuplicateDialog } from "@/components/import-duplicate-dialog";
+import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -78,6 +79,10 @@ export default function ManagementPage() {
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<any>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [importProgress, setImportProgress] = useState<string>('');
 
   const { categories, loading: categoriesLoading, reload: reloadCategories } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -178,52 +183,52 @@ export default function ManagementPage() {
     }
   };
 
-  const handleImport = async (file: File) => {
+  const handleFileSelect = async (file: File) => {
     try {
+      setSelectedFile(file);
+      setImportProgress('Loading preview...');
       setImporting(true);
+      
       const text = await file.text();
       
-      // First check for duplicates
-      const checkResponse = await fetch('/api/import?check_duplicates=true', {
+      const response = await fetch('/api/import?preview=true', {
         method: 'POST',
         headers: { 'Content-Type': 'text/csv' },
         body: text,
       });
       
-      if (!checkResponse.ok) {
-        const errorData = await checkResponse.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to check duplicates');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to preview import');
       }
       
-      const { duplicates } = await checkResponse.json();
-      const totalDuplicates = duplicates.categories + duplicates.items + duplicates.modifier_groups;
-      
-      if (totalDuplicates > 0) {
-        // Show duplicate dialog
-        setDuplicateInfo(duplicates);
-        setPendingImportFile(file);
-        setDuplicateDialogOpen(true);
-        setImporting(false);
-      } else {
-        // No duplicates, proceed with import
-        await performImport(text, false);
-      }
+      const preview = await response.json();
+      setPreviewData(preview);
+      setImportDialogOpen(false);
+      setPreviewDialogOpen(true);
     } catch (error: any) {
-      console.error('Import failed:', error);
-      alert(`Import failed: ${error.message || 'Please check the file format and try again.'}`);
+      console.error('Failed to preview import:', error);
+      alert(`Failed to preview import: ${error.message || 'Please check the file format and try again.'}`);
+      setSelectedFile(null);
+    } finally {
       setImporting(false);
+      setImportProgress('');
     }
   };
 
-  const performImport = async (csvText: string, skipDuplicates: boolean) => {
+  const handleConfirmImport = async () => {
+    if (!selectedFile) return;
+    
     try {
       setImporting(true);
-      setDuplicateDialogOpen(false);
+      setImportProgress('Importing items...');
       
-      const response = await fetch(`/api/import?skip_duplicates=${skipDuplicates}`, {
+      const text = await selectedFile.text();
+      
+      const response = await fetch('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'text/csv' },
-        body: csvText,
+        body: text,
       });
       
       if (!response.ok) {
@@ -233,41 +238,34 @@ export default function ManagementPage() {
       
       const result = await response.json();
       
-      // Refresh all data
-      dataCache.clear(session!.org_id, "items");
-      dataCache.clear(session!.org_id, "categories");
-      dataCache.clear(session!.org_id, "modifier_groups");
-      SyncManager.clearSyncTimestamp(session!.org_id, "ITEMS");
-      SyncManager.clearSyncTimestamp(session!.org_id, "CATEGORIES");
-      reload(true);
-      reloadCategories();
-      fetchModifierGroups();
+      setImportProgress('Refreshing local database...');
       
-      setImportDialogOpen(false);
+      if (session?.org_id) {
+        dataCache.clear(session.org_id, "items");
+        dataCache.clear(session.org_id, "categories");
+        dataCache.clear(session.org_id, "modifier_groups");
+        SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+        SyncManager.clearSyncTimestamp(session.org_id, "CATEGORIES");
+        SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
+        
+        reload(true);
+        reloadCategories();
+        fetchModifierGroups();
+      }
+      
+      setPreviewDialogOpen(false);
       setImportResults(result);
       setImportResultsOpen(true);
-      setPendingImportFile(null);
+      setSelectedFile(null);
     } catch (error: any) {
       console.error('Import failed:', error);
       alert(`Import failed: ${error.message || 'Please try again.'}`);
     } finally {
       setImporting(false);
+      setImportProgress('');
     }
   };
 
-  const handleSkipDuplicates = async () => {
-    if (pendingImportFile) {
-      const text = await pendingImportFile.text();
-      await performImport(text, true);
-    }
-  };
-
-  const handleOverwriteDuplicates = async () => {
-    if (pendingImportFile) {
-      const text = await pendingImportFile.text();
-      await performImport(text, false);
-    }
-  };
 
   if (loading || !session) {
     return (
@@ -865,18 +863,31 @@ export default function ManagementPage() {
             <p className="text-gray-400 text-sm mb-4">
               Select a CSV file exported from Penkey to import items, categories, and modifiers.
             </p>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  handleImport(file);
-                }
-              }}
-              disabled={importing}
-              className="w-full text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-penkey-orange file:text-white hover:file:bg-penkey-orange/90"
-            />
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileSelect(file);
+                  }
+                }}
+                disabled={importing}
+                className="w-full text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-penkey-orange file:text-white hover:file:bg-penkey-orange/90"
+              />
+              {selectedFile && (
+                <div className="text-sm text-gray-400">
+                  Selected: <span className="text-white">{selectedFile.name}</span>
+                </div>
+              )}
+              {importing && importProgress && (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 text-penkey-orange animate-spin" />
+                  <span className="text-sm text-gray-400">{importProgress}</span>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2 mt-4">
               <Button
                 size="sm"
@@ -888,15 +899,21 @@ export default function ManagementPage() {
                 Cancel
               </Button>
             </div>
-            {importing && (
-              <div className="flex items-center gap-2 mt-4">
-                <Loader2 className="h-4 w-4 text-penkey-orange animate-spin" />
-                <span className="text-sm text-gray-400">Importing...</span>
-              </div>
-            )}
           </div>
         </div>
       )}
+
+      {/* Import Preview Dialog */}
+      <ImportPreviewDialog
+        open={previewDialogOpen}
+        onClose={() => {
+          setPreviewDialogOpen(false);
+          setSelectedFile(null);
+        }}
+        previewData={previewData}
+        onConfirm={handleConfirmImport}
+        loading={importing}
+      />
 
       {/* Import Results Dialog */}
       <ImportResultsDialog
@@ -904,18 +921,6 @@ export default function ManagementPage() {
         onClose={() => setImportResultsOpen(false)}
         results={importResults?.results}
         format={importResults?.format}
-      />
-
-      {/* Duplicate Detection Dialog */}
-      <ImportDuplicateDialog
-        open={duplicateDialogOpen}
-        onClose={() => {
-          setDuplicateDialogOpen(false);
-          setPendingImportFile(null);
-        }}
-        duplicates={duplicateInfo}
-        onSkip={handleSkipDuplicates}
-        onOverwrite={handleOverwriteDuplicates}
       />
     </div>
   );

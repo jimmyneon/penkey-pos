@@ -1,0 +1,154 @@
+Handle,SKU,Name,Category,Description,Sold by weight,Option 1 name,Option 1 value,Option 2 name,Option 2 value,Option 3 name,Option 3 value,Cost,Barcode,SKU of included item,Quantity of included item,Track stock,Available for sale [Penkey Coffee and Gifts],Price [Penkey Coffee and Gifts],In stock [Penkey Coffee and Gifts],Low stock [Penkey Coffee and Gifts],"Modifier - ""Add ons""","Modifier - ""Syrups""","Modifier - ""Extra shots""","Modifier - ""Breakfast add ons""","Modifier - ""Add milk""","Modifier - ""Sandwich upsells""","Modifier - ""Toastie upsells""","Modifier - ""Salad add-ons""","Modifier - ""Sweet add ons""","Modifier - ""Meals add-on""","Modifier - ""Hot baps add-on's"""
+after-8,10279,After 8,Penkey Milkshakes,,N,,,,,,,1.92,,,,N,Y,5.50,,,N,N,N,N,N,N,N,N,N,N,N
+all-the-add-ons,10054,All the add-ons,,,N,,,,,,,0.00,,,,N,Y,variable,,,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y
+americano-2,10242,Americano,Hot Drinks - Coffee,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,Y,Y,N,Y,N,N,N,N,N,N
+appetizer,10088,Appetizer,Drinks fridge,,N,,,,,,,0.60,,,,N,Y,2.00,,,N,N,N,N,N,N,N,N,N,N,N
+apple-and-cinnamon-toasties,10238,Apple and cinnamon toasties,Bakes and Sweets,,N,,,,,,,1.44,,,,N,Y,4.50,,,N,N,N,N,N,N,N,N,Y,N,N
+apple-crumble,10002,Apple crumble,,,N,,,,,,,0.00,,,,N,Y,variable,,,Y,N,N,N,N,N,N,N,N,N,N
+bacon-bap-2,10222,Bacon Bap,Hot Baps,,N,,,,,,,1.50,,,,N,Y,6.00,,,N,N,N,Y,N,N,N,N,N,N,Y
+bacon-sausage,10293,Bacon/Sausage,Add-ons,,N,,,,,,,0.30,,,,N,Y,1.00,,,N,N,N,N,N,N,N,N,N,N,N
+bannoffee,10277,Bannoffee,Penkey Milkshakes,,N,,,,,,,1.84,,,,N,Y,5.25,,,N,N,N,N,N,N,N,N,N,N,N
+berry-matcha-latte,10145,Berry Matcha latte,Specials,,N,,,,,,,1.50,,,,N,Y,5.00,,,N,N,N,N,N,N,N,N,N,N,N
+biscuits,10025,Biscuits,Snacks,,N,,,,,,,0.30,,,,N,Y,1.00,,,N,N,N,N,N,N,N,N,N,N,N
+bisto-gravy,10291,Bisto gravy,Add-ons,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+blt-with-peppered-mayo-local-microgreens-and-tomatoes,10217,"BLT with peppered mayo, local microgreens & tomatoes",Sandwiches,,N,,,,,,,1.50,,,,N,Y,6.00,,,N,N,N,N,N,Y,N,N,N,N,N
+bread-and-butter-gherkins,10120,Bread and butter pickles,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+bread-butter,10297,Bread/Butter,Add-ons,,N,,,,,,,0.60,,,,N,Y,2.00,,,N,N,N,N,N,N,N,N,N,N,N
+brockenhurst-breakfast-tea-1-person,10250,Brockenhurst Breakfast Tea - 1 person,Hot Drinks - Tea,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,N,N,N,Y,N,N,N,N,N,N
+brockenhurst-breakfast-tea-2-people,10251,Brockenhurst Breakfast Tea - 2 people,Hot Drinks - Tea,,N,,,,,,,0.75,,,,N,Y,5.00,,,N,N,N,N,Y,N,N,N,N,N,N
+brownie-small,10182,Brownie small,,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+butter-carrot-soup-cheese-toastie,10228,Butter carrot soup + cheese toastie,Penkey Meals,,N,,,,,,,2.39,,,,N,Y,7.95,,,Y,N,N,N,N,N,N,N,N,Y,N
+cans,10290,Cans,Add-ons,,N,,,,,,,0.60,,,,N,Y,2.00,,,N,N,N,N,N,N,N,N,N,N,N
+cans-salads,10299,Cans (Salads),Add-ons,,N,,,,,,,0.60,,,,N,Y,2.00,,,N,N,N,N,N,N,N,N,N,N,N
+cappuccino-10oz,10246,Cappuccino 10oz,Hot Drinks - Coffee,,N,,,,,,,0.75,,,,N,Y,3.80,,,N,Y,Y,N,Y,N,N,N,N,N,N
+cappuccino-7oz-classico,10245,Cappuccino 7oz (classico),Hot Drinks - Coffee,,N,,,,,,,0.75,,,,N,Y,3.60,,,N,Y,Y,N,Y,N,N,N,N,N,N
+cards-ewl,10123,Cards ewl,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+chai-latte,10262,Chai Latte,Penkey Indulgence,,N,,,,,,,1.20,,,,N,Y,4.00,,,N,Y,N,N,Y,N,N,N,N,N,N
+cheese,10031,Cheese,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+cheese-toastie,10296,Cheese toastie,Add-ons,,N,,,,,,,0.90,,,,N,Y,3.00,,,N,N,N,N,N,N,N,N,N,N,N
+chicken-terrine-with-mayo-and-microgreens,10216,Chicken terrine with mayo & microgreens,Sandwiches,,N,,,,,,,1.38,,,,N,Y,5.50,,,N,N,N,N,N,Y,N,N,N,N,N
+chilli-and-cheese-toastie,10224,Chilli and Cheese toastie,Toasties,,N,,,,,,,1.75,,,,N,Y,7.00,,,Y,N,N,N,N,N,Y,N,N,N,N
+chocolate-brownie,10236,Chocolate brownie,Bakes and Sweets,,N,,,,,,,1.28,,,,N,Y,4.00,,,N,N,N,N,N,N,N,N,Y,N,N
+chocolate-brownie-2,10275,Chocolate Brownie,Penkey Milkshakes,,N,,,,,,,2.03,,,,N,Y,5.80,,,N,N,N,N,N,N,N,N,N,N,N
+classic-vanilla,10278,Classic Vanilla,Penkey Milkshakes,,N,,,,,,,1.40,,,,N,Y,4.00,,,N,N,N,N,N,N,N,N,N,N,N
+clever-dripper-filter,10243,Clever Dripper filter,Hot Drinks - Coffee,Brewed to order - approx 4 minutes.,N,,,,,,,0.60,,,,N,Y,4.00,,,N,N,N,N,N,N,N,N,N,N,N
+cobbler-of-the-day-with-cheese-scone,10229,Cobbler of the day with cheese scone,Penkey Meals,,N,,,,,,,2.69,,,,N,Y,8.95,,,Y,N,N,N,N,N,N,N,N,Y,N
+coke-330ml,10007,Coke 330ml,Drinks fridge,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+cold-drink-special,10001,Cold drink special,Specials,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+cortado-2,10247,Cortado,Hot Drinks - Coffee,,N,,,,,,,0.75,,,,N,Y,3.00,,,N,Y,Y,N,Y,N,N,N,N,N,N
+crisps-2,10288,Crisps,Add-ons,,N,,,,,,,0.30,,,,N,Y,1.00,,,N,N,N,N,N,N,N,N,N,N,N
+crisps-1,10202,Crisps,Snacks,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+crisps-salads,10298,Crisps (Salads),Add-ons,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+croissant,10027,Croissant,Snacks,,N,,,,,,,0.90,,,,N,Y,3.00,,,N,N,N,Y,N,N,N,N,N,N,N
+custard,10300,Custard,Add-ons,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+decaf-one-tea-1-person,10254,Decaf One Tea - 1 person,Hot Drinks - Tea,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,N,N,N,Y,N,N,N,N,N,N
+decaf-one-tea-2-people,10255,Decaf One Tea - 2 people,Hot Drinks - Tea,,N,,,,,,,0.75,,,,N,Y,5.00,,,N,N,N,N,Y,N,N,N,N,N,N
+diet-pepsi-330ml,10008,Diet pepsi 330ml,Drinks fridge,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+double-cheese,10225,Double Cheese,Toasties,,N,,,,,,,1.50,,,,N,Y,6.00,,,Y,N,N,N,N,N,Y,N,N,N,N
+double-trouble-2-x-milkshakes-of-the-same-type,10280,Double trouble - 2 x milkshakes of the same type,Penkey Milkshakes,,N,,,,,,,3.13,,,,N,Y,8.95,,,N,N,N,N,N,N,N,N,N,N,N
+dr-pepper-330ml,10026,Dr Pepper 330ml,Drinks fridge,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+dylan's-bbq,10118,Dylan's BBQ,Retail food,,N,,,,,,,1.65,,,,N,Y,5.50,,,N,N,N,N,N,N,N,N,N,N,N
+dylan's-pickled-samphire,10116,Dylan's pickled samphire,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+dylan's-red-sauce,10117,Dylan's Red Sauce,Retail food,,N,,,,,,,1.35,,,,N,Y,4.50,,,N,N,N,N,N,N,N,N,N,N,N
+earl-grey-tea-1-person,10252,Earl Grey Tea - 1 person,Hot Drinks - Tea,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,N,N,N,Y,N,N,N,N,N,N
+earl-grey-tea-2-people,10253,Earl Grey Tea - 2 people,Hot Drinks - Tea,,N,,,,,,,0.75,,,,N,Y,5.00,,,N,N,N,N,Y,N,N,N,N,N,N
+egg,10292,Egg,Add-ons,,N,,,,,,,0.30,,,,N,Y,1.00,,,N,N,N,N,N,N,N,N,N,N,N
+espresso-double,10240,Espresso (Double),Hot Drinks - Coffee,,N,,,,,,,0.38,,,,N,Y,2.50,,,N,N,Y,N,Y,N,N,N,N,N,N
+eton-mess,10276,Eton Mess,Penkey Milkshakes,,N,,,,,,,1.96,,,,N,Y,5.60,,,N,N,N,N,N,N,N,N,N,N,N
+eton-mess-raspberries-compote-meringue-crumb,10283,"Eton Mess - Raspberries compote, Meringue crumb",Penkey Affogatos,,N,,,,,,,1.50,,,,N,Y,5.00,,,N,N,N,N,N,N,N,N,N,N,N
+flat-white-2,10248,Flat white,Hot Drinks - Coffee,,N,,,,,,,0.75,,,,N,Y,3.50,,,N,Y,Y,N,Y,N,N,N,N,N,N
+fruit-shoot,10091,Fruit shoot,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+fruity-one-tea-1-person,10256,Fruity One Tea - 1 person,Hot Drinks - Tea,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,N,N,N,Y,N,N,N,N,N,N
+fruity-one-tea-2-people,10257,Fruity One Tea - 2 people,Hot Drinks - Tea,,N,,,,,,,0.75,,,,N,Y,5.00,,,N,N,N,N,Y,N,N,N,N,N,N
+full-salad-size,10231,Full Salad size,Penkey Salads,<p>Choose your salad size then add your choice of topping.</p>,N,,,,,,,1.80,,,,N,Y,6.00,,,N,N,N,N,N,N,N,Y,N,N,N
+gift-basket,10195,Gift basket,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gift-indy-&-sky,10184,Gift Indy & sky,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-person-4,10067,Gifts Claire J,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-person-two,10065,Gifts Clare,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts,10064,Gifts Jane,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-marcia,10134,Gifts marcia cards,Gifts,,N,,,,,,,1.19,,,,N,Y,3.95,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-person-3,10066,Gifts person 3,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-person-5,10068,Gifts person 5,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-skillipigs-cards,10084,Gifts Skillipigs cards,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+gifts-what-a-melt-🫠,10185,Gifts what a melt 🫠,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+ginger-beer,10142,Ginger beer,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+ginger-beer-1,10166,Ginger beer,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+homecooked-ham-and-branston-pickle,10213,Ham & Branston Pickle,Sandwiches,<p>Prefer mustard or mayo? Let us know.</p>,N,,,,,,,1.25,,,,N,Y,5.00,,,N,N,N,N,N,Y,N,N,N,N,N
+ham-and-eggs-penkey-style,10230,"Ham & Eggs, Penkey Style",Penkey Meals,"<p>Thick-cut ham, fried eggs &amp; our hot pineapple toastie.</p>",N,,,,,,,2.70,,,,N,Y,9.00,,,Y,N,N,N,N,N,N,N,N,Y,N
+ham-cheese-and-tomato,10226,"Ham, Cheese & Tomato",Toasties,,N,,,,,,,1.63,,,,N,Y,6.50,,,Y,N,N,N,N,N,Y,N,N,N,N
+ham-egg-and-pineapple,10218,"Ham, egg & pineapple",Hot Baps,<p>Prefer standard bread? Let us know.</p>,N,,,,,,,2.00,,,,N,Y,8.00,,,N,N,N,Y,N,N,N,N,N,N,Y
+hot-brownie-chocolate-with-toasted-marshmallows,10264,Hot Brownie Chocolate with toasted marshmallows,Penkey Indulgence,,N,,,,,,,1.50,,,,N,Y,5.00,,,N,N,N,N,N,N,N,N,N,N,N
+hot-chocolate-penkey-mix,10263,Hot Chocolate - Penkey mix,Penkey Indulgence,,N,,,,,,,1.14,,,,N,Y,3.80,,,N,N,N,N,Y,N,N,N,N,N,N
+hot-drink-special,10000,Hot drink special,Specials,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+hot-nuts,10124,Hot honey nuts,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+hot-milkshake-salted-caramel-pistachio-blondie-vanilla-cloud,10265,"Hot Milkshake - Salted caramel, Pistachio Blondie, Vanilla Cloud",Penkey Indulgence,,N,,,,,,,1.26,,,,N,Y,4.20,,,N,N,N,N,N,N,N,N,N,N,N
+houmous-and-cucumber-salad,10215,Houmous and Cucumber Salad,Sandwiches,,N,,,,,,,1.35,,,,N,Y,5.40,,,N,N,N,N,N,Y,N,N,N,N,N
+ice-cream,10301,Ice Cream,Add-ons,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+iced-americano-2,10267,Iced Americano,Iced Drinks - Coffee,,N,,,,,,,0.60,,,,N,Y,4.00,,,N,Y,Y,N,Y,N,N,N,N,N,N
+iced-cappuccino-2,10268,Iced Cappuccino,Iced Drinks - Coffee,,N,,,,,,,0.60,,,,N,Y,4.00,,,N,Y,Y,N,Y,N,N,N,N,N,N
+iced-latte-2,10266,Iced Latte,Iced Drinks - Coffee,,N,,,,,,,0.63,,,,N,Y,4.20,,,N,Y,Y,N,Y,N,N,N,N,N,N
+iced-mocha-choca,10269,Iced Mocha Choca,Iced Drinks - Coffee,,N,,,,,,,0.66,,,,N,Y,4.40,,,N,Y,Y,N,Y,N,N,N,N,N,N
+j20,10082,J20,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+jd-nick,10141,JD nick,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+jug-of-freshly-made-lemonade,10274,Jug of Freshly made lemonade,Fresh Lemonades,,N,,,,,,,2.50,,,,N,Y,9.99,,,N,N,N,N,N,N,N,N,N,N,N
+keyrings,10003,Keyrings,,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+la-classico-double-espresso-served-over-icecream,10281,La classico - Double espresso served over icecream,Penkey Affogatos,,N,,,,,,,1.44,,,,N,Y,4.80,,,N,N,N,N,N,N,N,N,N,N,N
+latte-10oz,10244,Latte 10oz,Hot Drinks - Coffee,,N,,,,,,,0.75,,,,N,Y,3.80,,,N,Y,Y,N,Y,N,N,N,N,N,N
+leek-oil,10121,Leek oil,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+lemon,10270,Lemon,Fresh Lemonades,,N,,,,,,,0.88,,,,N,Y,3.50,,,N,N,N,N,N,N,N,N,N,N,N
+lemon-and-mint,10273,Lemon and Mint,Fresh Lemonades,,N,,,,,,,0.94,,,,N,Y,3.75,,,N,N,N,N,N,N,N,N,N,N,N
+lemon-and-raspberries,10271,Lemon and raspberries,Fresh Lemonades,,N,,,,,,,0.95,,,,N,Y,3.80,,,N,N,N,N,N,N,N,N,N,N,N
+lemon-and-sanbitter-spritz,10272,Lemon and Sanbitter Spritz,Fresh Lemonades,,N,,,,,,,1.00,,,,N,Y,4.00,,,N,N,N,N,N,N,N,N,N,N,N
+lemon-crumble-slice-2,10237,Lemon crumble slice,Bakes and Sweets,,N,,,,,,,1.22,,,,N,Y,3.80,,,N,N,N,N,N,N,N,N,Y,N,N
+lilliput-capers,10125,Lilliput capers,Retail food,,N,,,,,,,1.49,,,,N,Y,4.95,,,N,N,N,N,N,N,N,N,N,N,N
+liz-gifts,10057,Liz gifts,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+local-chutney,10032,Local Chutney,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+local-honey,10033,Local Honey,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+local-jam,10034,Local jam,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+lunch-special,10210,Lunch Special,Penkey Meals,<p>See board for today&#39;s offering. Add any drink for &pound;2 (excluding milkshakes).</p>,N,,,,,,,3.59,,,,N,Y,11.95,,,N,N,N,N,N,N,N,N,N,N,N
+machhiato-double-espresso-with-a-dab-of-foam,10241,Machhiato ( Double espresso with a dab of foam),Hot Drinks - Coffee,,N,,,,,,,0.42,,,,N,Y,2.80,,,N,N,N,N,Y,N,N,N,N,N,N
+make-it-a-full-plate,10289,Make it a full plate,Add-ons,,N,,,,,,,0.90,,,,N,Y,3.00,,,N,N,N,N,N,N,N,N,N,N,N
+mini-chocolate-brownie,10286,Mini Chocolate Brownie,Add-ons,,N,,,,,,,0.84,,,,N,Y,2.80,,,N,N,N,N,N,N,N,N,N,N,N
+mini-soup,10294,Mini Soup,Add-ons,,N,,,,,,,0.60,,,,N,Y,2.00,,,N,N,N,N,N,N,N,N,N,N,N
+minty-one-tea-1-person,10258,Minty One Tea - 1 person,Hot Drinks - Tea,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,N,N,N,Y,N,N,N,N,N,N
+minty-one-tea-2-people,10259,Minty One Tea - 2 people,Hot Drinks - Tea,,N,,,,,,,0.75,,,,N,Y,5.00,,,N,N,N,N,Y,N,N,N,N,N,N
+misc,10015,Misc,,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+mocha-2,10249,Mocha,Hot Drinks - Coffee,,N,,,,,,,0.80,,,,N,Y,4.00,,,N,Y,Y,N,Y,N,N,N,N,N,N
+mocha-brownie-choca-brownie-crumbs-chocolate-sauce,10282,Mocha Brownie Choca - brownie crumbs chocolate sauce,Penkey Affogatos,,N,,,,,,,1.74,,,,N,Y,5.80,,,N,N,N,N,N,N,N,N,N,N,N
+nick,10136,Nick,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+oak-milk,10284,Oak Milk,Add-ons,,N,,,,,,,0.15,,,,N,Y,0.50,,,N,N,N,N,N,N,N,N,N,N,N
+penkey-hogs-loaf-with-egg,10221,Penkey Hogs loaf with Egg,Hot Baps,,N,,,,,,,1.88,,,,N,Y,7.50,,,N,N,N,Y,N,N,N,N,N,N,Y
+penkey-ploughmans-ham-cheese-and-sway-chutney,10214,"Penkey Ploughman’s - Ham, Cheese and sway chutney",Sandwiches,,N,,,,,,,1.50,,,,N,Y,6.00,,,N,N,N,N,N,Y,N,N,N,N,N
+pepsi-max,10022,Pepsi max,Drinks fridge,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+pickled-pineapple,10119,Pickled pineapple,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+pigs-in-blankets-nuts,10115,Pigs in Blankets Nuts,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+pulled-pork-hogs-loaf-apple-sauce-sage-crumble,10219,"Pulled Pork, Hogs Loaf, Apple Sauce, Sage crumble",Hot Baps,,N,,,,,,,2.00,,,,N,Y,9.00,,,N,N,N,Y,N,N,N,N,N,N,Y
+quiche,10187,Quiche,,,N,,,,,,,2.10,,,,N,Y,7.00,,,N,N,N,N,N,N,N,N,N,N,N
+retail-tea-☕,10199,Retail tea ☕,Retail food,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+rio,10009,Rio,Drinks fridge,,N,,,,,,,0.45,,,,N,Y,1.50,,,N,N,N,N,N,N,N,N,N,N,N
+root-beer,10005,Root beer,,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+sanpalagrino,10108,Sanpalagrino,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+sauces,10303,Sauces,Add-ons,,N,,,,,,,0.30,,,,N,Y,1.00,,,N,N,N,N,N,N,N,N,N,N,N
+sausage-bap-2,10223,Sausage Bap,Hot Baps,,N,,,,,,,1.70,,,,N,Y,6.00,,,N,N,N,Y,N,N,N,N,N,N,Y
+sausage-loaf-and-onion-chutney,10227,Sausage Loaf and Onion Chutney,Toasties,,N,,,,,,,1.63,,,,N,Y,6.50,,,Y,N,N,N,N,N,Y,N,N,N,N
+sausage-roll,10180,Sausage roll,Snacks,,N,,,,,,,1.35,,,,N,Y,4.50,,,N,N,N,N,N,N,N,N,N,N,N
+seasonal-fruit-crumble,10239,Seasonal Fruit Crumble,Bakes and Sweets,,N,,,,,,,1.44,,,,N,Y,4.50,,,N,N,N,N,N,N,N,N,Y,N,N
+side-salad,10287,Side salad,Add-ons,,N,,,,,,,0.90,,,,N,Y,3.00,,,N,N,N,N,N,N,N,N,N,N,N
+side-salad-2,10295,Side Salad,Add-ons,,N,,,,,,,1.05,,,,N,Y,3.50,,,N,N,N,N,N,N,N,N,N,N,N
+side-salad-size,10232,Side Salad size,Penkey Salads,<p>Choose your salad size then add your choice of topping.</p>,N,,,,,,,1.20,,,,N,Y,4.00,,,N,N,N,N,N,N,N,Y,N,N,N
+smokey-bacon-nuts,10135,Smokey Bacon Nuts,Retail food,,N,,,,,,,0.60,,,,N,Y,2.00,,,N,N,N,N,N,N,N,N,N,N,N
+soap-gift,10198,Soap gift,Gifts,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+syrups-vanilla-caramel-pistachio,10285,"Syrups - Vanilla, caramel, pistachio",Add-ons,,N,,,,,,,0.15,,,,N,Y,0.50,,,N,N,N,N,N,N,N,N,N,N,N
+taxi-can,10004,Taxi can,,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+the-full-penkey-homemade-hogs-loaf-bacon-sausage-and-egg-2,10220,"The Full Penkey - Homemade hog’s loaf, bacon, sausage & egg",Hot Baps,,N,,,,,,,2.50,,,,N,Y,8.50,,,N,N,N,Y,N,N,N,N,N,N,Y
+trip,10127,Trip,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+trip-1,10128,Trip,Drinks fridge,,N,,,,,,,0.66,,,,N,Y,2.20,,,N,N,N,N,N,N,N,N,N,N,N
+trip-2,10131,Trip,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+truffle-nuts,10113,Truffle Nuts,Retail food,,N,,,,,,,1.79,,,,N,Y,5.95,,,N,N,N,N,N,N,N,N,N,N,N
+turnover-bacon-and-cheese,10205,Turnover bacon and cheese,Snacks,,N,,,,,,,1.20,,,,N,Y,4.00,,,N,N,N,N,N,N,N,N,N,N,N
+turnover-cheese-and-onion,10204,Turnover cheese and onion,Snacks,,N,,,,,,,1.20,,,,N,Y,4.00,,,N,N,N,N,N,N,N,N,N,N,N
+vanilla-one-rooibos-and-vanilla-tea-1-person,10260,Vanilla One - Rooibos and Vanilla Tea - 1 person,Hot Drinks - Tea,,N,,,,,,,0.45,,,,N,Y,3.00,,,N,N,N,N,Y,N,N,N,N,N,N
+vanilla-one-rooibos-and-vanilla-tea-2-people,10261,Vanilla One - Rooibos and Vanilla Tea - 2 people,Hot Drinks - Tea,,N,,,,,,,0.75,,,,N,Y,5.00,,,N,N,N,N,Y,N,N,N,N,N,N
+water---sparkling,10063,Water - sparkling,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+water---still,10024,Water - still,Drinks fridge,,N,,,,,,,0.00,,,,N,Y,variable,,,N,N,N,N,N,N,N,N,N,N,N
+whipped-cream,10302,Whipped Cream,Add-ons,,N,,,,,,,0.30,,,,N,Y,1.00,,,N,N,N,N,N,N,N,N,N,N,N

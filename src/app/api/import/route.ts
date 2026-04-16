@@ -108,6 +108,119 @@ async function detectDuplicates(csvText: string, orgId: string) {
   return duplicates;
 }
 
+async function previewImport(csvText: string, orgId: string) {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    return {
+      categories: [],
+      items: [],
+      modifier_groups: [],
+      format: 'Unknown'
+    };
+  }
+
+  const headers = parseCSVLine(lines[0]);
+  const headerMap = new Map(headers.map((h, i) => [h.toLowerCase().trim(), i]));
+  const isLoyverse = isLoyverseFormat(headers);
+
+  const supabase = createSupabaseServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const categories: { name: string; duplicate: boolean }[] = [];
+  const items: { name: string; category: string; price: number; duplicate: boolean }[] = [];
+  const modifier_groups: { name: string; duplicate: boolean }[] = [];
+
+  const categoryNames = new Set<string>();
+  const itemNames = new Set<string>();
+  const modifierGroupNames = new Set<string>();
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    
+    if (isLoyverse) {
+      const name = unescapeCSV(values[headerMap.get('name') || 2] || '');
+      const category = unescapeCSV(values[headerMap.get('category') || 3] || '');
+      const priceColumnIndex = headers.findIndex(h => h.toLowerCase().startsWith('price ['));
+      const price = priceColumnIndex >= 0 ? parseFloat(values[priceColumnIndex] || '0') || 0 : 0;
+      
+      // Skip Add-ons items as they'll become modifier options
+      const isAddOn = category.toLowerCase() === 'add-ons' || category.toLowerCase() === 'add ons';
+      
+      if (name && !isAddOn) {
+        itemNames.add(name);
+        items.push({ name, category, price, duplicate: false });
+      }
+      if (category && !categoryNames.has(category) && !isAddOn) {
+        categoryNames.add(category);
+        categories.push({ name: category, duplicate: false });
+      }
+    } else {
+      const type = values[headerMap.get('type') || 0]?.toLowerCase().trim();
+      const name = unescapeCSV(values[headerMap.get('name') || 1] || '');
+      
+      if (!name) continue;
+      
+      if (type === 'category' && !categoryNames.has(name)) {
+        categoryNames.add(name);
+        categories.push({ name, duplicate: false });
+      } else if (type === 'item') {
+        const categoryName = unescapeCSV(values[headerMap.get('category') || 2] || '');
+        const price = parseFloat(values[headerMap.get('price') || 3] || '0') || 0;
+        itemNames.add(name);
+        items.push({ name, category: categoryName, price, duplicate: false });
+      } else if (type === 'modifier group' && !modifierGroupNames.has(name)) {
+        modifierGroupNames.add(name);
+        modifier_groups.push({ name, duplicate: false });
+      }
+    }
+  }
+
+  if (categoryNames.size > 0) {
+    const { data } = await supabase
+      .from('categories')
+      .select('name')
+      .eq('org_id', orgId)
+      .in('name', Array.from(categoryNames));
+    const duplicateSet = new Set(data?.map(d => d.name) || []);
+    categories.forEach(cat => {
+      cat.duplicate = duplicateSet.has(cat.name);
+    });
+  }
+
+  if (itemNames.size > 0) {
+    const { data } = await supabase
+      .from('items')
+      .select('name')
+      .eq('org_id', orgId)
+      .in('name', Array.from(itemNames));
+    const duplicateSet = new Set(data?.map(d => d.name) || []);
+    items.forEach(item => {
+      item.duplicate = duplicateSet.has(item.name);
+    });
+  }
+
+  if (modifierGroupNames.size > 0) {
+    const { data } = await supabase
+      .from('modifier_groups')
+      .select('name')
+      .eq('org_id', orgId)
+      .in('name', Array.from(modifierGroupNames));
+    const duplicateSet = new Set(data?.map(d => d.name) || []);
+    modifier_groups.forEach(mod => {
+      mod.duplicate = duplicateSet.has(mod.name);
+    });
+  }
+
+  return {
+    categories,
+    items,
+    modifier_groups,
+    format: isLoyverse ? 'Loyverse' : 'Penkey'
+  };
+}
+
 export async function POST(request: NextRequest) {
   const session = await validatePOSSession(request);
   if (!session) {
@@ -125,6 +238,7 @@ export async function POST(request: NextRequest) {
 
   const url = new URL(request.url);
   const checkDuplicates = url.searchParams.get('check_duplicates') === 'true';
+  const preview = url.searchParams.get('preview') === 'true';
   const skipDuplicates = url.searchParams.get('skip_duplicates') === 'true';
 
   const body = await request.text();
@@ -137,6 +251,19 @@ export async function POST(request: NextRequest) {
       console.error("Failed to check duplicates:", error);
       return NextResponse.json(
         { error: error.message || "Failed to check duplicates" },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (preview) {
+    try {
+      const previewData = await previewImport(body, session.org_id);
+      return NextResponse.json(previewData);
+    } catch (error: any) {
+      console.error("Failed to preview import:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to preview import" },
         { status: 500 }
       );
     }
@@ -176,6 +303,7 @@ export async function POST(request: NextRequest) {
     const modifierGroupMap = new Map<string, string>();
     const itemMap = new Map<string, string>();
     const modifierGroupDefaultOptionMap = new Map<string, string>();
+    const addOnItems: Array<{ name: string; price: number }> = [];
 
     if (isLoyverse) {
       // Loyverse format: Handle, SKU, Name, Category, Description, Sold by weight, Option 1 name, Option 1 value, Option 2 name, Option 2 value, Option 3 name, Option 3 value, Cost, Barcode, SKU of included item, Quantity of included item, Track stock, Available for sale [Store], Price [Store], In stock [Store], Low stock [Store], Modifier columns...
@@ -193,6 +321,12 @@ export async function POST(request: NextRequest) {
         const price = priceColumnIndex >= 0 ? parseFloat(values[priceColumnIndex] || '0') || 0 : 0;
         
         if (!name) continue;
+
+        // Check if this is an Add-ons item - these should become modifier options, not regular items
+        if (category.toLowerCase() === 'add-ons' || category.toLowerCase() === 'add ons') {
+          addOnItems.push({ name, price });
+          continue; // Skip importing as a regular item
+        }
 
         // Import or get category
         if (category) {
@@ -344,6 +478,54 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error("Failed to import item:", name, err);
           results.items.errors++;
+        }
+      }
+
+      // Now create modifier options from Add-ons items
+      console.log(`[Import] Processing ${addOnItems.length} Add-ons items as modifier options`);
+      for (const addOn of addOnItems) {
+        // Create modifier options for each modifier group
+        for (const [groupName, groupId] of Array.from(modifierGroupMap.entries())) {
+          try {
+            // Check if this option already exists in this group
+            const { data: existingOption } = await supabase
+              .from("modifier_options")
+              .select("id")
+              .eq("modifier_group_id", groupId)
+              .eq("name", addOn.name)
+              .single() as { data: { id: string } | null };
+
+            if (existingOption) {
+              if (skipDuplicates) {
+                results.modifier_options.skipped++;
+              } else {
+                await supabase
+                  .from("modifier_options")
+                  .update({
+                    price_adjustment: addOn.price,
+                    is_active: true
+                  } as any)
+                  .eq("id", existingOption.id);
+                results.modifier_options.updated++;
+              }
+            } else {
+              const { error: optionError } = await supabase
+                .from("modifier_options")
+                .insert({
+                  modifier_group_id: groupId,
+                  name: addOn.name,
+                  price_adjustment: addOn.price,
+                  is_active: true,
+                  sort_order: 0
+                } as any);
+
+              if (optionError) throw optionError;
+              results.modifier_options.created++;
+            }
+          } catch (err) {
+            console.error(`Failed to create modifier option ${addOn.name} for group ${groupName}:`, err);
+            results.modifier_options.errors++;
+          }
         }
       }
     } else {
