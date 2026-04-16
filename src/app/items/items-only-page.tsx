@@ -14,7 +14,6 @@ import { QuickEditItemDialog } from "./quick-edit-dialog";
 import { CategorySelectorDialog } from "../sell/category-selector-dialog";
 import { PageHeader } from "@/components/page-header";
 import { dataCache } from "@/lib/services/data-cache";
-import { createSupabaseClient } from "@/lib/database";
 import { SelectModifierGroupDialog } from "./select-modifier-group-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 
@@ -354,20 +353,46 @@ export default function ItemsOnlyPage() {
             onClick={async () => {
               if (!session) return;
               if (!confirm(`Delete ${selectedIds.size} item(s)? This cannot be undone.`)) return;
-              const supabase = createSupabaseClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-              );
-              const ids = Array.from(selectedIds);
-              await Promise.all(
-                ids.map((id) =>
-                  supabase.from("items").update({ is_active: false }).eq("id", id)
-                )
-              );
-              dataCache.clear(session.org_id, "items");
-              setSelectionMode(false);
-              setSelectedIds(new Set());
-              reload(true);
+              
+              try {
+                const sessionData = sessionStorage.getItem('pos_session');
+                if (!sessionData) {
+                  showToast('Session expired. Please log in again.', 'error');
+                  return;
+                }
+                
+                const ids = Array.from(selectedIds);
+                const results = await Promise.all(
+                  ids.map((id) =>
+                    fetch(`/api/items/${id}`, {
+                      method: 'DELETE',
+                      headers: {
+                        'x-pos-session': sessionData,
+                      },
+                    })
+                  )
+                );
+                
+                // Check for errors
+                for (const res of results) {
+                  if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Failed to delete item');
+                  }
+                }
+                
+                // Clear cache and sync timestamp
+                dataCache.clear(session.org_id, "items");
+                SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+                
+                showToast(`${ids.length} item(s) deleted successfully`, "success");
+                setSelectionMode(false);
+                setSelectedIds(new Set());
+                reload(true);
+              } catch (error: any) {
+                console.error("Failed to delete items:", error);
+                showToast(`Failed to delete items: ${error.message}`, "error");
+              }
             }}
           >
             Delete
