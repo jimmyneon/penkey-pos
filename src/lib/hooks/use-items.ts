@@ -80,10 +80,18 @@ export function useItems(orgId: string, categoryId?: string, forceRefresh: boole
       if (categoryId) url += `&category_id=${categoryId}`;
       
       const doFetch = async () => {
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error("Failed to fetch items");
+        console.log("[useItems] Fetching from API:", url);
+        const resp = await fetch(url, {
+          credentials: 'same-origin', // Include httpOnly cookies
+        });
+        console.log("[useItems] API response:", resp.status, resp.ok);
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          console.error("[useItems] API error:", resp.status, errorText);
+          throw new Error(`Failed to fetch items: ${resp.status}`);
+        }
         const data: Item[] = await resp.json();
-        console.log("[useItems] Loaded items from API:", data.length);
+        console.log("[useItems] Loaded items from API:", data.length, "items");
         setItems(data);
         setError(null);
 
@@ -92,6 +100,7 @@ export function useItems(orgId: string, categoryId?: string, forceRefresh: boole
           const withOrg = data.map((x: any) => ({ ...x, org_id: orgId }));
           await putMany("items", withOrg);
           await SyncManager.markSynced(orgId, 'ITEMS');
+          console.log("[useItems] Cached", withOrg.length, "items to IndexedDB");
         } catch (e) {
           console.error("[useItems] Failed to cache items:", e);
         }
