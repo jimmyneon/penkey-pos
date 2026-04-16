@@ -14,7 +14,6 @@ import { addCSRFToken } from "@/lib/utils/csrf-client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { PageHeader } from "@/components/page-header";
-import { createSupabaseClient } from "@/lib/database";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -394,20 +393,45 @@ export default function ModifiersPage() {
               if (!session) return;
               const ids = Array.from(selectedIds);
               if (!confirm(`Delete ${ids.length} modifier group${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
-              const supabase = createSupabaseClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-              );
-              await Promise.all(
-                ids.map((id) =>
-                  supabase.from("modifier_groups").delete().eq("id", id)
-                )
-              );
-              invalidateAllModifiers(session.org_id);
-              dataCache.clear(session.org_id, "modifier_groups");
-              fetchModifierGroups(true);
-              setSelectionMode(false);
-              setSelectedIds(new Set());
+              
+              try {
+                const sessionData = sessionStorage.getItem('pos_session');
+                if (!sessionData) {
+                  showToast('Session expired. Please log in again.', 'error');
+                  return;
+                }
+                
+                const results = await Promise.all(
+                  ids.map((id) =>
+                    fetch(`/api/modifiers/groups/${id}`, {
+                      method: 'DELETE',
+                      headers: {
+                        'x-pos-session': sessionData,
+                      },
+                    })
+                  )
+                );
+                
+                // Check for errors
+                for (const res of results) {
+                  if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Failed to delete modifier group');
+                  }
+                }
+                
+                // Clear caches
+                invalidateAllModifiers(session.org_id);
+                dataCache.clear(session.org_id, "modifier_groups");
+                
+                showToast(`${ids.length} modifier group${ids.length === 1 ? '' : 's'} deleted successfully`, "success");
+                fetchModifierGroups(true);
+                setSelectionMode(false);
+                setSelectedIds(new Set());
+              } catch (error: any) {
+                console.error("Failed to delete modifier groups:", error);
+                showToast(`Failed to delete modifier groups: ${error.message}`, "error");
+              }
             }}
           >
             Delete

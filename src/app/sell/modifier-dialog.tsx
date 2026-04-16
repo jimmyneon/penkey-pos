@@ -210,15 +210,19 @@ export function ModifierDialog({
         ? Infinity
         : Math.max(0, group.max_selections);
 
-      // If max is 1, behave as single-select toggle
+      // If max is 1, behave as single-select (radio button)
       if (maxAllowed === 1) {
         if (currentQty > 0) {
-          // toggle off
+          // For required groups, don't allow deselection - must always have one selected
+          if (group.selection_type === 'required' || group.min_selections > 0) {
+            return prev; // ignore tap on already-selected option
+          }
+          // For optional groups, allow toggle off
           const newGroup: Record<string, number> = { ...groupSelections };
           delete newGroup[optionId];
           return { ...prev, [groupId]: newGroup };
         } else {
-          // select this, clear others
+          // select this, clear others (radio button behavior)
           return { ...prev, [groupId]: { [optionId]: 1 } };
         }
       }
