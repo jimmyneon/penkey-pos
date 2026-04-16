@@ -14,6 +14,7 @@ import { QuickEditItemDialog } from "./quick-edit-dialog";
 import { CategorySelectorDialog } from "../sell/category-selector-dialog";
 import { PageHeader } from "@/components/page-header";
 import { dataCache } from "@/lib/services/data-cache";
+import { clearStore } from "@/lib/idb/db";
 import { SelectModifierGroupDialog } from "./select-modifier-group-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 
@@ -381,9 +382,10 @@ export default function ItemsOnlyPage() {
                   }
                 }
                 
-                // Clear cache and sync timestamp
+                // Clear cache, sync timestamp, and IndexedDB
                 dataCache.clear(session.org_id, "items");
                 SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+                await clearStore("items"); // Clear IndexedDB to remove stale data
                 
                 showToast(`${ids.length} item(s) deleted successfully`, "success");
                 setSelectionMode(false);

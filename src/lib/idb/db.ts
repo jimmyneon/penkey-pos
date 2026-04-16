@@ -101,3 +101,10 @@ export async function getMeta<T = any>(key: string): Promise<T | null> {
   const res = (await db.get('meta', key)) as any;
   return res ? (res.value as T) : null;
 }
+
+export async function clearStore(storeName: string) {
+  const db = await getDB();
+  const tx = db.transaction(storeName, 'readwrite');
+  await tx.objectStore(storeName as any).clear();
+  await tx.done;
+}
