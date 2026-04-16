@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, Package, Tag, Boxes, Percent, Home, Download, Upload } from "lucide-react";
+import { ArrowLeft, Package, Tag, Boxes, Percent, Home, Download, Upload, Trash2 } from "lucide-react";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 
 interface Session {
@@ -65,6 +65,13 @@ export default function ItemsHubPage() {
       icon: Percent,
       href: "/discounts",
       color: "bg-orange-500",
+    },
+    {
+      title: "Deleted Items",
+      description: "View & restore",
+      icon: Trash2,
+      href: "/items/deleted",
+      color: "bg-red-500",
     },
   ];
 
