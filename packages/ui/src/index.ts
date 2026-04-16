@@ -14,3 +14,6 @@ export * from "./components/story-card";
 export * from "./components/trend-card";
 export * from "./components/achievement-card";
 export * from "./components/insight-card";
+
+// Hooks
+export * from "./hooks/use-keyboard-visible";
