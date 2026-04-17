@@ -8,8 +8,12 @@ import { dataCache } from "@/lib/services/data-cache";
 interface Item {
   id: string;
   name: string;
-  price: number;
+  base_price: number;
   category_id: string | null;
+  categories: {
+    name: string;
+    color: string | null;
+  } | null;
 }
 
 interface ModifierGroup {
@@ -206,7 +210,15 @@ export function AssignModifierDialog({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-medium text-sm">{item.name}</p>
-                    <p className="text-xs text-gray-400">£{(item.price || 0).toFixed(2)}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>£{(item.base_price || 0).toFixed(2)}</span>
+                      {item.categories?.name && (
+                        <>
+                          <span>•</span>
+                          <span>{item.categories.name}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}

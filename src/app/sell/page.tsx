@@ -1519,10 +1519,12 @@ export default function SellPage() {
       <ConfirmDialog
         open={clearConfirmOpen}
         onClose={() => setClearConfirmOpen(false)}
-        onConfirm={() => {
-          lines.forEach(line => removeLine(line.id));
+        onConfirm={async () => {
+          clearCart();
           setCurrentTicketName("");
           setCurrentTicketComment("");
+          setTicketAssignment(null);
+          await CartSyncService.clearCart();
           hapticDelete();
           playDeleteSound();
         }}
