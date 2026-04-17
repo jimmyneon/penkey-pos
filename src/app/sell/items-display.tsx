@@ -14,6 +14,15 @@ interface ItemsDisplayProps {
   onAddItem: (item: Item, e: React.MouseEvent) => void;
 }
 
+// Extract the main product word from a category name
+// Simple heuristic: takes the last word, which is often the main product
+// Example: "carrot soup" → "soup", "buttered chicken" → "chicken"
+const extractMainProductWord = (categoryName: string): string => {
+  if (!categoryName) return "";
+  const words = categoryName.trim().split(/\s+/);
+  return words[words.length - 1] || categoryName;
+};
+
 export function ItemsDisplay({
   displayLoading,
   filteredItems,
@@ -121,7 +130,7 @@ export function ItemsDisplay({
                 </h3>
                 {font_size === "large" && item.categories && (
                   <p className={`${getCategorySizeClass()} text-white/80 mt-1`}>
-                    {item.categories.name}
+                    {extractMainProductWord(item.categories.name)}
                   </p>
                 )}
               </div>
