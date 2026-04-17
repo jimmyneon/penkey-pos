@@ -126,7 +126,7 @@ export function ItemsDisplay({
               )}
               <div className={`absolute inset-0 flex flex-col items-center justify-center ${paddingClass} ${hasImage ? 'bg-black/40' : ''}`}>
                 <h3 className={`item-button-text ${getTextSizeClass()} font-medium text-center leading-tight text-white drop-shadow-lg break-words ${font_size === "large" ? "line-clamp-2" : "line-clamp-3"}`}>
-                  {font_size === "large" ? item.name.slice(0, 10) : item.name}
+                  {font_size === "large" ? item.name.slice(0, 18) : item.name}
                 </h3>
                 {font_size === "large" && item.categories && (
                   <p className={`${getCategorySizeClass()} text-white/80 mt-1`}>
