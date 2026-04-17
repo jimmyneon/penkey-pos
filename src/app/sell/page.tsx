@@ -270,12 +270,8 @@ export default function SellPage() {
   // Filter and sort items by search query and popularity
   const searchLower = searchQuery.toLowerCase();
   
-  // For short queries (1-2 chars), only show items that START with the term
-  // For longer queries, show items that CONTAIN the term
+  // Always filter by contains (consistent behavior for all query lengths)
   let filteredItems = displayItems.filter((item) => {
-    if (searchLower.length <= 2) {
-      return item.name.toLowerCase().startsWith(searchLower);
-    }
     return item.name.toLowerCase().includes(searchLower);
   });
 

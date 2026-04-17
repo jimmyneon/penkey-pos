@@ -118,11 +118,7 @@ export default function FavouritesPage() {
 
   const filteredItems = items.filter(item => {
     const searchLower = searchQuery.toLowerCase();
-    // For short queries (1-2 chars), only show items that START with the term
-    // For longer queries, show items that CONTAIN the term
-    if (searchLower.length <= 2) {
-      return item.name.toLowerCase().startsWith(searchLower);
-    }
+    // Always filter by contains (consistent behavior for all query lengths)
     return item.name.toLowerCase().includes(searchLower);
   });
 
