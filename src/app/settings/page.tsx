@@ -450,6 +450,11 @@ export default function SettingsPage() {
         if (!response.ok) {
           console.error("Failed to save setting immediately:", await response.json());
           showToast("Failed to save setting", "error");
+        } else {
+          // Refresh page after saving theme to apply changes
+          if (key === "theme") {
+            window.location.reload();
+          }
         }
       } catch (error) {
         console.error("Failed to save setting immediately:", error);
