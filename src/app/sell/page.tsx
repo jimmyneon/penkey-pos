@@ -23,6 +23,7 @@ import { OpenTicketsDialog } from "./open-tickets-dialog";
 import { PriceInputDialog } from "./price-input-dialog";
 import { CategorySelectorDialog } from "./category-selector-dialog";
 import { AssignTicketDialog } from "./assign-ticket-dialog";
+import { FavouritesDialog } from "./favourites-dialog";
 // import { EnhancedAssignTicketDialog } from "./enhanced-assign-ticket-dialog"; // TODO: Fix perks integration
 import { MergeTicketsDialog } from "./merge-tickets-dialog";
 import { SplitTicketDialog } from "./split-ticket-dialog";
@@ -79,6 +80,7 @@ export default function SellPage() {
     }
     return false;
   });
+  const [favouritesDialogOpen, setFavouritesDialogOpen] = useState(false);
   const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [pendingItemEvent, setPendingItemEvent] = useState<React.MouseEvent | null>(null);
@@ -1272,15 +1274,13 @@ export default function SellPage() {
                   <span className="text-xs sm:text-sm">Popular</span>
                 </button>
                 <button
-                  onClick={() => setShowFavourites(!showFavourites)}
+                  onClick={() => setFavouritesDialogOpen(true)}
                   className={`rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap min-w-fit ${
-                    showFavourites
-                      ? "bg-gradient-to-br from-yellow-400 to-yellow-500 text-[#2d2d2d]"
-                      : "bg-[#3d3d3d] text-white hover:bg-[#4d4d4d]"
+                    "bg-[#3d3d3d] text-white hover:bg-[#4d4d4d]"
                   }`}
-                  title="Toggle favourites filter"
+                  title="Open favourites"
                 >
-                  <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${showFavourites ? "fill-[#2d2d2d]" : ""}`} />
+                  <Star className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                   <span className="text-xs sm:text-sm">Favourites</span>
                 </button>
                 <Button
@@ -1489,9 +1489,14 @@ export default function SellPage() {
         tickets={savedTickets}
         onLoadTicket={handleLoadTicket}
         onDeleteTicket={handleDeleteTicket}
-        onMergeTickets={handleMergeFromDialog}
-        onSplitTicket={handleSplitFromDialog}
-        onAddToCustomer={handleAddToCustomerFromDialog}
+      />
+
+      {/* Favourites Dialog */}
+      <FavouritesDialog
+        open={favouritesDialogOpen}
+        onClose={() => setFavouritesDialogOpen(false)}
+        orgId={session?.org_id || ""}
+        onAddItem={(item) => handleAddItem(item, null as any)}
       />
 
       {/* Price Input Dialog */}

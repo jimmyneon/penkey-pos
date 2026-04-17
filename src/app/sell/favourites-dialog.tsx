@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Star, Loader2 } from "lucide-react";
+import { X, Star, Loader2, GripVertical } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress, hapticItemAdded } from "@/lib/utils/haptics";
 import { playButtonSound, playItemAddedSound } from "@/lib/utils/sounds";
@@ -78,19 +78,22 @@ export function FavouritesDialog({
             </div>
           ) : items.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <button
                   key={item.id}
                   onClick={() => handleAddItem(item)}
-                  className="bg-[#2d2d2d] hover:bg-[#4d4d4d] transition-colors rounded-lg p-4 text-left group"
+                  className="bg-[#2d2d2d] hover:bg-[#4d4d4d] transition-colors rounded-lg p-4 text-left group relative"
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="absolute top-2 left-2 bg-penkey-orange text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+                    {item.favourite_position || index + 1}
+                  </div>
+                  <div className="flex items-start justify-between mb-2 pl-8">
                     <h3 className="text-white font-medium text-sm line-clamp-2 group-hover:text-penkey-orange transition-colors">
                       {item.name}
                     </h3>
                     <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 flex-shrink-0 ml-2" />
                   </div>
-                  <p className="text-penkey-orange font-semibold">
+                  <p className="text-penkey-orange font-semibold pl-8">
                     {formatCurrency(item.base_price)}
                   </p>
                 </button>

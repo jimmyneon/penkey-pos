@@ -39,15 +39,16 @@ export async function GET(request: NextRequest) {
       `
       )
       .eq("org_id", session.org_id)
-      .eq("is_active", true)
-      .order("name");
+      .eq("is_active", true);
 
     if (categoryId) {
       query = query.eq("category_id", categoryId);
     }
 
     if (favourites === "true") {
-      query = query.eq("is_favourite", true);
+      query = query.eq("is_favourite", true).order("favourite_position", { ascending: true, nullsFirst: false });
+    } else {
+      query = query.order("name");
     }
 
     const { data, error } = await query;
