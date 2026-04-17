@@ -47,6 +47,7 @@ export default function ItemsOnlyPage() {
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [findingDuplicates, setFindingDuplicates] = useState(false);
   const [selectedDuplicateIds, setSelectedDuplicateIds] = useState<Set<string>>(new Set());
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
   const { categories, loading: categoriesLoading } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -106,13 +107,13 @@ export default function ItemsOnlyPage() {
           name: group[0].name,
           items: group,
         });
-        // Add all items from this group to selected set
-        group.forEach((item: any) => allDuplicateIds.add(item.id));
+        // Add all items EXCEPT the first one (keep the original)
+        group.slice(1).forEach((item: any) => allDuplicateIds.add(item.id));
       }
     });
 
     setDuplicates(duplicateGroups);
-    setSelectedDuplicateIds(allDuplicateIds); // Auto-select all duplicates
+    setSelectedDuplicateIds(allDuplicateIds); // Auto-select all duplicates (skip originals)
     setFindingDuplicates(false);
     setDuplicateDialogOpen(true);
   };
@@ -157,6 +158,11 @@ export default function ItemsOnlyPage() {
   };
 
   const removeAllSelectedDuplicates = async () => {
+    setDeleteConfirmationOpen(true);
+  };
+
+  const confirmDeleteDuplicates = async () => {
+    setDeleteConfirmationOpen(false);
     try {
       const idsToDelete = Array.from(selectedDuplicateIds);
       if (idsToDelete.length === 0) {
@@ -184,8 +190,11 @@ export default function ItemsOnlyPage() {
 
       // Clear cache and trigger full refresh
       if (session) {
+        // Clear all caches to ensure deleted items are removed
         dataCache.clear(session.org_id, "items");
         SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+        // Also clear IndexedDB directly to ensure items are removed
+        await clearStore();
       }
 
       // Reload items and close dialog
@@ -751,10 +760,10 @@ export default function ItemsOnlyPage() {
                 <div key={index} className="mb-6 last:mb-0">
                   <h3 className="text-lg font-medium text-white mb-3">{group.name}</h3>
                   <div className="space-y-2">
-                    {group.items.map((item: any) => (
+                    {group.items.map((item: any, itemIndex: number) => (
                       <div
                         key={item.id}
-                        className="bg-[#2d2d2d] rounded-lg p-4 flex items-center gap-3"
+                        className={`bg-[#2d2d2d] rounded-lg p-4 flex items-center gap-3 ${itemIndex === 0 ? 'border-l-4 border-green-500' : ''}`}
                       >
                         <input
                           type="checkbox"
@@ -773,7 +782,7 @@ export default function ItemsOnlyPage() {
                           className="w-5 h-5 rounded border-gray-600 bg-[#3d3d3d] text-penkey-orange focus:ring-penkey-orange focus:ring-offset-0"
                         />
                         <div className="flex-1">
-                          <p className="text-white font-medium">{item.name}</p>
+                          <p className="text-white font-medium">{item.name} {itemIndex === 0 && <span className="text-xs text-green-400 ml-2">(Original - Keep)</span>}</p>
                           <p className="text-sm text-gray-400">
                             ID: {item.id} • SKU: {item.sku || 'N/A'}
                           </p>
@@ -793,6 +802,34 @@ export default function ItemsOnlyPage() {
             >
               Close
             </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${deleteConfirmationOpen ? 'flex' : 'hidden'}`}>
+        <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirmationOpen(false)} />
+        <div className="relative bg-[#3d3d3d] rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="p-6">
+            <h2 className="text-xl font-semibold text-white mb-2">Confirm Deletion</h2>
+            <p className="text-gray-400 mb-4">
+              Are you sure you want to delete {selectedDuplicateIds.size} item(s)? This will hide them from the system (soft delete).
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirmationOpen(false)}
+                className="bg-[#2d2d2d] text-white border-gray-600 hover:bg-[#4d4d4d]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteDuplicates}
+              >
+                Delete {selectedDuplicateIds.size} Item(s)
+              </Button>
+            </div>
           </div>
         </div>
       </div>
