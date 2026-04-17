@@ -125,7 +125,7 @@ export function TicketModal({
                       </button>
                     </div>
                     <span className="font-bold text-lg sm:text-xl text-penkey-orange">
-                      {formatCurrency(line.unit_price * line.quantity)}
+                      {formatCurrency((line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0)) * line.quantity)}
                     </span>
                   </div>
                 </div>

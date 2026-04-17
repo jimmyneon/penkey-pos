@@ -9,6 +9,7 @@ interface ItemsDisplayProps {
   filteredItems: Item[];
   layout: "grid" | "list";
   gridSize?: 2 | 3 | 4 | 5 | 6;
+  font_size?: "very_small" | "small" | "medium" | "large";
   clickedItemId: string | null;
   onAddItem: (item: Item, e: React.MouseEvent) => void;
 }
@@ -18,6 +19,7 @@ export function ItemsDisplay({
   filteredItems,
   layout,
   gridSize = 3,
+  font_size = "medium",
   clickedItemId,
   onAddItem,
 }: ItemsDisplayProps) {
@@ -54,20 +56,32 @@ export function ItemsDisplay({
       gridColsClass = "grid-cols-6";
     }
     
-    // Responsive text sizing - smaller text for more columns
-    const textSizeClass = gridSize >= 5
-      ? "text-xs" 
-      : gridSize === 4 
-      ? "text-xs sm:text-sm" 
-      : gridSize === 3 
-      ? "text-sm sm:text-base" 
-      : "text-base";
-    
+    // Text sizing based on font_size setting
+    const getTextSizeClass = () => {
+      switch (font_size) {
+        case "very_small":
+          return "text-[10px] sm:text-xs";
+        case "small":
+          return "text-xs sm:text-sm";
+        case "medium":
+          return "text-sm sm:text-base";
+        case "large":
+          return "text-lg sm:text-xl";
+        default:
+          return "text-sm sm:text-base";
+      }
+    };
+
+    // Category text size for large mode
+    const getCategorySizeClass = () => {
+      return font_size === "large" ? "text-[10px] sm:text-xs" : "hidden";
+    };
+
     // Responsive padding - less padding for more columns
-    const paddingClass = gridSize >= 5 
-      ? "p-1 sm:p-1.5" 
-      : gridSize === 4 
-      ? "p-1.5 sm:p-2" 
+    const paddingClass = gridSize >= 5
+      ? "p-1 sm:p-1.5"
+      : gridSize === 4
+      ? "p-1.5 sm:p-2"
       : "p-2 sm:p-3";
     
     // Responsive gap
@@ -101,10 +115,15 @@ export function ItemsDisplay({
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               )}
-              <div className={`absolute inset-0 flex items-center justify-center ${paddingClass} ${hasImage ? 'bg-black/40' : ''}`}>
-                <h3 className={`item-button-text ${textSizeClass} font-medium text-center leading-tight text-white drop-shadow-lg break-words line-clamp-3`}>
-                  {item.name}
+              <div className={`absolute inset-0 flex flex-col items-center justify-center ${paddingClass} ${hasImage ? 'bg-black/40' : ''}`}>
+                <h3 className={`item-button-text ${getTextSizeClass()} font-medium text-center leading-tight text-white drop-shadow-lg break-words ${font_size === "large" ? "line-clamp-1" : "line-clamp-3"}`}>
+                  {font_size === "large" ? item.name.slice(0, 5) : item.name}
                 </h3>
+                {font_size === "large" && item.categories && (
+                  <p className={`${getCategorySizeClass()} text-white/80 mt-1`}>
+                    {item.categories.name}
+                  </p>
+                )}
               </div>
             </button>
           );

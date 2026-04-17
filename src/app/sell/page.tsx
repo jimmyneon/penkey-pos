@@ -1334,6 +1334,7 @@ export default function SellPage() {
             filteredItems={filteredItems}
             layout={layout}
             gridSize={registerSettingsData.grid_size}
+            font_size={registerSettingsData.font_size}
             clickedItemId={clickedItemId}
             onAddItem={handleAddItem}
           />

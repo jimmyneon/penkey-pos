@@ -478,14 +478,13 @@ export function ModifierDialog({
                               }`}>
                                 {option.name}
                               </span>
-                              <span className={`font-bold text-white ${
-                                gridSize >= 5 ? 'text-sm' : gridSize === 4 ? 'text-lg' : 'text-xl'
-                              }`}>
-                                {option.price_adjustment === 0 
-                                  ? "Free" 
-                                  : `${option.price_adjustment > 0 ? "+" : ""}${formatCurrency(option.price_adjustment)}`
-                                }
-                              </span>
+                              {option.price_adjustment !== 0 && (
+                                <span className={`font-bold text-white ${
+                                  gridSize >= 5 ? 'text-sm' : gridSize === 4 ? 'text-lg' : 'text-xl'
+                                }`}>
+                                  {option.price_adjustment > 0 ? "+" : ""}{formatCurrency(option.price_adjustment)}
+                                </span>
+                              )}
                             </div>
                             {isSelected && (
                               <div className={`absolute top-2 right-2 bg-white text-penkey-orange rounded-full flex items-center justify-center font-bold ${

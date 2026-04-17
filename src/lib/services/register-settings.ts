@@ -9,7 +9,7 @@ export interface RegisterSettings {
   // Display preferences
   layout_preference: "grid" | "list";
   theme: "dark" | "light";
-  font_size: "small" | "medium" | "large";
+  font_size: "very_small" | "small" | "medium" | "large";
   grid_size: 2 | 3 | 4 | 5 | 6; // Number of columns in grid view
 
   // Penkey Prompts settings

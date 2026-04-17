@@ -597,7 +597,7 @@ export default function SettingsPage() {
               description="Adjust text size in item buttons on sell page"
             >
               <div className="flex gap-2 flex-wrap">
-                {(["small", "medium", "large"].map((size) => (
+                {(["very_small", "small", "medium", "large"].map((size) => (
                   <Button
                     key={size}
                     size="sm"
@@ -606,7 +606,7 @@ export default function SettingsPage() {
                     className={`min-h-[44px] min-w-[140px] ${settings.font_size === size ? "bg-penkey-orange" : ""}`}
                   >
                     <Type className="h-4 w-4 mr-1 sm:mr-2" />
-                    <span className="text-xs sm:text-sm">{size.charAt(0).toUpperCase() + size.slice(1)}</span>
+                    <span className="text-xs sm:text-sm">{size === "very_small" ? "XS" : size.charAt(0).toUpperCase() + size.slice(1)}</span>
                   </Button>
                 )))}
               </div>
