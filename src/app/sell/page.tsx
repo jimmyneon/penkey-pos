@@ -9,8 +9,8 @@ import { useItems } from "@/lib/hooks/use-items";
 import { usePopularItems } from "@/lib/hooks/use-popular-items";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useDataSync } from "@/lib/hooks/use-data-sync";
-import { useDailyStats } from "@/lib/hooks/use-daily-stats";
 import { useModifierPreload } from "@/lib/hooks/use-modifier-preload";
+import { useSessionManager } from "@/lib/hooks/use-session-manager";
 import { formatCurrency } from "@penkey/ui";
 import { VariantDialog } from "./variant-dialog";
 import { ModifierDialog } from "./modifier-dialog";
@@ -207,8 +207,10 @@ export default function SellPage() {
   );
   const { items: popularItems, loading: popularLoading } = usePopularItems(session?.org_id || "skip", forceRefresh);
   const { syncing, lastSync, syncData, getCacheInfo } = useDataSync(session?.org_id || "skip");
-  const { stats } = useDailyStats(session?.org_id, forceRefresh);
   const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines } = useCartStore();
+  
+  // Session management - handles inactivity timeout and page visibility
+  useSessionManager();
 
   // Determine which items to show based on selected category and popular filter
   // When Popular is ON: show ALL items (from category if selected), sorted by popularity
