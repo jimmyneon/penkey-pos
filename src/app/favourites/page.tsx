@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Star, Loader2, Search, Check, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Star, Loader2, Search, Check, RefreshCw } from "lucide-react";
 import { Button } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
@@ -105,82 +105,46 @@ export default function FavouritesPage() {
     });
   };
 
-  const moveFavouriteUp = async (item: any, currentIndex: number) => {
-    if (currentIndex === 0) return; // Already at top
-    
-    const favouriteItems = filteredItems.filter((i: any) => i.is_favourite);
-    const itemIndex = favouriteItems.findIndex((i: any) => i.id === item.id);
-    
-    if (itemIndex === 0) return; // Already at top of favourites
-    
-    // Swap positions with item above
-    const itemAbove = favouriteItems[itemIndex - 1];
-    const newPosition = itemAbove.favourite_position || 0;
-    const abovePosition = item.favourite_position || 0;
-    
+  const updateFavouritePosition = async (item: any, newPosition: number) => {
     // Optimistic UI update
     setItems(items.map((i: any) => {
       if (i.id === item.id) return { ...i, favourite_position: newPosition };
-      if (i.id === itemAbove.id) return { ...i, favourite_position: abovePosition };
       return i;
     }));
-    hapticSuccess();
+    hapticButtonPress();
 
-    // Sync positions in background
-    fetch(`/api/items/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favourite_position: newPosition }),
-    }).catch((error) => {
-      console.error("Failed to move item up:", error);
+    // Sync position in background
+    try {
+      const response = await fetch(`/api/items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ favourite_position: newPosition }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update position");
+
+      // Update local IndexedDB cache
+      if (session?.org_id) {
+        try {
+          const { getAll, putMany } = await import("@/lib/idb/db");
+          const allItems = await getAll("items");
+          const updatedItems = allItems.map((i: any) => 
+            i.id === item.id ? { ...i, favourite_position: newPosition } : i
+          );
+          await putMany("items", updatedItems);
+        } catch (error) {
+          console.error("Failed to update local cache:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update favourite position:", error);
+      // Revert UI on error
+      setItems(items.map((i: any) => {
+        if (i.id === item.id) return { ...i, favourite_position: item.favourite_position };
+        return i;
+      }));
       alert("Failed to update position");
-    });
-
-    fetch(`/api/items/${itemAbove.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favourite_position: abovePosition }),
-    }).catch((error) => {
-      console.error("Failed to move item down:", error);
-    });
-  };
-
-  const moveFavouriteDown = async (item: any, currentIndex: number) => {
-    const favouriteItems = filteredItems.filter((i: any) => i.is_favourite);
-    const itemIndex = favouriteItems.findIndex((i: any) => i.id === item.id);
-    
-    if (itemIndex === favouriteItems.length - 1) return; // Already at bottom
-    
-    // Swap positions with item below
-    const itemBelow = favouriteItems[itemIndex + 1];
-    const newPosition = itemBelow.favourite_position || 0;
-    const belowPosition = item.favourite_position || 0;
-    
-    // Optimistic UI update
-    setItems(items.map((i: any) => {
-      if (i.id === item.id) return { ...i, favourite_position: newPosition };
-      if (i.id === itemBelow.id) return { ...i, favourite_position: belowPosition };
-      return i;
-    }));
-    hapticSuccess();
-
-    // Sync positions in background
-    fetch(`/api/items/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favourite_position: newPosition }),
-    }).catch((error) => {
-      console.error("Failed to move item down:", error);
-      alert("Failed to update position");
-    });
-
-    fetch(`/api/items/${itemBelow.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favourite_position: belowPosition }),
-    }).catch((error) => {
-      console.error("Failed to move item up:", error);
-    });
+    }
   };
 
   const filteredItems = items.filter(item => {
@@ -272,26 +236,18 @@ export default function FavouritesPage() {
                     </button>
                     {isFavourite && (
                       <div className="flex items-center gap-1 ml-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            moveFavouriteUp(item, favIndex);
+                        <input
+                          type="number"
+                          min="1"
+                          max={favouriteCount}
+                          value={item.favourite_position || favIndex + 1}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 1;
+                            updateFavouritePosition(item, value);
                           }}
-                          disabled={favIndex === 0}
-                          className="p-1 rounded hover:bg-[#4d4d4d] disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronUp className="h-5 w-5 text-white" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            moveFavouriteDown(item, favIndex);
-                          }}
-                          disabled={favIndex === favouriteItems.length - 1}
-                          className="p-1 rounded hover:bg-[#4d4d4d] disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronDown className="h-5 w-5 text-white" />
-                        </button>
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-12 bg-[#2d2d2d] text-white border border-gray-600 rounded px-2 py-1 text-center text-sm focus:outline-none focus:border-penkey-orange"
+                        />
                       </div>
                     )}
                   </div>

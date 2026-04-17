@@ -7,6 +7,7 @@ import { ArrowLeft, Package, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { PageHeader } from "@/components/page-header";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 import { dataCache } from "@/lib/services/data-cache";
 import { SyncManager } from "@/lib/services/sync-manager";
@@ -40,6 +41,10 @@ export default function DeletedItemsPage() {
   const [items, setItems] = useState<DeletedItem[]>([]);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [permanentDeleting, setPermanentDeleting] = useState<string | null>(null);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [restoreItem, setRestoreItem] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session");
@@ -88,12 +93,19 @@ export default function DeletedItemsPage() {
 
   const handleRestore = async (itemId: string, itemName: string) => {
     if (!session) return;
-    
+
+    setRestoreItem({ id: itemId, name: itemName });
+    setRestoreConfirmOpen(true);
+  };
+
+  const confirmRestore = async () => {
+    if (!session || !restoreItem) return;
+
     try {
-      setRestoring(itemId);
-      console.log("[DeletedItems] Restoring item:", itemId);
-      
-      const response = await fetch(`/api/items/${itemId}`, {
+      setRestoring(restoreItem.id);
+      console.log("[DeletedItems] Restoring item:", restoreItem.id);
+
+      const response = await fetch(`/api/items/${restoreItem.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -101,19 +113,19 @@ export default function DeletedItemsPage() {
         credentials: "same-origin",
         body: JSON.stringify({ is_active: true }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Failed to restore item");
       }
-      
+
       // Clear caches to force refresh
       dataCache.clear(session.org_id, "items");
       SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
       await clearStore("items");
-      
-      showToast(`${itemName} restored successfully`, "success");
-      
+
+      showToast(`${restoreItem.name} restored successfully`, "success");
+
       // Reload the deleted items list
       loadDeletedItems();
     } catch (error: any) {
@@ -121,29 +133,37 @@ export default function DeletedItemsPage() {
       showToast(`Failed to restore item: ${error.message}`, "error");
     } finally {
       setRestoring(null);
+      setRestoreConfirmOpen(false);
+      setRestoreItem(null);
     }
   };
 
   const handlePermanentDelete = async (itemId: string, itemName: string) => {
     if (!session) return;
-    if (!confirm(`Permanently delete "${itemName}"? This CANNOT be undone and will remove all historical data.`)) return;
-    
+
+    setDeleteItem({ id: itemId, name: itemName });
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!session || !deleteItem) return;
+
     try {
-      setPermanentDeleting(itemId);
-      console.log("[DeletedItems] Permanently deleting item:", itemId);
-      
-      const response = await fetch(`/api/items/${itemId}/permanent`, {
+      setPermanentDeleting(deleteItem.id);
+      console.log("[DeletedItems] Permanently deleting item:", deleteItem.id);
+
+      const response = await fetch(`/api/items/${deleteItem.id}/permanent`, {
         method: "DELETE",
         credentials: "same-origin",
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Failed to delete item");
       }
-      
-      showToast(`${itemName} permanently deleted`, "success");
-      
+
+      showToast(`${deleteItem.name} permanently deleted`, "success");
+
       // Reload the deleted items list
       loadDeletedItems();
     } catch (error: any) {
@@ -151,6 +171,8 @@ export default function DeletedItemsPage() {
       showToast(`Failed to delete item: ${error.message}`, "error");
     } finally {
       setPermanentDeleting(null);
+      setDeleteConfirmOpen(false);
+      setDeleteItem(null);
     }
   };
 
@@ -271,6 +293,35 @@ export default function DeletedItemsPage() {
           </div>
         )}
       </div>
+
+      {/* Restore Confirmation Dialog */}
+      <ConfirmDialog
+        open={restoreConfirmOpen}
+        onClose={() => {
+          setRestoreConfirmOpen(false);
+          setRestoreItem(null);
+        }}
+        onConfirm={confirmRestore}
+        title="Restore Item"
+        message={`Are you sure you want to restore "${restoreItem?.name}"? This will make it available for sale again.`}
+        confirmText="Restore"
+        cancelText="Cancel"
+      />
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteItem(null);
+        }}
+        onConfirm={confirmPermanentDelete}
+        title="Permanently Delete Item"
+        message={`Are you sure you want to permanently delete "${deleteItem?.name}"? This CANNOT be undone and will remove all historical data.`}
+        confirmText="Permanently Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
