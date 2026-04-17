@@ -267,7 +267,7 @@ export function generateTicketText(data: TicketData): string {
   if (data.is_paid && data.payment_method) {
     lines.push(`PAID - ${data.payment_method.toUpperCase()}`);
   } else {
-    lines.push('**NOT PAID**');
+    lines.push('**TO PAY**');
   }
 
   // Date/time and server info
