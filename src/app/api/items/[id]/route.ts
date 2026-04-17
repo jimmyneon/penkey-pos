@@ -102,13 +102,17 @@ export async function PATCH(
     if (low_stock_threshold !== undefined)
       updateData.low_stock_threshold = low_stock_threshold;
     if (image_url !== undefined) updateData.image_url = image_url;
-    if (favourite_position !== undefined) updateData.favourite_position = favourite_position;
+    if (favourite_position !== undefined) {
+      // TODO: Handle favourite_position conflicts by shifting other items down
+      // This requires database migrations to be run first (add_is_favourite_to_items.sql and add_favourite_position_to_items.sql)
+      updateData.favourite_position = favourite_position;
+    }
 
     console.log(`[API-AUTH] Updating item ${id} with data:`, updateData);
 
     const { data, error } = await supabase
       .from("items")
-      .update(updateData)
+      .update(updateData as any)
       .eq("id", id)
       .select()
       .single();
@@ -177,13 +181,13 @@ export async function DELETE(
     // Soft delete
     const { error } = await supabase
       .from("items")
-      .update({ is_active: false })
+      .update({ is_active: false } as any)
       .eq("id", id);
 
     if (error) throw error;
 
     // Delete associated images from R2 if they exist
-    if (item?.image_url) {
+    if ((item as any)?.image_url) {
       try {
         const { deleteFromR2 } = await import('@/lib/services/r2-upload');
         // Try both formats since we don't store format in DB
