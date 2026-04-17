@@ -199,8 +199,6 @@ export default function ItemsOnlyPage() {
         // Clear all caches to ensure deleted items are removed
         dataCache.clear(session.org_id, "items");
         SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
-        // Also clear IndexedDB directly to ensure items are removed
-        await clearStore();
         console.log('[Delete Duplicates] Caches cleared');
       }
 
