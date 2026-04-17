@@ -1,0 +1,142 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Star, Loader2, Search, Check } from "lucide-react";
+import { formatCurrency } from "@penkey/ui";
+import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
+
+interface FavouritesSectionProps {
+  orgId: string;
+}
+
+export function FavouritesSection({ orgId }: FavouritesSectionProps) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (orgId) {
+      fetchItems();
+    }
+  }, [orgId]);
+
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/items?org_id=${orgId}`);
+      if (!response.ok) throw new Error("Failed to fetch items");
+      
+      const data = await response.json();
+      setItems(data);
+    } catch (error) {
+      console.error("Failed to fetch items:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFavourite = async (item: any) => {
+    try {
+      setSaving(true);
+      hapticButtonPress();
+      
+      const response = await fetch("/api/items/favourite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_id: item.id,
+          is_favourite: !item.is_favourite,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update favourite");
+
+      // Update local state
+      setItems(items.map(i => 
+        i.id === item.id ? { ...i, is_favourite: !item.is_favourite } : i
+      ));
+      
+      hapticSuccess();
+    } catch (error) {
+      console.error("Failed to toggle favourite:", error);
+      alert("Failed to update favourite");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const favouriteCount = items.filter(item => item.is_favourite).length;
+
+  return (
+    <div className="bg-[#3d3d3d] rounded-lg p-6 border border-gray-700">
+      <div className="flex items-center gap-3 mb-6">
+        <Star className="h-6 w-6 text-yellow-400" />
+        <h2 className="text-xl font-semibold text-white">Favourites</h2>
+        <span className="text-sm text-gray-400">({favouriteCount} items)</span>
+      </div>
+
+      <p className="text-gray-400 text-sm mb-4">
+        Select items to appear in the favourites section on the sell screen for quick access.
+      </p>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+        <input
+          type="text"
+          placeholder="Search items..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-[#2d2d2d] text-white border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-penkey-orange"
+        />
+      </div>
+
+      {/* Items List */}
+      <div className="max-h-96 overflow-y-auto space-y-2">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 text-penkey-orange animate-spin" />
+          </div>
+        ) : filteredItems.length > 0 ? (
+          filteredItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => toggleFavourite(item)}
+              disabled={saving}
+              className="w-full bg-[#2d2d2d] hover:bg-[#4d4d4d] transition-colors rounded-lg p-4 flex items-center justify-between text-left disabled:opacity-50"
+            >
+              <div className="flex-1 min-w-0">
+                <h3 className="text-white font-medium text-sm truncate">{item.name}</h3>
+                <p className="text-penkey-orange font-semibold text-sm">
+                  {formatCurrency(item.base_price)}
+                </p>
+              </div>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ml-3 ${
+                  item.is_favourite
+                    ? "bg-yellow-400 text-[#2d2d2d]"
+                    : "bg-gray-600 text-gray-400"
+                }`}
+              >
+                {item.is_favourite ? (
+                  <Check className="h-5 w-5" />
+                ) : (
+                  <Star className="h-4 w-4" />
+                )}
+              </div>
+            </button>
+          ))
+        ) : (
+          <div className="text-center py-12 text-gray-400">
+            {searchQuery ? "No items found" : "No items available"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
