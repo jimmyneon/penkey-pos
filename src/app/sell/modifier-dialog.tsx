@@ -44,6 +44,7 @@ interface ModifierDialogProps {
   onClose: () => void;
   itemId: string;
   itemName: string;
+  basePrice: number;
   gridSize?: 2 | 3 | 4 | 5 | 6;
   onConfirm: (modifiers: Array<{ id: string; name: string; price_adjustment: number }>) => void;
   triggerAnimation?: (itemName: string, event: React.MouseEvent) => void;
@@ -54,6 +55,7 @@ export function ModifierDialog({
   onClose,
   itemId,
   itemName,
+  basePrice,
   gridSize = 3,
   onConfirm,
   triggerAnimation,
@@ -320,6 +322,10 @@ export function ModifierDialog({
     return total;
   };
 
+  const getTotal = () => {
+    return basePrice + getTotalAdjustment();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] bg-[#3d3d3d] text-white border-gray-700 p-0 flex flex-col overflow-hidden">
@@ -502,7 +508,7 @@ export function ModifierDialog({
         {/* Footer */}
         <div className="border-t border-gray-700 p-4 flex items-center justify-between gap-3">
           <div className="text-white font-semibold">
-            Total: {formatCurrency(getTotalAdjustment())}
+            Total: {formatCurrency(getTotal())}
           </div>
           <div className="flex gap-2">
             <Button

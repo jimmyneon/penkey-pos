@@ -1387,6 +1387,7 @@ export default function SellPage() {
               : selectedItem.name
             : ""
         }
+        basePrice={selectedVariant ? selectedVariant.price : selectedItem?.base_price || 0}
         gridSize={registerSettingsData.grid_size}
         onConfirm={handleModifiersConfirm}
         triggerAnimation={triggerFlyingAnimation}
