@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Badge } from "@penkey/ui";
-import { Plus, Search, ChevronRight, Package, Loader2, Tag, X } from "lucide-react";
+import { Plus, Search, ChevronRight, Package, Loader2, Tag, X, CopyX } from "lucide-react";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { useItems } from "@/lib/hooks/use-items";
 import { formatCurrency } from "@penkey/ui";
@@ -43,6 +43,9 @@ export default function ItemsOnlyPage() {
   const [longPressTimer, setLongPressTimer] = useState<any>(null);
   const [longPressFired, setLongPressFired] = useState(false);
   const [wasLongPress, setWasLongPress] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [findingDuplicates, setFindingDuplicates] = useState(false);
 
   const { categories, loading: categoriesLoading } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -80,6 +83,67 @@ export default function ItemsOnlyPage() {
     return matchesSearch && matchesCategory;
   });
 
+  const findDuplicates = () => {
+    setFindingDuplicates(true);
+    
+    // Group items by name (case-insensitive)
+    const nameMap = new Map<string, any[]>();
+    items.forEach(item => {
+      const normalizedName = item.name.toLowerCase().trim();
+      if (!nameMap.has(normalizedName)) {
+        nameMap.set(normalizedName, []);
+      }
+      nameMap.get(normalizedName)!.push(item);
+    });
+
+    // Find items with duplicate names
+    const duplicateGroups: any[] = [];
+    nameMap.forEach((group, name) => {
+      if (group.length > 1) {
+        duplicateGroups.push({
+          name: group[0].name,
+          items: group,
+        });
+      }
+    });
+
+    setDuplicates(duplicateGroups);
+    setFindingDuplicates(false);
+    setDuplicateDialogOpen(true);
+  };
+
+  const removeDuplicate = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to delete item');
+
+      // Remove from local state
+      setDuplicates(duplicates.map(group => ({
+        ...group,
+        items: group.items.filter((item: any) => item.id !== itemId),
+      })).filter(group => group.items.length > 1));
+
+      // Clear cache and trigger full refresh
+      if (session) {
+        dataCache.clear(session.org_id, "items");
+        SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+      }
+
+      // Reload items
+      reload(true);
+      showToast('Item deleted successfully', 'success');
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+      showToast('Failed to delete item', 'error');
+    }
+  };
+
   if (loading || !session) {
     return (
       <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center">
@@ -113,6 +177,18 @@ export default function ItemsOnlyPage() {
         session={session}
         rightActions={
           <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                hapticButtonPress();
+                findDuplicates();
+              }}
+              className="text-white hover:bg-white/10"
+              title="Find duplicate items"
+            >
+              <CopyX className="h-5 w-5" />
+            </Button>
             <Button
               size="sm"
               variant="ghost"
@@ -580,6 +656,71 @@ export default function ItemsOnlyPage() {
           }}
         />
       )}
+
+      {/* Duplicate Items Dialog */}
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${duplicateDialogOpen ? 'flex' : 'hidden'}`}>
+        <div className="absolute inset-0 bg-black/50" onClick={() => setDuplicateDialogOpen(false)} />
+        <div className="relative bg-[#3d3d3d] rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+          <div className="p-6 border-b border-gray-700">
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              <CopyX className="h-5 w-5 text-penkey-orange" />
+              Duplicate Items
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              {duplicates.length} duplicate group(s) found
+            </p>
+          </div>
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            {findingDuplicates ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 text-penkey-orange animate-spin" />
+              </div>
+            ) : duplicates.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                No duplicate items found
+              </div>
+            ) : (
+              duplicates.map((group, index) => (
+                <div key={index} className="mb-6 last:mb-0">
+                  <h3 className="text-lg font-medium text-white mb-3">{group.name}</h3>
+                  <div className="space-y-2">
+                    {group.items.map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="bg-[#2d2d2d] rounded-lg p-4 flex items-center justify-between"
+                      >
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{item.name}</p>
+                          <p className="text-sm text-gray-400">
+                            ID: {item.id} • SKU: {item.sku || 'N/A'}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeDuplicate(item.id)}
+                          className="ml-3"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="p-6 border-t border-gray-700 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setDuplicateDialogOpen(false)}
+              className="bg-[#2d2d2d] text-white border-gray-600 hover:bg-[#4d4d4d]"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
