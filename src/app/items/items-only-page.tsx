@@ -563,8 +563,11 @@ export default function ItemsOnlyPage() {
                   })
                 )
               );
+              // Clear cache and trigger full refresh
               dataCache.clear(session.org_id, "items");
               SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+              // Also clear modifier groups cache
+              SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
               showToast(`${itemIds.length} item(s) assigned to ${groups.length} modifier group(s)`, "success");
               setModifierDialogOpen(false);
               setSelectionMode(false);

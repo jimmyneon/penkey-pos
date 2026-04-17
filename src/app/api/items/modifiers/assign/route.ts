@@ -34,31 +34,34 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // First, delete all existing assignments for this modifier group
-    const { error: deleteError } = await supabase
-      .from("item_modifiers")
-      .delete()
-      .eq("modifier_group_id", modifier_group_id);
-
-    if (deleteError) {
-      console.error("Delete error:", deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
-
-    // Then, insert new assignments
+    // Insert new assignments (additive - don't delete existing ones)
     if (item_ids && item_ids.length > 0) {
-      const assignments = item_ids.map((item_id: string) => ({
-        item_id,
-        modifier_group_id,
-      }));
-
-      const { error: insertError } = await supabase
+      // Check which assignments already exist
+      const { data: existingAssignments } = await supabase
         .from("item_modifiers")
-        .insert(assignments);
+        .select("item_id")
+        .eq("modifier_group_id", modifier_group_id)
+        .in("item_id", item_ids);
 
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      const existingItemIds = new Set(existingAssignments?.map((a: any) => a.item_id) || []);
+      
+      // Only insert assignments that don't already exist
+      const newAssignments = item_ids
+        .filter((id: string) => !existingItemIds.has(id))
+        .map((item_id: string) => ({
+          item_id,
+          modifier_group_id,
+        }));
+
+      if (newAssignments.length > 0) {
+        const { error: insertError } = await supabase
+          .from("item_modifiers")
+          .insert(newAssignments);
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          return NextResponse.json({ error: insertError.message }, { status: 500 });
+        }
       }
     }
 
