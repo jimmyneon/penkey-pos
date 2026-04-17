@@ -1246,11 +1246,11 @@ export default function SellPage() {
       const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-      // Build ticket data
+      // Build ticket data - API endpoint will fetch store info from template
       const ticketData = {
         store_name: session.register.store_name,
-        store_address: '', // Could be fetched from settings
-        store_phone: '', // Could be fetched from settings
+        store_address: '', // API will fill from template
+        store_phone: '', // API will fill from template
         ticket_name: currentTicketName || (ticketAssignment ? ticketAssignment.name : 'Current Ticket'),
         ticket_comment: currentTicketComment,
         date,
@@ -1341,11 +1341,11 @@ export default function SellPage() {
         const ticket = savedTickets.find(t => t.id === ticketId);
         if (!ticket) continue;
 
-        // Build ticket data
+        // Build ticket data - API endpoint will fetch store info from template
         const ticketData = {
           store_name: session.register.store_name,
-          store_address: '', // Could be fetched from settings
-          store_phone: '', // Could be fetched from settings
+          store_address: '', // API will fill from template
+          store_phone: '', // API will fill from template
           ticket_name: ticket.name,
           ticket_comment: ticket.comment || '',
           date,
