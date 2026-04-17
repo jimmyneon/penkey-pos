@@ -116,9 +116,15 @@ export default function FavouritesPage() {
     }
   };
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+    const searchLower = searchQuery.toLowerCase();
+    // For short queries (1-2 chars), only show items that START with the term
+    // For longer queries, show items that CONTAIN the term
+    if (searchLower.length <= 2) {
+      return item.name.toLowerCase().startsWith(searchLower);
+    }
+    return item.name.toLowerCase().includes(searchLower);
+  });
 
   const favouriteCount = items.filter(item => item.is_favourite).length;
 

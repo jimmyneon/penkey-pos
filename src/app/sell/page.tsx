@@ -65,8 +65,20 @@ export default function SellPage() {
   // Load register settings with realtime sync
   const { settings: registerSettingsData, updateSetting: updateRegisterSetting } = useRegisterSettings(session?.register?.id);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const [showPopular, setShowPopular] = useState(true);
-  const [showFavourites, setShowFavourites] = useState(false);
+  const [showPopular, setShowPopular] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('showPopular');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const [showFavourites, setShowFavourites] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('showFavourites');
+      return saved === 'true';
+    }
+    return false;
+  });
   const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [pendingItemEvent, setPendingItemEvent] = useState<React.MouseEvent | null>(null);
@@ -245,6 +257,15 @@ export default function SellPage() {
       }
     };
   }, [upsellDebounceTimer, upsellResetTimer]);
+
+  // Persist filter states to localStorage
+  useEffect(() => {
+    localStorage.setItem('showPopular', showPopular.toString());
+  }, [showPopular]);
+
+  useEffect(() => {
+    localStorage.setItem('showFavourites', showFavourites.toString());
+  }, [showFavourites]);
 
   // Filter and sort items by search query and popularity
   const searchLower = searchQuery.toLowerCase();
