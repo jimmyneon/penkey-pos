@@ -18,11 +18,9 @@ interface Session {
 
 export default function FavouritesPage() {
   const router = useRouter();
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [items, setItems] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -64,56 +62,47 @@ export default function FavouritesPage() {
   };
 
   const toggleFavourite = async (item: any) => {
-    try {
-      setSaving(true);
-      hapticButtonPress();
-      
-      const response = await fetch("/api/items/favourite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          item_id: item.id,
-          is_favourite: !item.is_favourite,
-        }),
-      });
+    const newFavStatus = !item.is_favourite;
+    
+    // Optimistic UI update - update immediately
+    setItems(items.map(i => 
+      i.id === item.id ? { ...i, is_favourite: newFavStatus } : i
+    ));
+    hapticSuccess();
 
+    // Sync in background without blocking UI
+    fetch("/api/items/favourite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        item_id: item.id,
+        is_favourite: newFavStatus,
+      }),
+    }).then(async (response) => {
       if (!response.ok) throw new Error("Failed to update favourite");
-
       const data = await response.json();
 
-      // Update local state
-      setItems(items.map(i => 
-        i.id === item.id ? { ...i, is_favourite: !item.is_favourite } : i
-      ));
-      
-      hapticSuccess();
-
-      // Trigger full data sync if required
-      if (data.sync_required && session?.org_id) {
-        setSyncing(true);
-        console.log("[Favourites] Syncing local database...");
-        
-        // Clear cache and sync timestamps
-        dataCache.clear(session.org_id, "items");
-        dataCache.clear(session.org_id, "categories");
-        dataCache.clear(session.org_id, "modifiers");
-        dataCache.clear(session.org_id, "discounts");
-        SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
-        SyncManager.clearSyncTimestamp(session.org_id, "CATEGORIES");
-        SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
-
-        // Full data resync
-        await prefetchOrgData(session.org_id);
-        
-        setSyncing(false);
-        console.log("[Favourites] Local database synced");
+      // Update local IndexedDB cache for this item
+      if (session?.org_id) {
+        try {
+          const { getAll, putMany } = await import("@/lib/idb/db");
+          const allItems = await getAll("items");
+          const updatedItems = allItems.map((i: any) => 
+            i.id === item.id ? { ...i, is_favourite: newFavStatus } : i
+          );
+          await putMany("items", updatedItems);
+        } catch (error) {
+          console.error("Failed to update local cache:", error);
+        }
       }
-    } catch (error) {
+    }).catch((error) => {
       console.error("Failed to toggle favourite:", error);
+      // Revert UI on error
+      setItems(items.map(i => 
+        i.id === item.id ? { ...i, is_favourite: item.is_favourite } : i
+      ));
       alert("Failed to update favourite");
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const filteredItems = items.filter(item => {
@@ -149,12 +138,6 @@ export default function FavouritesPage() {
           <h1 className="text-xl font-semibold">Favourites</h1>
           <span className="text-sm text-gray-400">({favouriteCount} items)</span>
         </div>
-        {syncing && (
-          <div className="flex items-center gap-2 text-sm text-penkey-orange">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            <span>Syncing...</span>
-          </div>
-        )}
       </header>
 
       {/* Content */}
@@ -183,8 +166,7 @@ export default function FavouritesPage() {
                 <button
                   key={item.id}
                   onClick={() => toggleFavourite(item)}
-                  disabled={saving}
-                  className="w-full bg-[#2d2d2d] hover:bg-[#4d4d4d] transition-colors rounded-lg p-4 flex items-center justify-between text-left disabled:opacity-50"
+                  className="w-full bg-[#2d2d2d] hover:bg-[#4d4d4d] transition-colors rounded-lg p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex-1 min-w-0">
                     <h3 className="text-white font-medium text-sm truncate">{item.name}</h3>
