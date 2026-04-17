@@ -30,7 +30,6 @@ import { PenkeyPromptsBar } from "./penkey-prompts-bar";
 import { ItemsDisplay } from "./items-display";
 import { SellHeader } from "./sell-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { FavouritesDialog } from "./favourites-dialog";
 import { hapticButtonPress, hapticItemAdded, hapticDelete, hapticSuccess, setHapticEnabledCheck } from "@/lib/utils/haptics";
 import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, playPaymentInitSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -67,6 +66,7 @@ export default function SellPage() {
   const { settings: registerSettingsData, updateSetting: updateRegisterSetting } = useRegisterSettings(session?.register?.id);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [showPopular, setShowPopular] = useState(true);
+  const [showFavourites, setShowFavourites] = useState(false);
   const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [pendingItemEvent, setPendingItemEvent] = useState<React.MouseEvent | null>(null);
@@ -82,7 +82,6 @@ export default function SellPage() {
   const [assignTicketOpen, setAssignTicketOpen] = useState(false);
   const [mergeTicketsOpen, setMergeTicketsOpen] = useState(false);
   const [splitTicketOpen, setSplitTicketOpen] = useState(false);
-  const [favouritesOpen, setFavouritesOpen] = useState(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; name: string; customer?: any } | null>(null);
   const [currentTicketName, setCurrentTicketName] = useState<string>("");
   const [currentTicketComment, setCurrentTicketComment] = useState<string>("");
@@ -252,20 +251,36 @@ export default function SellPage() {
     return item.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  // If Popular filter is ON, sort all items by popularity
-  if (showPopular && popularItems.length > 0) {
-    // Create a map of item IDs to their popularity rank
-    const popularityMap = new Map<string, number>();
-    popularItems.forEach((item, index) => {
-      popularityMap.set(item.id, index);
-    });
+  // Intelligent search ranking: favourites > popularity > alphabetical
+  // Create popularity map for ranking
+  const popularityMap = new Map<string, number>();
+  popularItems.forEach((item, index) => {
+    popularityMap.set(item.id, index);
+  });
 
-    // Sort filtered items by popularity (items in popularItems come first, sorted by rank)
-    filteredItems = filteredItems.sort((a, b) => {
-      const aRank = popularityMap.get(a.id) ?? 9999;
-      const bRank = popularityMap.get(b.id) ?? 9999;
-      return aRank - bRank;
-    });
+  filteredItems = filteredItems.sort((a, b) => {
+    // First priority: is_favourite (favourites come first)
+    const aFav = (a as any).is_favourite ? 0 : 1;
+    const bFav = (b as any).is_favourite ? 0 : 1;
+    if (aFav !== bFav) return aFav - bFav;
+
+    // Second priority: popularity (lower rank = more popular)
+    const aRank = popularityMap.get(a.id) ?? 9999;
+    const bRank = popularityMap.get(b.id) ?? 9999;
+    if (aRank !== bRank) return aRank - bRank;
+
+    // Third priority: alphabetical
+    return a.name.localeCompare(b.name);
+  });
+
+  // If Popular filter is ON, filter to show only popular items
+  if (showPopular && popularItems.length > 0) {
+    filteredItems = filteredItems.filter(item => popularityMap.has(item.id));
+  }
+
+  // If Favourites filter is ON, filter to show only favourite items
+  if (showFavourites) {
+    filteredItems = filteredItems.filter(item => (item as any).is_favourite === true);
   }
 
   useEffect(() => {
@@ -1161,11 +1176,6 @@ export default function SellPage() {
           }
         }}
         onOpenTicketsClick={() => setOpenTicketsOpen(true)}
-        onFavouritesClick={() => {
-          hapticButtonPress();
-          playButtonSound();
-          setFavouritesOpen(true);
-        }}
         onChargeClick={() => {
           if (lines.length === 0) {
             showToast('Add items to ticket first', 'error');
@@ -1227,6 +1237,18 @@ export default function SellPage() {
                 >
                   <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${showPopular ? "fill-white" : ""}`} />
                   <span className="text-xs sm:text-sm">Popular</span>
+                </button>
+                <button
+                  onClick={() => setShowFavourites(!showFavourites)}
+                  className={`rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap min-w-fit ${
+                    showFavourites
+                      ? "bg-gradient-to-br from-yellow-400 to-yellow-500 text-[#2d2d2d]"
+                      : "bg-[#3d3d3d] text-white hover:bg-[#4d4d4d]"
+                  }`}
+                  title="Toggle favourites filter"
+                >
+                  <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${showFavourites ? "fill-[#2d2d2d]" : ""}`} />
+                  <span className="text-xs sm:text-sm">Favourites</span>
                 </button>
                 <Button
                   size="lg"
@@ -1501,16 +1523,6 @@ export default function SellPage() {
         onClose={() => setSplitTicketOpen(false)}
         lines={lines}
         onSplit={handleSplitTicket}
-      />
-
-      <FavouritesDialog
-        open={favouritesOpen}
-        onClose={() => setFavouritesOpen(false)}
-        orgId={session?.org_id || "skip"}
-        onAddItem={(item) => {
-          // Add item to cart with same logic as regular item click
-          handleAddItem(item as any, undefined);
-        }}
       />
 
       {/* Toast Notifications */}

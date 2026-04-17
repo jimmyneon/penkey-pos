@@ -33,7 +33,6 @@ import { registerSettings, RegisterSettings, DEFAULT_SETTINGS } from "@/lib/serv
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
-import { FavouritesSection } from "./favourites-section";
 import {
   storeSumUpCredentials,
   getSumUpCredentials,
@@ -53,7 +52,6 @@ export default function SettingsPage() {
   const [currentPasscode, setCurrentPasscode] = useState("");
   const [newPasscode, setNewPasscode] = useState("");
   const [confirmPasscode, setConfirmPasscode] = useState("");
-  const [session, setSession] = useState<any>(null);
   
   // SumUp OAuth settings
   const [sumUpConnected, setSumUpConnected] = useState(false);
@@ -435,10 +433,7 @@ export default function SettingsPage() {
     if (registerId) {
       try {
         const sessionDataForApi = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
-        if (sessionDataForApi) {
-          const session = JSON.parse(sessionDataForApi);
-          setSession(session);
-        }
+        const session = sessionDataForApi ? JSON.parse(sessionDataForApi) : null;
         const response = await fetch("/api/register/settings", {
           method: "POST",
           headers: {
@@ -679,11 +674,6 @@ export default function SettingsPage() {
               </div>
             </SettingRow>
           </SettingsSection>
-
-          {/* Favourites */}
-          {session?.org_id && (
-            <FavouritesSection orgId={session.org_id} />
-          )}
 
           {/* Penkey Prompts */}
           <SettingsSection title="Penkey Prompts" icon={Zap}>

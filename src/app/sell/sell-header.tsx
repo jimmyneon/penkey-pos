@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, UserPlus, RefreshCw, Star } from "lucide-react";
+import { Menu, UserPlus, RefreshCw } from "lucide-react";
 import { Button } from "@penkey/ui";
 import { Badge } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
@@ -18,7 +18,6 @@ interface SellHeaderProps {
   onOpenTicketsClick: () => void;
   onChargeClick: () => void;
   onSyncClick?: () => void;
-  onFavouritesClick?: () => void;
 }
 
 export function SellHeader({
@@ -33,7 +32,6 @@ export function SellHeader({
   onOpenTicketsClick,
   onChargeClick,
   onSyncClick,
-  onFavouritesClick,
 }: SellHeaderProps) {
   return (
     <>
@@ -73,18 +71,6 @@ export function SellHeader({
             <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline text-xs sm:text-sm">Customer</span>
           </Button>
-          
-          {onFavouritesClick && (
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 p-2 sm:px-3"
-              onClick={onFavouritesClick}
-            >
-              <Star className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Favourites</span>
-            </Button>
-          )}
         </div>
       </header>
 

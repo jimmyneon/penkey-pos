@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, Package, Tag, Boxes, Percent, Trash2, Upload, Download, Home, Loader2 } from "lucide-react";
+import { ArrowLeft, Package, Tag, Boxes, Percent, Trash2, Upload, Download, Home, Loader2, Star } from "lucide-react";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { ImportResultsDialog } from "@/components/import-results-dialog";
@@ -77,6 +77,13 @@ export default function ItemsHubPage() {
       icon: Percent,
       href: "/discounts",
       color: "bg-orange-500",
+    },
+    {
+      title: "Favourites",
+      description: "Quick access items",
+      icon: Star,
+      href: "/favourites",
+      color: "bg-yellow-500",
     },
     {
       title: "Deleted Items",
