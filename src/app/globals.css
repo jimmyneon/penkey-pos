@@ -27,7 +27,7 @@
   }
 
   .light-theme body {
-    background-color: #f9f3e6 !important;
+    background-color: #f5ede0 !important;
     color: #0b1f3a !important;
   }
 
@@ -36,19 +36,19 @@
     color-scheme: light;
   }
 
-  /* Backgrounds */
+  /* Backgrounds - use cream colors instead of pure white */
   .light-theme [class*="bg-[#2d2d2d]"],
   .light-theme [class*="bg-penkey-cream"] {
-    background-color: #f9f3e6 !important;
+    background-color: #f5ede0 !important;
   }
 
   .light-theme [class*="bg-[#3d3d3d]"] {
-    background-color: #ffffff !important;
+    background-color: #faf5eb !important;
     box-shadow: 0 1px 3px rgba(11, 31, 58, 0.1) !important;
   }
 
   .light-theme [class*="bg-[#5d5d5d]"] {
-    background-color: #e8e0d0 !important;
+    background-color: #ebe3d2 !important;
   }
 
   /* Text colors */
@@ -75,11 +75,11 @@
   .light-theme button[class*="outline"] {
     border-color: #d1d5db !important;
     color: #0b1f3a !important;
-    background-color: #ffffff !important;
+    background-color: #faf5eb !important;
   }
 
   .light-theme button[class*="outline"]:hover {
-    background-color: #f9f3e6 !important;
+    background-color: #f5ede0 !important;
   }
 
   /* Force button text and icons to be dark in light theme */
@@ -90,12 +90,12 @@
 
   /* Item buttons in light theme */
   .light-theme button[class*="bg-[#5d5d5d]"] {
-    background-color: #ffffff !important;
+    background-color: #faf5eb !important;
     border: 1px solid #d1d5db !important;
   }
 
   .light-theme button[class*="bg-[#5d5d5d]"]:hover {
-    background-color: #f9f3e6 !important;
+    background-color: #ebe3d2 !important;
   }
   
   /* Keep orange accent */
