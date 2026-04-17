@@ -247,11 +247,12 @@ export default function SellPage() {
   }, [upsellDebounceTimer, upsellResetTimer]);
 
   // Filter and sort items by search query and popularity
+  const searchLower = searchQuery.toLowerCase();
   let filteredItems = displayItems.filter((item) => {
-    return item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return item.name.toLowerCase().includes(searchLower);
   });
 
-  // Intelligent search ranking: favourites > popularity > alphabetical
+  // Intelligent search ranking: prefix match > favourites > popularity > alphabetical
   // Create popularity map for ranking
   const popularityMap = new Map<string, number>();
   popularItems.forEach((item, index) => {
@@ -259,17 +260,22 @@ export default function SellPage() {
   });
 
   filteredItems = filteredItems.sort((a, b) => {
-    // First priority: is_favourite (favourites come first)
+    // First priority: prefix match (items that start with search term)
+    const aPrefix = a.name.toLowerCase().startsWith(searchLower) ? 0 : 1;
+    const bPrefix = b.name.toLowerCase().startsWith(searchLower) ? 0 : 1;
+    if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+
+    // Second priority: is_favourite (favourites come first)
     const aFav = (a as any).is_favourite ? 0 : 1;
     const bFav = (b as any).is_favourite ? 0 : 1;
     if (aFav !== bFav) return aFav - bFav;
 
-    // Second priority: popularity (lower rank = more popular)
+    // Third priority: popularity (lower rank = more popular)
     const aRank = popularityMap.get(a.id) ?? 9999;
     const bRank = popularityMap.get(b.id) ?? 9999;
     if (aRank !== bRank) return aRank - bRank;
 
-    // Third priority: alphabetical
+    // Fourth priority: alphabetical
     return a.name.localeCompare(b.name);
   });
 

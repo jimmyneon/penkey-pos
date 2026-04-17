@@ -13,6 +13,7 @@ export interface Item {
   is_active: boolean;
   sku: string | null;
   description: string | null;
+  is_favourite?: boolean;
   categories: {
     name: string;
     color: string;
