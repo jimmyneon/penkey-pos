@@ -46,6 +46,7 @@ export default function ItemsOnlyPage() {
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [findingDuplicates, setFindingDuplicates] = useState(false);
+  const [selectedDuplicateIds, setSelectedDuplicateIds] = useState<Set<string>>(new Set());
 
   const { categories, loading: categoriesLoading } = useCategories(session?.org_id || "skip");
   const { items, loading: itemsLoading, reload } = useItems(session?.org_id || "skip", undefined);
@@ -98,16 +99,20 @@ export default function ItemsOnlyPage() {
 
     // Find items with duplicate names
     const duplicateGroups: any[] = [];
+    const allDuplicateIds = new Set<string>();
     nameMap.forEach((group, name) => {
       if (group.length > 1) {
         duplicateGroups.push({
           name: group[0].name,
           items: group,
         });
+        // Add all items from this group to selected set
+        group.forEach((item: any) => allDuplicateIds.add(item.id));
       }
     });
 
     setDuplicates(duplicateGroups);
+    setSelectedDuplicateIds(allDuplicateIds); // Auto-select all duplicates
     setFindingDuplicates(false);
     setDuplicateDialogOpen(true);
   };
@@ -129,6 +134,13 @@ export default function ItemsOnlyPage() {
         items: group.items.filter((item: any) => item.id !== itemId),
       })).filter(group => group.items.length > 1));
 
+      // Remove from selected set
+      setSelectedDuplicateIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+
       // Clear cache and trigger full refresh
       if (session) {
         dataCache.clear(session.org_id, "items");
@@ -141,6 +153,49 @@ export default function ItemsOnlyPage() {
     } catch (error) {
       console.error('Failed to delete item:', error);
       showToast('Failed to delete item', 'error');
+    }
+  };
+
+  const removeAllSelectedDuplicates = async () => {
+    try {
+      const idsToDelete = Array.from(selectedDuplicateIds);
+      if (idsToDelete.length === 0) {
+        showToast('No items selected for deletion', 'error');
+        return;
+      }
+
+      showToast(`Deleting ${idsToDelete.length} item(s)...`, 'info');
+
+      // Delete all selected items
+      const deletePromises = idsToDelete.map(id =>
+        fetch(`/api/items/${id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const failedDeletes = results.filter(r => !r.ok);
+
+      if (failedDeletes.length > 0) {
+        showToast(`Failed to delete ${failedDeletes.length} item(s)`, 'error');
+        return;
+      }
+
+      // Clear cache and trigger full refresh
+      if (session) {
+        dataCache.clear(session.org_id, "items");
+        SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+      }
+
+      // Reload items and close dialog
+      reload(true);
+      setDuplicateDialogOpen(false);
+      setSelectedDuplicateIds(new Set());
+      showToast(`${idsToDelete.length} item(s) deleted successfully`, 'success');
+    } catch (error) {
+      console.error('Failed to delete items:', error);
+      showToast('Failed to delete items', 'error');
     }
   };
 
@@ -662,13 +717,25 @@ export default function ItemsOnlyPage() {
         <div className="absolute inset-0 bg-black/50" onClick={() => setDuplicateDialogOpen(false)} />
         <div className="relative bg-[#3d3d3d] rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
           <div className="p-6 border-b border-gray-700">
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              <CopyX className="h-5 w-5 text-penkey-orange" />
-              Duplicate Items
-            </h2>
-            <p className="text-sm text-gray-400 mt-1">
-              {duplicates.length} duplicate group(s) found
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <CopyX className="h-5 w-5 text-penkey-orange" />
+                  Duplicate Items
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  {duplicates.length} duplicate group(s) found • {selectedDuplicateIds.size} selected for deletion
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={removeAllSelectedDuplicates}
+                disabled={selectedDuplicateIds.size === 0}
+              >
+                Remove All Selected ({selectedDuplicateIds.size})
+              </Button>
+            </div>
           </div>
           <div className="p-6 overflow-y-auto max-h-[60vh]">
             {findingDuplicates ? (
@@ -687,22 +754,30 @@ export default function ItemsOnlyPage() {
                     {group.items.map((item: any) => (
                       <div
                         key={item.id}
-                        className="bg-[#2d2d2d] rounded-lg p-4 flex items-center justify-between"
+                        className="bg-[#2d2d2d] rounded-lg p-4 flex items-center gap-3"
                       >
+                        <input
+                          type="checkbox"
+                          checked={selectedDuplicateIds.has(item.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDuplicateIds(prev => new Set(prev).add(item.id));
+                            } else {
+                              setSelectedDuplicateIds(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(item.id);
+                                return newSet;
+                              });
+                            }
+                          }}
+                          className="w-5 h-5 rounded border-gray-600 bg-[#3d3d3d] text-penkey-orange focus:ring-penkey-orange focus:ring-offset-0"
+                        />
                         <div className="flex-1">
                           <p className="text-white font-medium">{item.name}</p>
                           <p className="text-sm text-gray-400">
                             ID: {item.id} • SKU: {item.sku || 'N/A'}
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeDuplicate(item.id)}
-                          className="ml-3"
-                        >
-                          Remove
-                        </Button>
                       </div>
                     ))}
                   </div>
