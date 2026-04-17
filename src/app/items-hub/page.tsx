@@ -29,6 +29,7 @@ export default function ItemsHubPage() {
   const [importResults, setImportResults] = useState<any>(null);
   const [importResultsOpen, setImportResultsOpen] = useState(false);
   const [importProgress, setImportProgress] = useState<string>('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session");
@@ -111,10 +112,12 @@ export default function ItemsHubPage() {
   const handleFileSelect = async (file: File) => {
     try {
       setSelectedFile(file);
-      setImportProgress('Loading preview...');
-      setImporting(true);
+      setLoadingPreview(true);
+      setImportProgress('Reading file...');
       
       const text = await file.text();
+      
+      setImportProgress('Analyzing data and checking for duplicates...');
       
       const response = await fetch('/api/import?preview=true', {
         method: 'POST',
@@ -135,8 +138,9 @@ export default function ItemsHubPage() {
       console.error('Failed to preview import:', error);
       alert(`Failed to preview import: ${error.message || 'Please check the file format and try again.'}`);
       setSelectedFile(null);
+      setImportDialogOpen(false);
     } finally {
-      setImporting(false);
+      setLoadingPreview(false);
       setImportProgress('');
     }
   };
@@ -146,9 +150,11 @@ export default function ItemsHubPage() {
     
     try {
       setImporting(true);
-      setImportProgress('Importing items...');
+      setImportProgress('Starting import...');
       
       const text = await selectedFile.text();
+      
+      setImportProgress('Processing categories...');
       
       const response = await fetch('/api/import', {
         method: 'POST',
@@ -160,6 +166,8 @@ export default function ItemsHubPage() {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || 'Import failed');
       }
+      
+      setImportProgress('Processing items and modifiers...');
       
       const result = await response.json();
       
@@ -173,6 +181,8 @@ export default function ItemsHubPage() {
         SyncManager.clearSyncTimestamp(session.org_id, "CATEGORIES");
         SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
       }
+      
+      setImportProgress('Complete!');
       
       setPreviewDialogOpen(false);
       setImportResults(result);
@@ -293,6 +303,7 @@ export default function ItemsHubPage() {
         previewData={previewData}
         onConfirm={handleConfirmImport}
         loading={importing}
+        progressMessage={importProgress}
       />
 
       {/* Import Results Dialog */}
@@ -321,18 +332,13 @@ export default function ItemsHubPage() {
                     handleFileSelect(file);
                   }
                 }}
-                disabled={importing}
-                className="w-full text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-penkey-orange file:text-white hover:file:bg-penkey-orange/90"
+                disabled={loadingPreview}
+                className="w-full text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-penkey-orange file:text-white hover:file:bg-penkey-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              {selectedFile && (
-                <div className="text-sm text-gray-400">
-                  Selected: <span className="text-white">{selectedFile.name}</span>
-                </div>
-              )}
-              {importing && importProgress && (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 text-penkey-orange animate-spin" />
-                  <span className="text-sm text-gray-400">{importProgress}</span>
+              {loadingPreview && importProgress && (
+                <div className="flex items-center gap-2 bg-[#2d2d2d] p-3 rounded-lg border border-gray-700">
+                  <Loader2 className="h-5 w-5 text-penkey-orange animate-spin" />
+                  <span className="text-sm text-white">{importProgress}</span>
                 </div>
               )}
             </div>
@@ -340,8 +346,11 @@ export default function ItemsHubPage() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setImportDialogOpen(false)}
-                disabled={importing}
+                onClick={() => {
+                  setImportDialogOpen(false);
+                  setSelectedFile(null);
+                }}
+                disabled={loadingPreview}
                 className="text-white hover:bg-white/10"
               >
                 Cancel

@@ -383,25 +383,61 @@ export async function POST(request: NextRequest) {
           const categoryId = category ? categoryMap.get(category) || null : null;
           const finalSku = sku || handle || null;
 
-          const { data: newItem, error: itemError } = await supabase
+          // Check if item already exists (including inactive items)
+          const { data: existingItem } = await supabase
             .from("items")
-            .insert({
-              org_id: session.org_id,
-              name,
-              category_id: categoryId,
-              base_price: price,
-              sku: finalSku,
-              description,
-              has_variants: false,
-              track_inventory: true,
-              is_active: true
-            } as any)
-            .select()
-            .single() as { data: { id: string }; error: any };
+            .select("id, is_active")
+            .eq("org_id", session.org_id)
+            .eq("name", name)
+            .single() as { data: { id: string; is_active: boolean } | null };
 
-          if (itemError) throw itemError;
+          let newItem: { id: string };
 
-          results.items.created++;
+          if (existingItem) {
+            if (skipDuplicates) {
+              results.items.skipped++;
+              itemMap.set(name, existingItem.id);
+              newItem = existingItem;
+            } else {
+              // Update existing item and reactivate if inactive
+              await supabase
+                .from("items")
+                .update({
+                  category_id: categoryId,
+                  base_price: price,
+                  sku: finalSku,
+                  description,
+                  is_active: true
+                } as any)
+                .eq("id", existingItem.id);
+              results.items.updated++;
+              itemMap.set(name, existingItem.id);
+              newItem = existingItem;
+            }
+          } else {
+            // Create new item
+            const { data: createdItem, error: itemError } = await supabase
+              .from("items")
+              .insert({
+                org_id: session.org_id,
+                name,
+                category_id: categoryId,
+                base_price: price,
+                sku: finalSku,
+                description,
+                has_variants: false,
+                track_inventory: true,
+                is_active: true
+              } as any)
+              .select()
+              .single() as { data: { id: string }; error: any };
+
+            if (itemError) throw itemError;
+
+            results.items.created++;
+            itemMap.set(name, createdItem.id);
+            newItem = createdItem;
+          }
 
           // Process modifier columns (columns starting with "Modifier - ")
           const modifierColumns = headers.filter(h => h.toLowerCase().startsWith('modifier -'));

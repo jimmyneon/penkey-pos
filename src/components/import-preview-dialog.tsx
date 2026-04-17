@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@penkey/ui";
 import { Button } from "@penkey/ui";
-import { Package, Tag, Boxes, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Package, Tag, Boxes, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 interface ImportPreviewData {
   categories: { name: string; duplicate: boolean }[];
@@ -17,6 +17,7 @@ interface ImportPreviewDialogProps {
   previewData: ImportPreviewData | null;
   onConfirm: () => void;
   loading?: boolean;
+  progressMessage?: string;
 }
 
 export function ImportPreviewDialog({ 
@@ -24,7 +25,8 @@ export function ImportPreviewDialog({
   onClose, 
   previewData, 
   onConfirm,
-  loading = false
+  loading = false,
+  progressMessage = ''
 }: ImportPreviewDialogProps) {
   if (!previewData) return null;
 
@@ -206,22 +208,37 @@ export function ImportPreviewDialog({
           )}
         </div>
 
-        <DialogFooter className="flex gap-2">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            disabled={loading}
-            className="flex-1 border-gray-600 text-white hover:bg-white/10"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90 text-white"
-          >
-            {loading ? 'Importing...' : `Import ${totalItems} Item${totalItems !== 1 ? 's' : ''}`}
-          </Button>
+        <DialogFooter className="flex flex-col gap-3">
+          {loading && progressMessage && (
+            <div className="flex items-center gap-2 bg-[#2d2d2d] p-3 rounded-lg border border-gray-700">
+              <Loader2 className="h-5 w-5 text-penkey-orange animate-spin" />
+              <span className="text-sm text-white">{progressMessage}</span>
+            </div>
+          )}
+          <div className="flex gap-2 w-full">
+            <Button
+              onClick={onClose}
+              variant="outline"
+              disabled={loading}
+              className="flex-1 border-gray-600 text-white hover:bg-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={onConfirm}
+              disabled={loading}
+              className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90 text-white"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Importing...
+                </span>
+              ) : (
+                `Import ${totalItems} Item${totalItems !== 1 ? 's' : ''}`
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
