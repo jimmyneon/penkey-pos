@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Badge } from "@penkey/ui";
-import { ShoppingCart, User, LogOut, Menu, Plus, Minus, X, Package, Percent, Archive, Trash2, MoreHorizontal, Grid3x3, List, Settings, FileText, Save, Search, Tag, Star } from "lucide-react";
+import { ShoppingCart, User, LogOut, Menu, Plus, Minus, X, Package, Percent, Archive, Trash2, MoreHorizontal, Grid3x3, List, Settings, FileText, Save, Search, Tag, Star, Printer } from "lucide-react";
 import { useCategories } from "@/lib/hooks/use-categories";
 import { useItems } from "@/lib/hooks/use-items";
 import { usePopularItems } from "@/lib/hooks/use-popular-items";
@@ -42,6 +42,7 @@ import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { CartSyncService } from "@/lib/services/cart-sync";
 import { TicketSyncService } from "@/lib/services/ticket-sync";
+import { createTicketPrintJob } from "@/lib/services/print-queue";
 
 interface Session {
   employee: {
@@ -1234,6 +1235,164 @@ export default function SellPage() {
     }
   };
 
+  const handlePrintCurrentTicket = async () => {
+    if (!session || lines.length === 0) {
+      showToast('Add items to ticket first', 'error');
+      return;
+    }
+
+    try {
+      // Get the default printer for this register
+      const response = await fetch(`/api/printers?register_id=${session.register.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch printers');
+      }
+      const printers = await response.json();
+
+      if (!printers || printers.length === 0) {
+        showToast('No printer configured', 'error');
+        return;
+      }
+
+      const printer = printers[0]; // Use first available printer
+
+      // Format date and time
+      const now = new Date();
+      const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      // Build ticket data
+      const ticketData = {
+        store_name: session.register.store_name,
+        store_address: '', // Could be fetched from settings
+        store_phone: '', // Could be fetched from settings
+        ticket_name: currentTicketName || (ticketAssignment ? ticketAssignment.name : 'Current Ticket'),
+        ticket_comment: currentTicketComment,
+        date,
+        time,
+        employee_name: session.employee.name,
+        register_name: session.register.name,
+        lines: lines.map(line => ({
+          quantity: line.quantity,
+          item_name: line.item_name,
+          variant_name: line.variant_name,
+          modifiers: line.modifiers?.map(mod => ({
+            name: mod.name,
+            price_adjustment: mod.price_adjustment
+          })) || [],
+          line_total: (line.unit_price + (line.modifiers?.reduce((sum, m) => sum + (m.price_adjustment || 0), 0) || 0)) * line.quantity
+        })),
+        subtotal: getSubtotal(),
+        tax: getTaxTotal(),
+        total: getTotal(),
+        is_paid: false, // Current ticket is not paid
+        payment_method: undefined,
+        dining_option: 'eat-in', // Could be configurable
+        table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
+        customer_name: ticketAssignment?.type === 'customer' ? ticketAssignment.name : null,
+        assignment: ticketAssignment
+      };
+
+      // Create print job
+      await createTicketPrintJob(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        printer.id,
+        ticketData,
+        session.org_id
+      );
+
+      hapticSuccess();
+      playSuccessSound();
+      showToast('Ticket sent to printer', 'success');
+    } catch (error) {
+      console.error('[Print] Failed to print ticket:', error);
+      showToast('Failed to print ticket', 'error');
+    }
+  };
+
+  const handlePrintTickets = async (ticketIds: string[]) => {
+    if (!session) return;
+
+    try {
+      // Get the default printer for this register
+      const response = await fetch(`/api/printers?register_id=${session.register.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch printers');
+      }
+      const printers = await response.json();
+
+      if (!printers || printers.length === 0) {
+        showToast('No printer configured', 'error');
+        return;
+      }
+
+      const printer = printers[0]; // Use first available printer
+
+      // Format date and time
+      const now = new Date();
+      const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      // Print each selected ticket
+      for (const ticketId of ticketIds) {
+        const ticket = savedTickets.find(t => t.id === ticketId);
+        if (!ticket) continue;
+
+        // Build ticket data
+        const ticketData = {
+          store_name: session.register.store_name,
+          store_address: '', // Could be fetched from settings
+          store_phone: '', // Could be fetched from settings
+          ticket_name: ticket.name,
+          ticket_comment: ticket.comment || '',
+          date,
+          time,
+          employee_name: session.employee.name,
+          register_name: session.register.name,
+          lines: ticket.lines.map((line: any) => ({
+            quantity: line.quantity,
+            item_name: line.item_name,
+            variant_name: line.variant_name,
+            modifiers: line.modifiers?.map((mod: any) => ({
+              name: mod.name,
+              price_adjustment: mod.price_adjustment
+            })) || [],
+            line_total: (line.unit_price + (line.modifiers?.reduce((sum: number, m: any) => sum + (m.price_adjustment || 0), 0) || 0)) * line.quantity
+          })),
+          subtotal: ticket.lines.reduce((sum: number, line: any) => {
+            const lineTotal = (line.unit_price + (line.modifiers?.reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0) || 0)) * line.quantity;
+            return sum + lineTotal;
+          }, 0),
+          tax: 0, // Tax is included in prices
+          total: ticket.total,
+          is_paid: false, // Saved tickets are not paid
+          payment_method: undefined,
+          dining_option: 'eat-in', // Could be configurable
+          table_number: ticket.ticket_assignment?.type === 'table' ? ticket.ticket_assignment.name : null,
+          customer_name: ticket.ticket_assignment?.type === 'customer' ? ticket.ticket_assignment.name : null,
+          assignment: ticket.ticket_assignment
+        };
+
+        // Create print job
+        await createTicketPrintJob(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          printer.id,
+          ticketData,
+          session.org_id
+        );
+      }
+
+      hapticSuccess();
+      playSuccessSound();
+      showToast(`${ticketIds.length} ticket${ticketIds.length > 1 ? 's' : ''} sent to printer`, 'success');
+    } catch (error) {
+      console.error('[Print] Failed to print tickets:', error);
+      showToast('Failed to print tickets', 'error');
+    }
+  };
+
   const handleLock = () => {
     sessionStorage.removeItem("pos_session");
     router.push("/lock");
@@ -1490,6 +1649,7 @@ export default function SellPage() {
         }}
         onSave={() => setSaveTicketOpen(true)}
         onClearAll={() => setClearConfirmOpen(true)}
+        onPrint={handlePrintCurrentTicket}
         ticketAssignment={ticketAssignment}
       />
 
@@ -1564,6 +1724,7 @@ export default function SellPage() {
         tickets={savedTickets}
         onLoadTicket={handleLoadTicket}
         onDeleteTicket={handleDeleteTicket}
+        onPrintTickets={handlePrintTickets}
       />
 
       {/* Price Input Dialog */}

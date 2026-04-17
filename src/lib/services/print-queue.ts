@@ -5,7 +5,7 @@
 
 import { createSupabaseClient } from "@/lib/database";
 import type { Printer, PrintJob, PrintJobType, PrintJobPriority } from "@penkey/database";
-import { generateReceiptText, type ReceiptTemplateData } from "@penkey/print-adapters";
+import { generateReceiptText, generateTicketText, type ReceiptTemplateData, type TicketData } from "@penkey/print-adapters";
 
 export interface CreatePrintJobInput {
   printer_id: string;
@@ -93,6 +93,41 @@ export async function createReceiptPrintJob(
     },
     priority: "normal",
     receipt_id,
+    org_id,
+  });
+}
+
+// Create a ticket print job (for food orders)
+export async function createTicketPrintJob(
+  supabaseUrl: string,
+  supabaseKey: string,
+  printer_id: string,
+  ticketData: TicketData,
+  org_id?: string
+): Promise<PrintJob> {
+  const ticketText = generateTicketText(ticketData);
+
+  // Fetch printer config to include printer settings
+  const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+  const { data: printer } = await supabase
+    .from("printers")
+    .select("config")
+    .eq("id", printer_id)
+    .single();
+
+  const printerSettings = printer?.config || {};
+
+  return createPrintJob(supabaseUrl, supabaseKey, {
+    printer_id,
+    type: "receipt",
+    template_id: null,
+    data: {
+      receipt_text: ticketText,
+      ...ticketData,
+      printer_settings: printerSettings,
+    },
+    priority: "high", // Food orders are high priority
+    receipt_id: null,
     org_id,
   });
 }

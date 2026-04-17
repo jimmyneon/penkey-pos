@@ -161,6 +161,128 @@ export function generateReceiptText(data: ReceiptData): string {
 // ── Exported helpers for use by other modules ──
 export { alignLine, horizontalRule, currency, RECEIPT_WIDTH };
 
+export interface TicketData {
+  store_name: string;
+  store_address?: string;
+  store_phone?: string;
+  ticket_name: string;
+  ticket_comment?: string;
+  date: string;
+  time: string;
+  employee_name: string;
+  register_name: string;
+  lines: Array<{
+    quantity: number;
+    item_name: string;
+    variant_name?: string;
+    modifiers?: Array<{ name: string; price_adjustment: number }>;
+    line_total: number;
+  }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  is_paid: boolean;
+  payment_method?: string;
+  // Transaction metadata
+  dining_option?: string;
+  table_number?: string | null;
+  customer_name?: string | null;
+  assignment?: { type: 'customer' | 'table'; name: string } | null;
+}
+
+export function generateTicketText(data: TicketData): string {
+  const lines: string[] = [];
+
+  // Header (centre-aligned by print server when it sees these lines)
+  lines.push(data.store_name);
+  if (data.store_address) lines.push(data.store_address);
+  if (data.store_phone) lines.push(data.store_phone);
+  lines.push('');
+
+  // Divider
+  lines.push(horizontalRule());
+
+  // Ticket name
+  lines.push(`Ticket: ${data.ticket_name}`);
+  if (data.ticket_comment) {
+    lines.push(data.ticket_comment);
+  }
+  lines.push('');
+
+  // Assignment (customer or table)
+  if (data.assignment) {
+    if (data.assignment.type === 'customer') {
+      lines.push(`Customer: ${data.assignment.name}`);
+    } else if (data.assignment.type === 'table') {
+      lines.push(`Table: ${data.assignment.name}`);
+    }
+  } else if (data.table_number) {
+    lines.push(`Table: ${data.table_number}`);
+  } else if (data.customer_name) {
+    lines.push(`Customer: ${data.customer_name}`);
+  }
+
+  // Dining option
+  if (data.dining_option) {
+    const diningText = data.dining_option === 'eat-in' ? 'Eat In' : 'Takeaway';
+    lines.push(diningText);
+  }
+
+  lines.push('');
+  lines.push(horizontalRule());
+
+  // Items
+  for (const item of data.lines) {
+    const name = item.variant_name
+      ? `${item.quantity}x ${item.item_name} - ${item.variant_name}`
+      : `${item.quantity}x ${item.item_name}`;
+    lines.push(alignLine(name, currency(item.line_total)));
+
+    if (item.modifiers && item.modifiers.length > 0) {
+      for (const mod of item.modifiers) {
+        const modText = mod.price_adjustment
+          ? `  + ${mod.name} (${currency(mod.price_adjustment)})`
+          : `  + ${mod.name}`;
+        lines.push(modText);
+      }
+    }
+  }
+
+  // Divider
+  lines.push(horizontalRule());
+  lines.push('');
+
+  // Totals
+  lines.push(alignLine('Subtotal', currency(data.subtotal)));
+  if (data.tax > 0) {
+    lines.push(alignLine('Tax (20%)', currency(data.tax)));
+  }
+
+  // TOTAL – bold markers for the print server
+  lines.push(`**${alignLine('TOTAL', currency(data.total))}**`);
+
+  lines.push('');
+
+  // Payment status
+  if (data.is_paid && data.payment_method) {
+    lines.push(`PAID - ${data.payment_method.toUpperCase()}`);
+  } else {
+    lines.push('**NOT PAID**');
+  }
+
+  // Date/time and server info
+  lines.push(`${data.date} ${data.time}`);
+  lines.push(`Served by: ${data.employee_name}`);
+  lines.push(`Register: ${data.register_name}`);
+
+  lines.push('');
+
+  // Footer
+  lines.push('Food Order');
+
+  return lines.join('\n');
+}
+
 export function generateReceiptHTML(data: ReceiptData): string {
   const htmlTemplate = `
 <!DOCTYPE html>

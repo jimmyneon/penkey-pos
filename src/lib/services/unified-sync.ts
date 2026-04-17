@@ -123,10 +123,32 @@ export class UnifiedSyncService {
       // Also clear specific modifier caches
       dataCache.clear(orgId, "modifier_groups");
       dataCache.clear(orgId, "modifiers");
+      dataCache.clear(orgId, "item_modifier_groups");
+      
+      // Clear IndexedDB item_modifier_groups cache
+      try {
+        const { getDB } = await import('@/lib/idb/db');
+        const db = await getDB();
+        const tx = db.transaction('item_modifier_groups', 'readwrite');
+        await tx.store.clear();
+        await tx.done;
+        console.log('[UnifiedSync] Cleared IndexedDB item_modifier_groups cache');
+      } catch (err) {
+        console.error('[UnifiedSync] Error clearing item_modifier_groups:', err);
+      }
       
       // Invalidate modifier cache service
       const { invalidateAllModifiers } = await import('@/lib/services/modifier-cache');
       invalidateAllModifiers(orgId);
+      
+      // Clear modifier RAM cache
+      try {
+        const { modifierRAMCache } = await import('@/lib/services/modifier-ram-cache');
+        modifierRAMCache.clear();
+        console.log('[UnifiedSync] Cleared modifier RAM cache');
+      } catch (err) {
+        console.error('[UnifiedSync] Error clearing modifier RAM cache:', err);
+      }
 
       console.log('[UnifiedSync] ✅ Full bidirectional sync complete');
       

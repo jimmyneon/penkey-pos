@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
-import { Plus, Minus, User, Hash, Trash2 } from "lucide-react";
+import { Plus, Minus, User, Hash, Trash2, Printer } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress, hapticDelete, hapticSuccess } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
@@ -36,6 +36,7 @@ interface TicketModalProps {
   onCheckout: () => void;
   onSave: () => void;
   onClearAll: () => void;
+  onPrint: () => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string } | null;
 }
 
@@ -51,6 +52,7 @@ export function TicketModal({
   onCheckout,
   onSave,
   onClearAll,
+  onPrint,
   ticketAssignment,
 }: TicketModalProps) {
   // Use scroll lock hook to manage scroll state
@@ -194,11 +196,25 @@ export function TicketModal({
               className="flex-1 w-full"
               disabled={lines.length === 0}
               onClick={() => {
+                hapticButtonPress();
                 onClose();
                 onSave();
               }}
             >
               Save Ticket
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1 w-full"
+              disabled={lines.length === 0}
+              onClick={() => {
+                hapticButtonPress();
+                onPrint();
+              }}
+            >
+              <Printer className="h-5 w-5 mr-2" />
+              Print
             </Button>
             <Button
               size="lg"

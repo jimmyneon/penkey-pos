@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
-import { Trash2, FileText, Merge, Split, UserPlus, User, Hash } from "lucide-react";
+import { Trash2, FileText, Merge, Split, UserPlus, User, Hash, Printer } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -42,6 +42,7 @@ interface OpenTicketsDialogProps {
   onMergeTickets?: (ticketId: string | string[]) => void;
   onSplitTicket?: (ticketId: string) => void;
   onAddToCustomer?: (ticketId: string) => void;
+  onPrintTickets?: (ticketIds: string[]) => void;
 }
 
 export function OpenTicketsDialog({
@@ -53,6 +54,7 @@ export function OpenTicketsDialog({
   onMergeTickets,
   onSplitTicket,
   onAddToCustomer,
+  onPrintTickets,
 }: OpenTicketsDialogProps) {
   const [editMode, setEditMode] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
@@ -268,6 +270,14 @@ export function OpenTicketsDialog({
     }
   };
 
+  const handlePrintSelected = () => {
+    if (selectedTickets.size > 0 && onPrintTickets) {
+      onPrintTickets(Array.from(selectedTickets));
+      setEditMode(false);
+      setSelectedTickets(new Set());
+    }
+  };
+
   const exitEditMode = () => {
     setEditMode(false);
     setSelectedTickets(new Set());
@@ -336,9 +346,18 @@ export function OpenTicketsDialog({
               </Button>
               <Button
                 size="lg"
+                onClick={handlePrintSelected}
+                disabled={selectedTickets.size === 0}
+                className="bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white border-0 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Printer className="h-5 w-5 mr-2" />
+                Print {selectedTickets.size > 0 ? `(${selectedTickets.size})` : ''}
+              </Button>
+              <Button
+                size="lg"
                 onClick={handleDeleteSelected}
                 disabled={selectedTickets.size === 0}
-                className="bg-red-600 hover:bg-red-700 text-white border-0 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed col-span-2"
+                className="bg-red-600 hover:bg-red-700 text-white border-0 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="h-5 w-5 mr-2" />
                 Delete {selectedTickets.size > 0 ? `(${selectedTickets.size})` : ''}
