@@ -42,7 +42,6 @@ import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { CartSyncService } from "@/lib/services/cart-sync";
 import { TicketSyncService } from "@/lib/services/ticket-sync";
-import { createTicketPrintJob, getPrinters } from "@/lib/services/print-queue";
 
 interface Session {
   employee: {
@@ -1242,21 +1241,6 @@ export default function SellPage() {
     }
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-      // Get the default printer for this register
-      const printers = await getPrinters(supabaseUrl, supabaseKey, {
-        status: "online"
-      });
-
-      if (!printers || printers.length === 0) {
-        showToast('No printer configured', 'error');
-        return;
-      }
-
-      const printer = printers[0]; // Use first available printer
-
       // Format date and time
       const now = new Date();
       const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -1294,18 +1278,49 @@ export default function SellPage() {
         assignment: ticketAssignment
       };
 
-      // Create print job
-      await createTicketPrintJob(
-        supabaseUrl,
-        supabaseKey,
-        printer.id,
-        ticketData,
-        session.org_id
-      );
+      // Call the tickets print API endpoint
+      const response = await fetch("/api/tickets/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticket_data: ticketData,
+          copies: 1,
+        }),
+      });
 
-      hapticSuccess();
-      playSuccessSound();
-      showToast('Ticket sent to printer', 'success');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to print ticket");
+      }
+
+      if (data.queued) {
+        hapticSuccess();
+        playSuccessSound();
+        showToast('Ticket sent to printer', 'success');
+      } else if (data.receipt_text) {
+        // Fallback: no printer configured — open browser print dialog
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Ticket - ${ticketData.ticket_name}</title>
+                <style>
+                  body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 300px; margin: 20px auto; padding: 10px; }
+                  pre { white-space: pre-wrap; word-wrap: break-word; }
+                </style>
+              </head>
+              <body>
+                <pre>${data.receipt_text}</pre>
+                <script>window.onload = function() { window.print(); };<\/script>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
+        showToast('Ticket opened for printing', 'info');
+      }
     } catch (error) {
       console.error('[Print] Failed to print ticket:', error);
       showToast('Failed to print ticket', 'error');
@@ -1316,21 +1331,6 @@ export default function SellPage() {
     if (!session) return;
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-      // Get the default printer for this register
-      const printers = await getPrinters(supabaseUrl, supabaseKey, {
-        status: "online"
-      });
-
-      if (!printers || printers.length === 0) {
-        showToast('No printer configured', 'error');
-        return;
-      }
-
-      const printer = printers[0]; // Use first available printer
-
       // Format date and time
       const now = new Date();
       const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -1376,14 +1376,46 @@ export default function SellPage() {
           assignment: ticket.ticket_assignment
         };
 
-        // Create print job
-        await createTicketPrintJob(
-          supabaseUrl,
-          supabaseKey,
-          printer.id,
-          ticketData,
-          session.org_id
-        );
+        // Call the tickets print API endpoint
+        const response = await fetch("/api/tickets/print", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticket_data: ticketData,
+            copies: 1,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to print ticket");
+        }
+
+        if (data.queued) {
+          // Continue to next ticket
+        } else if (data.receipt_text) {
+          // Fallback: no printer configured — open browser print dialog
+          const printWindow = window.open("", "_blank");
+          if (printWindow) {
+            printWindow.document.write(`
+              <html>
+                <head>
+                  <title>Ticket - ${ticketData.ticket_name}</title>
+                  <style>
+                    body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 300px; margin: 20px auto; padding: 10px; }
+                    pre { white-space: pre-wrap; word-wrap: break-word; }
+                  </style>
+                </head>
+                <body>
+                  <pre>${data.receipt_text}</pre>
+                  <script>window.onload = function() { window.print(); };<\/script>
+                </body>
+              </html>
+            `);
+            printWindow.document.close();
+          }
+        }
       }
 
       hapticSuccess();
