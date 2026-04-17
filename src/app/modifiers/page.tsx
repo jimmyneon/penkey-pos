@@ -112,8 +112,8 @@ export default function ModifiersPage() {
         }
       }
 
-      // Fetch from API
-      const response = await fetch(`/api/modifiers/groups?org_id=${session?.org_id}`);
+      // Fetch from API with cache-busting
+      const response = await fetch(`/api/modifiers/groups?org_id=${session?.org_id}&_t=${Date.now()}`);
       if (!response.ok) throw new Error("Failed to fetch modifier groups");
       const data = await response.json();
       

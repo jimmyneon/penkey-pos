@@ -104,7 +104,8 @@ export default function EditModifierGroupPage() {
   const fetchGroup = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/modifiers/groups?org_id=${session?.org_id}`);
+      // Add cache-busting timestamp to prevent stale responses
+      const response = await fetch(`/api/modifiers/groups?org_id=${session?.org_id}&_t=${Date.now()}`);
       if (!response.ok) throw new Error("Failed to fetch groups");
       
       const groups = await response.json();
