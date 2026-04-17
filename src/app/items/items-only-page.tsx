@@ -192,6 +192,8 @@ export default function ItemsOnlyPage() {
       if (session) {
         dataCache.clear(session.org_id, "items");
         SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+        // Clear items from IndexedDB to force fresh data
+        await clearStore("items");
       }
 
       // Reload items and close dialog
