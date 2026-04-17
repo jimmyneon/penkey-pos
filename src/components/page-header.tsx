@@ -6,9 +6,9 @@ import { Button } from "@penkey/ui";
 import { Home, Menu, ArrowLeft } from "lucide-react";
 import { SidebarMenu } from "@/app/sell/sidebar-menu";
 import { ProfileMenu } from "@/app/sell/profile-menu";
-import { useDataSync } from "@/lib/hooks/use-data-sync";
+import { UnifiedSyncService } from "@/lib/services/unified-sync";
+import { SyncManager } from "@/lib/services/sync-manager";
 import { hapticButtonPress } from "@/lib/utils/haptics";
-import { dataCache } from "@/lib/services/data-cache";
 
 interface PageHeaderProps {
   title: string;
@@ -36,12 +36,56 @@ export function PageHeader({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { syncing, lastSync, syncData } = useDataSync(session?.org_id || "skip");
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<number | null>(null);
+
+  // Update lastSync from SyncManager
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const updateLastSync = async () => {
+      const status = await SyncManager.getSyncStatus(session.org_id);
+      let mostRecent = 0;
+      for (const key in status) {
+        const ts = status[key as keyof typeof status].lastSync;
+        if (ts && ts > mostRecent) mostRecent = ts;
+      }
+      setLastSync(mostRecent || null);
+    };
+
+    updateLastSync();
+    const interval = setInterval(updateLastSync, 30000);
+    return () => clearInterval(interval);
+  }, [session?.org_id]);
 
   const handleLock = () => {
     // Clear session but keep auth token
     sessionStorage.removeItem("pos_session");
     router.push("/lock");
+  };
+
+  const syncData = async () => {
+    if (!session?.org_id) return;
+    
+    setSyncing(true);
+    try {
+      const result = await UnifiedSyncService.syncAll(session.org_id, session.register?.id);
+      if (result.error) {
+        console.error('[PageHeader] Sync failed:', result.error);
+      }
+      // Update lastSync after successful sync
+      const status = await SyncManager.getSyncStatus(session.org_id);
+      let mostRecent = 0;
+      for (const key in status) {
+        const ts = status[key as keyof typeof status].lastSync;
+        if (ts && ts > mostRecent) mostRecent = ts;
+      }
+      setLastSync(mostRecent || null);
+    } catch (error) {
+      console.error('[PageHeader] Sync error:', error);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   // Debug logging

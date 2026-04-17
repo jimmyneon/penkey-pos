@@ -207,8 +207,30 @@ export default function SellPage() {
     forceRefresh
   );
   const { items: popularItems, loading: popularLoading } = usePopularItems(session?.org_id || "skip", forceRefresh);
-  const { syncing, lastSync, syncData, getCacheInfo } = useDataSync(session?.org_id || "skip");
   const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines } = useCartStore();
+  
+  // Local sync state
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<number | null>(null);
+  
+  // Update lastSync from SyncManager
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const updateLastSync = async () => {
+      const status = await SyncManager.getSyncStatus(session.org_id);
+      let mostRecent = 0;
+      for (const key in status) {
+        const ts = status[key as keyof typeof status].lastSync;
+        if (ts && ts > mostRecent) mostRecent = ts;
+      }
+      setLastSync(mostRecent || null);
+    };
+
+    updateLastSync();
+    const interval = setInterval(updateLastSync, 30000);
+    return () => clearInterval(interval);
+  }, [session?.org_id]);
   
   // Session management - handles inactivity timeout and page visibility
   useSessionManager();
