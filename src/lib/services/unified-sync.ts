@@ -10,6 +10,26 @@ import { prefetchOrgData } from "@/lib/offline/prefetch";
 import { SyncManager } from "./sync-manager";
 import { dataCache } from "./data-cache";
 
+// Simple event emitter for sync events
+type SyncEventListener = () => void;
+const syncEventListeners = new Set<SyncEventListener>();
+
+export function onSyncComplete(callback: SyncEventListener): () => void {
+  syncEventListeners.add(callback);
+  // Return unsubscribe function
+  return () => syncEventListeners.delete(callback);
+}
+
+function notifySyncListeners(): void {
+  syncEventListeners.forEach(listener => {
+    try {
+      listener();
+    } catch (err) {
+      console.error('[UnifiedSync] Error in sync event listener:', err);
+    }
+  });
+}
+
 export class UnifiedSyncService {
   private static syncInProgress = false;
 
@@ -99,8 +119,20 @@ export class UnifiedSyncService {
       // Step 3: Clear in-memory cache to force refresh
       console.log('[UnifiedSync] Step 3: Clearing in-memory cache...');
       dataCache.clearOrg(orgId);
+      
+      // Also clear specific modifier caches
+      dataCache.clear(orgId, "modifier_groups");
+      dataCache.clear(orgId, "modifiers");
+      
+      // Invalidate modifier cache service
+      const { invalidateAllModifiers } = await import('@/lib/services/modifier-cache');
+      invalidateAllModifiers(orgId);
 
       console.log('[UnifiedSync] ✅ Full bidirectional sync complete');
+      
+      // Notify listeners that sync completed
+      notifySyncListeners();
+      
       return { pushed: pendingCount, pushedTypes, pulled: true, pulledTypes };
     } catch (error: any) {
       console.error('[UnifiedSync] Sync failed:', error);

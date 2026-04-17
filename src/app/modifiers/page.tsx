@@ -14,6 +14,7 @@ import { addCSRFToken } from "@/lib/utils/csrf-client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { PageHeader } from "@/components/page-header";
+import { onSyncComplete } from "@/lib/services/unified-sync";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -80,6 +81,20 @@ export default function ModifiersPage() {
     if (session?.org_id) {
       fetchModifierGroups();
     }
+  }, [session?.org_id]);
+
+  // Listen for sync events and reload data
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const unsubscribe = onSyncComplete(() => {
+      console.log('[Modifiers] Sync completed, reloading data');
+      fetchModifierGroups(true);
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, [session?.org_id]);
 
   const fetchModifierGroups = async (forceRefresh = false) => {
@@ -187,7 +202,7 @@ export default function ModifiersPage() {
         showBack={true}
         backHref="/items-hub"
         showHome={true}
-        showMenu={false}
+        showMenu={true}
         session={session}
         rightActions={
           <Button
