@@ -162,11 +162,9 @@ export default function ItemsOnlyPage() {
   };
 
   const confirmDeleteDuplicates = async () => {
-    console.log('[Delete Duplicates] Confirm button clicked');
     setDeleteConfirmationOpen(false);
     try {
       const idsToDelete = Array.from(selectedDuplicateIds);
-      console.log('[Delete Duplicates] IDs to delete:', idsToDelete);
       if (idsToDelete.length === 0) {
         showToast('No items selected for deletion', 'error');
         return;
@@ -182,34 +180,27 @@ export default function ItemsOnlyPage() {
         })
       );
 
-      console.log('[Delete Duplicates] Sending delete requests...');
       const results = await Promise.all(deletePromises);
-      console.log('[Delete Duplicates] Delete results:', results.map(r => ({ status: r.status, ok: r.ok })));
       const failedDeletes = results.filter(r => !r.ok);
 
       if (failedDeletes.length > 0) {
-        console.error('[Delete Duplicates] Failed deletes:', failedDeletes);
         showToast(`Failed to delete ${failedDeletes.length} item(s)`, 'error');
         return;
       }
 
-      console.log('[Delete Duplicates] Clearing caches...');
       // Clear cache and trigger full refresh
       if (session) {
-        // Clear all caches to ensure deleted items are removed
         dataCache.clear(session.org_id, "items");
         SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
-        console.log('[Delete Duplicates] Caches cleared');
       }
 
-      console.log('[Delete Duplicates] Reloading items...');
       // Reload items and close dialog
       reload(true);
       setDuplicateDialogOpen(false);
       setSelectedDuplicateIds(new Set());
       showToast(`${idsToDelete.length} item(s) deleted successfully`, 'success');
     } catch (error) {
-      console.error('[Delete Duplicates] Error:', error);
+      console.error('Failed to delete items:', error);
       showToast('Failed to delete items', 'error');
     }
   };
