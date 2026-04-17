@@ -280,7 +280,7 @@ export default function SellPage() {
   });
 
   console.log('[Search] Query:', searchQuery, 'Filtered count:', filteredItems.length);
-  console.log('[Search] Sample filtered items:', filteredItems.slice(0, 5).map(i => i.name));
+  console.log('[Search] Sample filtered items:', filteredItems.slice(0, 5).map(i => ({ name: i.name, is_fav: (i as any).is_favourite })));
 
   // Intelligent search ranking: favourites > popularity > alphabetical
   // Create popularity map for ranking
@@ -288,6 +288,9 @@ export default function SellPage() {
   popularItems.forEach((item, index) => {
     popularityMap.set(item.id, index);
   });
+
+  console.log('[Search] Popularity map size:', popularityMap.size);
+  console.log('[Search] Popular items:', popularItems.slice(0, 5).map(i => i.name));
 
   filteredItems = filteredItems.sort((a, b) => {
     // First priority: is_favourite (favourites come first)
@@ -304,7 +307,11 @@ export default function SellPage() {
     return a.name.localeCompare(b.name);
   });
 
-  console.log('[Search] Sorted items:', filteredItems.slice(0, 5).map(i => i.name));
+  console.log('[Search] Sorted items with details:', filteredItems.slice(0, 10).map(i => ({
+    name: i.name,
+    is_fav: (i as any).is_favourite,
+    pop_rank: popularityMap.get(i.id) ?? 9999
+  })));
 
   // If Popular filter is ON, filter to show only popular items
   if (showPopular && popularItems.length > 0) {
