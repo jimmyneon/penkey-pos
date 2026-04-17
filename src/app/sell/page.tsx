@@ -30,6 +30,7 @@ import { PenkeyPromptsBar } from "./penkey-prompts-bar";
 import { ItemsDisplay } from "./items-display";
 import { SellHeader } from "./sell-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FavouritesDialog } from "./favourites-dialog";
 import { hapticButtonPress, hapticItemAdded, hapticDelete, hapticSuccess, setHapticEnabledCheck } from "@/lib/utils/haptics";
 import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, playPaymentInitSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -81,6 +82,7 @@ export default function SellPage() {
   const [assignTicketOpen, setAssignTicketOpen] = useState(false);
   const [mergeTicketsOpen, setMergeTicketsOpen] = useState(false);
   const [splitTicketOpen, setSplitTicketOpen] = useState(false);
+  const [favouritesOpen, setFavouritesOpen] = useState(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; name: string; customer?: any } | null>(null);
   const [currentTicketName, setCurrentTicketName] = useState<string>("");
   const [currentTicketComment, setCurrentTicketComment] = useState<string>("");
@@ -1159,6 +1161,11 @@ export default function SellPage() {
           }
         }}
         onOpenTicketsClick={() => setOpenTicketsOpen(true)}
+        onFavouritesClick={() => {
+          hapticButtonPress();
+          playButtonSound();
+          setFavouritesOpen(true);
+        }}
         onChargeClick={() => {
           if (lines.length === 0) {
             showToast('Add items to ticket first', 'error');
@@ -1494,6 +1501,16 @@ export default function SellPage() {
         onClose={() => setSplitTicketOpen(false)}
         lines={lines}
         onSplit={handleSplitTicket}
+      />
+
+      <FavouritesDialog
+        open={favouritesOpen}
+        onClose={() => setFavouritesOpen(false)}
+        orgId={session?.org_id || "skip"}
+        onAddItem={(item) => {
+          // Add item to cart with same logic as regular item click
+          handleAddItem(item as any, undefined);
+        }}
       />
 
       {/* Toast Notifications */}

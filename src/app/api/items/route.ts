@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("category_id");
+    const favourites = searchParams.get("favourites");
 
     const supabase = createSupabaseServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,10 @@ export async function GET(request: NextRequest) {
 
     if (categoryId) {
       query = query.eq("category_id", categoryId);
+    }
+
+    if (favourites === "true") {
+      query = query.eq("is_favourite", true);
     }
 
     const { data, error } = await query;
