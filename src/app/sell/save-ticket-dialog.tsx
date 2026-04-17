@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Input } from "@penkey/ui";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { User, Hash } from "lucide-react";
 
 interface SaveTicketDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (name: string, comment: string) => void;
+  onSave: (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string } | null;
 }
 
 export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: SaveTicketDialogProps) {
   const [name, setName] = useState("");
   const [comment, setComment] = useState("");
+  const [assignType, setAssignType] = useState<'customer' | 'table' | null>(null);
+  const [assignName, setAssignName] = useState('');
 
   // Use scroll lock hook to manage scroll state
   useScrollLock(open);
@@ -24,10 +27,16 @@ export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: Sa
       // Use customer/table name if assigned, otherwise random number
       if (ticketAssignment) {
         setName(ticketAssignment.name);
+        setAssignType(ticketAssignment.type);
+        setAssignName(ticketAssignment.name);
       } else if (!name) {
         const randomNumber = Math.floor(Math.random() * 10000);
         setName(`Penkey ${randomNumber}`);
       }
+    } else {
+      // Reset when dialog closes
+      setAssignType(null);
+      setAssignName('');
     }
   }, [open, ticketAssignment]);
 
@@ -36,9 +45,17 @@ export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: Sa
       alert("Please enter a ticket name");
       return;
     }
-    onSave(name, comment);
+    
+    // Only include assignment if type is selected and name is provided
+    const assignment = assignType && assignName.trim() 
+      ? { type: assignType, name: assignName.trim() }
+      : undefined;
+    
+    onSave(name, comment, assignment);
     setName("");
     setComment("");
+    setAssignType(null);
+    setAssignName('');
     onClose();
   };
 
@@ -65,6 +82,59 @@ export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: Sa
             <p className="text-xs text-gray-400 mt-1">
               Suggestions: Table numbers, customer names, order references
             </p>
+          </div>
+
+          {/* Assignment Section - Optional */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-300">
+              Assign to (Optional)
+            </label>
+            
+            {/* Assignment Type Selection */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAssignType(assignType === 'customer' ? null : 'customer')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${
+                  assignType === 'customer'
+                    ? 'border-penkey-orange bg-penkey-orange/10 text-penkey-orange'
+                    : 'border-gray-700 text-gray-300 hover:border-gray-600 bg-[#2d2d2d]'
+                }`}
+              >
+                <User className="h-5 w-5" />
+                <span className="font-medium">Customer</span>
+              </button>
+              <button
+                onClick={() => setAssignType(assignType === 'table' ? null : 'table')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors ${
+                  assignType === 'table'
+                    ? 'border-penkey-orange bg-penkey-orange/10 text-penkey-orange'
+                    : 'border-gray-700 text-gray-300 hover:border-gray-600 bg-[#2d2d2d]'
+                }`}
+              >
+                <Hash className="h-5 w-5" />
+                <span className="font-medium">Table</span>
+              </button>
+            </div>
+
+            {/* Assignment Name Input */}
+            {assignType && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {assignType === 'customer' ? 'Customer Name' : 'Table Number'}
+                </label>
+                <Input
+                  value={assignName}
+                  onChange={(e) => setAssignName(e.target.value)}
+                  placeholder={assignType === 'customer' ? 'Enter customer name' : 'Enter table number'}
+                  className="w-full bg-[#2d2d2d] border-gray-700 text-white placeholder:text-gray-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && name.trim()) {
+                      handleSave();
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <div>

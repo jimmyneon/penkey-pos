@@ -883,10 +883,13 @@ export default function SellPage() {
     setModifierDialogOpen(false);
   };
 
-  const handleSaveTicket = async (name: string, comment: string) => {
+  const handleSaveTicket = async (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => {
     if (!session) return;
 
     try {
+      // Use assignment from parameter if provided, otherwise use existing ticketAssignment state
+      const assignmentToUse = assignment || ticketAssignment;
+      
       // Save to database
       const savedTicket = await TicketSyncService.saveTicket(
         session.org_id,
@@ -895,7 +898,7 @@ export default function SellPage() {
         name,
         comment,
         lines,
-        ticketAssignment,
+        assignmentToUse,
         getTotal()
       );
 

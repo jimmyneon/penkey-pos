@@ -209,17 +209,26 @@ export function generateTicketText(data: TicketData): string {
   }
   lines.push('');
 
-  // Assignment (customer or table)
+  // Assignment (customer or table) - only show if different from ticket name
+  let assignmentShown = false;
   if (data.assignment) {
-    if (data.assignment.type === 'customer') {
-      lines.push(`Customer: ${data.assignment.name}`);
-    } else if (data.assignment.type === 'table') {
-      lines.push(`Table: ${data.assignment.name}`);
+    const assignmentName = data.assignment.name.toLowerCase();
+    const ticketName = data.ticket_name.toLowerCase();
+    // Only show assignment if it's not already in the ticket name
+    if (!ticketName.includes(assignmentName)) {
+      if (data.assignment.type === 'customer') {
+        lines.push(`Customer: ${data.assignment.name}`);
+      } else if (data.assignment.type === 'table') {
+        lines.push(`Table: ${data.assignment.name}`);
+      }
+      assignmentShown = true;
     }
-  } else if (data.table_number) {
+  } else if (data.table_number && !data.ticket_name.toLowerCase().includes(data.table_number.toLowerCase())) {
     lines.push(`Table: ${data.table_number}`);
-  } else if (data.customer_name) {
+    assignmentShown = true;
+  } else if (data.customer_name && !data.ticket_name.toLowerCase().includes(data.customer_name.toLowerCase())) {
     lines.push(`Customer: ${data.customer_name}`);
+    assignmentShown = true;
   }
 
   // Dining option
