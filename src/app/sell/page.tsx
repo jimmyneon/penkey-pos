@@ -248,11 +248,20 @@ export default function SellPage() {
 
   // Filter and sort items by search query and popularity
   const searchLower = searchQuery.toLowerCase();
+  
+  // For short queries (1-2 chars), only show items that START with the term
+  // For longer queries, show items that CONTAIN the term
   let filteredItems = displayItems.filter((item) => {
+    if (searchLower.length <= 2) {
+      return item.name.toLowerCase().startsWith(searchLower);
+    }
     return item.name.toLowerCase().includes(searchLower);
   });
 
-  // Intelligent search ranking: prefix match > favourites > popularity > alphabetical
+  console.log('[Search] Query:', searchQuery, 'Filtered count:', filteredItems.length);
+  console.log('[Search] Sample filtered items:', filteredItems.slice(0, 5).map(i => i.name));
+
+  // Intelligent search ranking: favourites > popularity > alphabetical
   // Create popularity map for ranking
   const popularityMap = new Map<string, number>();
   popularItems.forEach((item, index) => {
@@ -260,24 +269,21 @@ export default function SellPage() {
   });
 
   filteredItems = filteredItems.sort((a, b) => {
-    // First priority: prefix match (items that start with search term)
-    const aPrefix = a.name.toLowerCase().startsWith(searchLower) ? 0 : 1;
-    const bPrefix = b.name.toLowerCase().startsWith(searchLower) ? 0 : 1;
-    if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-
-    // Second priority: is_favourite (favourites come first)
+    // First priority: is_favourite (favourites come first)
     const aFav = (a as any).is_favourite ? 0 : 1;
     const bFav = (b as any).is_favourite ? 0 : 1;
     if (aFav !== bFav) return aFav - bFav;
 
-    // Third priority: popularity (lower rank = more popular)
+    // Second priority: popularity (lower rank = more popular)
     const aRank = popularityMap.get(a.id) ?? 9999;
     const bRank = popularityMap.get(b.id) ?? 9999;
     if (aRank !== bRank) return aRank - bRank;
 
-    // Fourth priority: alphabetical
+    // Third priority: alphabetical
     return a.name.localeCompare(b.name);
   });
+
+  console.log('[Search] Sorted items:', filteredItems.slice(0, 5).map(i => i.name));
 
   // If Popular filter is ON, filter to show only popular items
   if (showPopular && popularItems.length > 0) {
