@@ -77,6 +77,17 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
     }).catch(() => {})
   );
 
+  // Modifier groups (full groups with options - used by modifiers page)
+  tasks.push(
+    fetchWithTimeout<any[]>(`/api/modifiers/groups?org_id=${orgId}`).then(async (rows) => {
+      if (rows && rows.length) {
+        // Store in IndexedDB as well for consistency
+        await putMany("modifier_groups", rows.map((x) => ({ ...x, org_id: orgId })));
+        console.log(`[Prefetch] ✓ Cached ${rows.length} modifier groups`);
+      }
+    }).catch(() => {})
+  );
+
   // Item -> Modifier groups: reuse items promise, skip if recently cached
   tasks.push(
     itemsPromise.then(async (items) => {
