@@ -24,6 +24,7 @@ import { SyncManager } from "@/lib/services/sync-manager";
 import { ImportResultsDialog } from "@/components/import-results-dialog";
 import { ImportDuplicateDialog } from "@/components/import-duplicate-dialog";
 import { ImportPreviewDialog } from "@/components/import-preview-dialog";
+import { onSyncComplete } from "@/lib/services/unified-sync";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -109,6 +110,26 @@ export default function ManagementPage() {
     if (session?.org_id && activeTab === "modifiers") {
       fetchModifierGroups();
     }
+  }, [session?.org_id, activeTab]);
+
+  // Listen for sync events and reload data
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const unsubscribe = onSyncComplete(() => {
+      console.log('[ItemsManagement] Sync completed, reloading data');
+      // Reload hooks
+      reloadCategories();
+      reload();
+      // Reload modifier groups if on modifiers tab
+      if (activeTab === "modifiers") {
+        fetchModifierGroups();
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, [session?.org_id, activeTab]);
 
   const fetchModifierGroups = async () => {

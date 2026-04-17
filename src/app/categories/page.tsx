@@ -13,6 +13,7 @@ import { AssignItemsDialog } from "../items/assign-items-dialog";
 import { addCSRFToken } from "@/lib/utils/csrf-client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
+import { onSyncComplete } from "@/lib/services/unified-sync";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -61,6 +62,21 @@ export default function CategoriesPage() {
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Listen for sync events and reload data
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const unsubscribe = onSyncComplete(() => {
+      console.log('[Categories] Sync completed, reloading data');
+      reloadCategories();
+      reload();
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [session?.org_id]);
 
   if (loading) {
     return (

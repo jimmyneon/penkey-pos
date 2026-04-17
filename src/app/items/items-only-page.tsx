@@ -17,6 +17,7 @@ import { dataCache } from "@/lib/services/data-cache";
 import { clearStore } from "@/lib/idb/db";
 import { SelectModifierGroupDialog } from "./select-modifier-group-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
+import { onSyncComplete } from "@/lib/services/unified-sync";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -84,6 +85,20 @@ export default function ItemsOnlyPage() {
     
     return matchesSearch && matchesCategory;
   });
+
+  // Listen for sync events and reload data
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const unsubscribe = onSyncComplete(() => {
+      console.log('[ItemsOnly] Sync completed, reloading data');
+      reload();
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [session?.org_id]);
 
   const findDuplicates = () => {
     setFindingDuplicates(true);
