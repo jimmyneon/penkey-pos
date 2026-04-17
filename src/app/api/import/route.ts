@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
     const modifierGroupMap = new Map<string, string>();
     const itemMap = new Map<string, string>();
     const modifierGroupDefaultOptionMap = new Map<string, string>();
-    const addOnItems: Array<{ name: string; price: number }> = [];
+    const addOnItems: Array<{ name: string; price: number; groups: Set<string> }> = [];
 
     if (isLoyverse) {
       // Loyverse format: Handle, SKU, Name, Category, Description, Sold by weight, Option 1 name, Option 1 value, Option 2 name, Option 2 value, Option 3 name, Option 3 value, Cost, Barcode, SKU of included item, Quantity of included item, Track stock, Available for sale [Store], Price [Store], In stock [Store], Low stock [Store], Modifier columns...
@@ -324,7 +324,19 @@ export async function POST(request: NextRequest) {
 
         // Check if this is an Add-ons item - these should become modifier options, not regular items
         if (category.toLowerCase() === 'add-ons' || category.toLowerCase() === 'add ons') {
-          addOnItems.push({ name, price });
+          // Find which modifier groups this add-on belongs to
+          const modifierColumns = headers.filter(h => h.toLowerCase().startsWith('modifier -'));
+          const belongsToGroups = new Set<string>();
+          
+          for (const modCol of modifierColumns) {
+            const modValue = unescapeCSV(values[headers.indexOf(modCol)] || '');
+            if (modValue.toLowerCase() === 'y' || modValue.toLowerCase() === 'yes') {
+              const groupName = modCol.replace(/^Modifier -\s*/i, '').replace(/"/g, '');
+              belongsToGroups.add(groupName);
+            }
+          }
+          
+          addOnItems.push({ name, price, groups: belongsToGroups });
           continue; // Skip importing as a regular item
         }
 
@@ -520,8 +532,15 @@ export async function POST(request: NextRequest) {
       // Now create modifier options from Add-ons items
       console.log(`[Import] Processing ${addOnItems.length} Add-ons items as modifier options`);
       for (const addOn of addOnItems) {
-        // Create modifier options for each modifier group
-        for (const [groupName, groupId] of Array.from(modifierGroupMap.entries())) {
+        // Only add this option to the groups it belongs to
+        for (const groupName of Array.from(addOn.groups)) {
+          const groupId = modifierGroupMap.get(groupName);
+          
+          if (!groupId) {
+            console.log(`[Import] Skipping ${addOn.name} - modifier group "${groupName}" not found`);
+            continue;
+          }
+          
           try {
             // Check if this option already exists in this group
             const { data: existingOption } = await supabase

@@ -39,12 +39,12 @@ export function ImportPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-[#3d3d3d] text-white border-gray-700 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="bg-[#3d3d3d] text-white border-gray-700 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" aria-describedby="import-preview-description">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Import Preview
           </DialogTitle>
-          <div className="text-sm text-gray-400 mt-2">
+          <div id="import-preview-description" className="text-sm text-gray-400 mt-2">
             Format: <span className="text-white font-medium">{previewData.format}</span>
           </div>
         </DialogHeader>
