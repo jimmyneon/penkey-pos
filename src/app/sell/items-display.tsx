@@ -23,6 +23,16 @@ const extractMainProductWord = (categoryName: string): string => {
   return words[words.length - 1] || categoryName;
 };
 
+// Split text into chunks of specified character count for large text mode
+const splitTextIntoLines = (text: string, charsPerLine: number): string[] => {
+  if (!text) return [];
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += charsPerLine) {
+    chunks.push(text.slice(i, i + charsPerLine));
+  }
+  return chunks.slice(0, 2); // Max 2 lines
+};
+
 export function ItemsDisplay({
   displayLoading,
   filteredItems,
@@ -125,9 +135,19 @@ export function ItemsDisplay({
                 />
               )}
               <div className={`absolute inset-0 flex flex-col items-center justify-center ${paddingClass} ${hasImage ? 'bg-black/40' : ''}`}>
-                <h3 className={`item-button-text ${getTextSizeClass()} font-medium text-center leading-tight text-white drop-shadow-lg break-words ${font_size === "large" ? "line-clamp-2" : "line-clamp-3"}`}>
-                  {font_size === "large" ? item.name.slice(0, 18) : item.name}
-                </h3>
+                {font_size === "large" ? (
+                  <div className="flex flex-col items-center">
+                    {splitTextIntoLines(item.name, 9).map((line, index) => (
+                      <h3 key={index} className={`${getTextSizeClass()} font-medium text-center leading-tight text-white drop-shadow-lg`}>
+                        {line}
+                      </h3>
+                    ))}
+                  </div>
+                ) : (
+                  <h3 className={`item-button-text ${getTextSizeClass()} font-medium text-center leading-tight text-white drop-shadow-lg break-words line-clamp-3`}>
+                    {item.name}
+                  </h3>
+                )}
                 {font_size === "large" && item.categories && (
                   <p className={`${getCategorySizeClass()} text-white/80 mt-1`}>
                     {extractMainProductWord(item.categories.name)}
