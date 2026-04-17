@@ -22,79 +22,80 @@
   
   /* Light theme overrides */
   .light-theme {
-    --background: 255 255 255;
-    --foreground: 0 0 0;
+    --background: 249 243 230;
+    --foreground: 11 31 58;
   }
-  
+
   .light-theme body {
-    @apply bg-white text-gray-900;
+    background-color: #f9f3e6 !important;
+    color: #0b1f3a !important;
   }
-  
+
   /* Light theme - Complete overhaul for better appearance */
   .light-theme {
     color-scheme: light;
   }
-  
+
   /* Backgrounds */
   .light-theme [class*="bg-[#2d2d2d]"],
   .light-theme [class*="bg-penkey-cream"] {
-    background-color: #f8f9fa !important;
+    background-color: #f9f3e6 !important;
   }
-  
+
   .light-theme [class*="bg-[#3d3d3d]"] {
     background-color: #ffffff !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.1) !important;
   }
-  
+
   .light-theme [class*="bg-[#5d5d5d]"] {
-    background-color: #e9ecef !important;
+    background-color: #e8e0d0 !important;
   }
-  
+
   /* Text colors */
   .light-theme [class*="text-white"] {
-    color: #212529 !important;
+    color: #0b1f3a !important;
   }
-  
+
   .light-theme [class*="text-gray-400"],
   .light-theme [class*="text-gray-300"] {
-    color: #6c757d !important;
+    color: #6b7280 !important;
   }
-  
+
   .light-theme [class*="text-gray-600"] {
-    color: #495057 !important;
+    color: #4b5563 !important;
   }
-  
+
   /* Borders */
   .light-theme [class*="border-gray-700"],
   .light-theme [class*="border-gray-600"] {
-    border-color: #dee2e6 !important;
+    border-color: #d1d5db !important;
   }
-  
+
   /* Buttons - outline variant */
   .light-theme button[class*="outline"] {
-    border-color: #ced4da !important;
-    color: #212529 !important;
+    border-color: #d1d5db !important;
+    color: #0b1f3a !important;
     background-color: #ffffff !important;
   }
-  
+
   .light-theme button[class*="outline"]:hover {
-    background-color: #f8f9fa !important;
+    background-color: #f9f3e6 !important;
   }
-  
+
   /* Force button text and icons to be dark in light theme */
   .light-theme button[class*="outline"] svg,
   .light-theme button[class*="outline"] span {
-    color: #212529 !important;
+    color: #0b1f3a !important;
   }
-  
+
   /* Item buttons in light theme */
   .light-theme button[class*="bg-[#5d5d5d]"] {
     background-color: #ffffff !important;
-    border: 1px solid #dee2e6 !important;
+    border: 1px solid #d1d5db !important;
   }
-  
+
   .light-theme button[class*="bg-[#5d5d5d]"]:hover {
-    background-color: #f8f9fa !important;
+    background-color: #f9f3e6 !important;
   }
   
   /* Keep orange accent */
