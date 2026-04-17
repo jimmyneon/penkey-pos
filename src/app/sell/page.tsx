@@ -42,7 +42,7 @@ import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
 import { CartSyncService } from "@/lib/services/cart-sync";
 import { TicketSyncService } from "@/lib/services/ticket-sync";
-import { createTicketPrintJob } from "@/lib/services/print-queue";
+import { createTicketPrintJob, getPrinters } from "@/lib/services/print-queue";
 
 interface Session {
   employee: {
@@ -1242,12 +1242,13 @@ export default function SellPage() {
     }
 
     try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
       // Get the default printer for this register
-      const response = await fetch(`/api/printers?register_id=${session.register.id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch printers');
-      }
-      const printers = await response.json();
+      const printers = await getPrinters(supabaseUrl, supabaseKey, {
+        status: "online"
+      });
 
       if (!printers || printers.length === 0) {
         showToast('No printer configured', 'error');
@@ -1295,8 +1296,8 @@ export default function SellPage() {
 
       // Create print job
       await createTicketPrintJob(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        supabaseUrl,
+        supabaseKey,
         printer.id,
         ticketData,
         session.org_id
@@ -1315,12 +1316,13 @@ export default function SellPage() {
     if (!session) return;
 
     try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
       // Get the default printer for this register
-      const response = await fetch(`/api/printers?register_id=${session.register.id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch printers');
-      }
-      const printers = await response.json();
+      const printers = await getPrinters(supabaseUrl, supabaseKey, {
+        status: "online"
+      });
 
       if (!printers || printers.length === 0) {
         showToast('No printer configured', 'error');
@@ -1376,8 +1378,8 @@ export default function SellPage() {
 
         // Create print job
         await createTicketPrintJob(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          supabaseUrl,
+          supabaseKey,
           printer.id,
           ticketData,
           session.org_id
