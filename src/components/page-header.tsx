@@ -72,6 +72,40 @@ export function PageHeader({
       const result = await UnifiedSyncService.syncAll(session.org_id, session.register?.id);
       if (result.error) {
         console.error('[PageHeader] Sync failed:', result.error);
+        alert(`Sync failed: ${result.error}`);
+      } else {
+        // Build detailed sync message
+        let message = 'Sync complete';
+        
+        // Show pushed items
+        if (result.pushed > 0) {
+          const pushedParts: string[] = [];
+          Object.entries(result.pushedTypes).forEach(([type, count]) => {
+            pushedParts.push(`${count} ${type}${count > 1 ? 's' : ''}`);
+          });
+          message += `\n\nPushed to Supabase:\n${pushedParts.join('\n')}`;
+        }
+        
+        // Show pulled items
+        if (result.pulled) {
+          const pulledParts: string[] = [];
+          Object.entries(result.pulledTypes).forEach(([type, count]) => {
+            if (count > 0) {
+              pulledParts.push(`${count} ${type}${count > 1 ? 's' : ''}`);
+            }
+          });
+          if (pulledParts.length > 0) {
+            message += `\n\nPulled from Supabase:\n${pulledParts.join('\n')}`;
+          } else {
+            message += '\n\nPulled fresh data from Supabase';
+          }
+        }
+        
+        if (result.pushed === 0 && !result.pulled) {
+          message = 'Nothing to sync';
+        }
+        
+        alert(message);
       }
       // Update lastSync after successful sync
       const status = await SyncManager.getSyncStatus(session.org_id);
@@ -83,6 +117,7 @@ export function PageHeader({
       setLastSync(mostRecent || null);
     } catch (error) {
       console.error('[PageHeader] Sync error:', error);
+      alert('Sync failed');
     } finally {
       setSyncing(false);
     }

@@ -21,17 +21,19 @@ export class UnifiedSyncService {
    */
   static async syncAll(orgId: string, registerId?: string): Promise<{
     pushed: number;
+    pushedTypes: { [key: string]: number };
     pulled: boolean;
+    pulledTypes: { [key: string]: number };
     error?: string;
   }> {
     if (this.syncInProgress) {
       console.log('[UnifiedSync] Sync already in progress, skipping');
-      return { pushed: 0, pulled: false, error: 'Sync already in progress' };
+      return { pushed: 0, pushedTypes: {}, pulled: false, pulledTypes: {}, error: 'Sync already in progress' };
     }
 
     if (!SyncManager.isOnline()) {
       console.log('[UnifiedSync] Offline, skipping sync');
-      return { pushed: 0, pulled: false, error: 'Offline' };
+      return { pushed: 0, pushedTypes: {}, pulled: false, pulledTypes: {}, error: 'Offline' };
     }
 
     this.syncInProgress = true;
@@ -42,9 +44,20 @@ export class UnifiedSyncService {
       console.log('[UnifiedSync] Step 1: Pushing local changes to Supabase...');
       const outboxCount = await OutboxSyncService.getOutboxCount();
       const pendingCount = outboxCount.pending + outboxCount.failed;
+      const pushedTypes: { [key: string]: number } = {};
       
       if (pendingCount > 0) {
         console.log(`[UnifiedSync] Found ${pendingCount} pending/failed items in outbox`);
+        
+        // Get pending items to count by type
+        const pendingItems = await OutboxSyncService.getPendingItems();
+        const failedItems = await OutboxSyncService.getFailedItems();
+        const allItems = [...pendingItems, ...failedItems];
+        
+        allItems.forEach(item => {
+          pushedTypes[item.type] = (pushedTypes[item.type] || 0) + 1;
+        });
+        
         // Reset failed items to pending for retry
         if (outboxCount.failed > 0) {
           await OutboxSyncService.retryFailedItems();
@@ -69,15 +82,29 @@ export class UnifiedSyncService {
       // Fetch and cache all data
       await prefetchOrgData(orgId, registerId);
 
+      // Get pulled data counts from IndexedDB
+      const { getAll } = await import('@/lib/idb/db');
+      const pulledTypes: { [key: string]: number } = {};
+      
+      try {
+        pulledTypes.items = (await getAll('items')).filter((i: any) => i.org_id === orgId).length;
+        pulledTypes.categories = (await getAll('categories')).filter((c: any) => c.org_id === orgId).length;
+        pulledTypes.modifiers = (await getAll('modifiers')).filter((m: any) => m.org_id === orgId).length;
+        pulledTypes.taxes = (await getAll('taxes')).filter((t: any) => t.org_id === orgId).length;
+        pulledTypes.receipts = (await getAll('receipts')).filter((r: any) => r.org_id === orgId).length;
+      } catch (err) {
+        console.error('[UnifiedSync] Error counting pulled data:', err);
+      }
+
       // Step 3: Clear in-memory cache to force refresh
       console.log('[UnifiedSync] Step 3: Clearing in-memory cache...');
       dataCache.clearOrg(orgId);
 
       console.log('[UnifiedSync] ✅ Full bidirectional sync complete');
-      return { pushed: pendingCount, pulled: true };
+      return { pushed: pendingCount, pushedTypes, pulled: true, pulledTypes };
     } catch (error: any) {
       console.error('[UnifiedSync] Sync failed:', error);
-      return { pushed: 0, pulled: false, error: error.message };
+      return { pushed: 0, pushedTypes: {}, pulled: false, pulledTypes: {}, error: error.message };
     } finally {
       this.syncInProgress = false;
     }

@@ -1182,7 +1182,38 @@ export default function SellPage() {
         console.error('[SellPage] Sync failed:', result.error);
         showToast(`Sync failed: ${result.error}`, 'error');
       } else {
-        showToast(`Synced ${result.pushed} items and refreshed data`, 'success');
+        // Build detailed sync message
+        let message = 'Sync complete';
+        
+        // Show pushed items
+        if (result.pushed > 0) {
+          const pushedParts: string[] = [];
+          Object.entries(result.pushedTypes).forEach(([type, count]) => {
+            pushedParts.push(`${count} ${type}${count > 1 ? 's' : ''}`);
+          });
+          message += ` • Pushed: ${pushedParts.join(', ')}`;
+        }
+        
+        // Show pulled items
+        if (result.pulled) {
+          const pulledParts: string[] = [];
+          Object.entries(result.pulledTypes).forEach(([type, count]) => {
+            if (count > 0) {
+              pulledParts.push(`${count} ${type}${count > 1 ? 's' : ''}`);
+            }
+          });
+          if (pulledParts.length > 0) {
+            message += ` • Pulled: ${pulledParts.join(', ')}`;
+          } else {
+            message += ' • Pulled: fresh data';
+          }
+        }
+        
+        if (result.pushed === 0 && !result.pulled) {
+          message = 'Nothing to sync';
+        }
+        
+        showToast(message, 'success');
         // Force refresh hooks to reload from IndexedDB
         setForceRefresh(true);
         setTimeout(() => setForceRefresh(false), 100);
