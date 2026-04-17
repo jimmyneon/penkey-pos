@@ -50,16 +50,6 @@ export function CategorySelectorDialog({
     }
   }, [open]);
 
-  const isLightHex = (hex: string) => {
-    const h = hex.replace('#', '');
-    const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    const luminance = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
-    return luminance > 0.7; // treat very light colors as light
-  };
-
   // Dimming flags: when a specific category is chosen, dim the rest
   const hasConcreteSelection = selectedCategory !== undefined; // undefined = All Items
   const isUncategorisedSelected = selectedCategory === "__uncategorised__";
@@ -115,21 +105,18 @@ export function CategorySelectorDialog({
 
           {/* Category Buttons */}
           {categories.map((cat) => {
-            const bg = cat.color || '#5d5d5d';
-            const light = isLightHex(bg);
+            const borderColor = cat.color || '#5d5d5d';
             const isSelected = selectedCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => handleSelect(cat.id)}
-                className={`w-full aspect-square rounded-lg overflow-hidden transition-all flex items-center justify-center p-2 ${
+                className={`w-full aspect-square rounded-lg overflow-hidden transition-all flex items-center justify-center p-2 bg-[#5d5d5d] hover:bg-[#6d6d6d] ${
                   isSelected ? "ring-4 ring-penkey-orange" : ""
                 } ${hasConcreteSelection && !isSelected && !isUncategorisedSelected ? "opacity-50 saturate-50" : ""}`}
-                style={{ backgroundColor: bg }}
+                style={{ borderColor: borderColor, borderWidth: '2px', borderStyle: 'solid' }}
               >
-                <span className={`block w-full px-1 font-bold text-xs sm:text-sm leading-tight text-center break-words ${
-                  light ? 'text-black' : 'text-white drop-shadow-lg'
-                }`}>
+                <span className="block w-full px-1 font-bold text-xs sm:text-sm leading-tight text-center break-words text-white">
                   {cat.name}
                 </span>
               </button>
