@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Star, Loader2, Search, Check } from "lucide-react";
+import { ArrowLeft, Star, Loader2, Search, Check, RefreshCw } from "lucide-react";
 import { Button } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
+import { dataCache } from "@/lib/services/data-cache";
+import { SyncManager } from "@/lib/services/sync-manager";
+import { prefetchOrgData } from "@/lib/offline/prefetch";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -17,6 +20,7 @@ export default function FavouritesPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -75,12 +79,35 @@ export default function FavouritesPage() {
 
       if (!response.ok) throw new Error("Failed to update favourite");
 
+      const data = await response.json();
+
       // Update local state
       setItems(items.map(i => 
         i.id === item.id ? { ...i, is_favourite: !item.is_favourite } : i
       ));
       
       hapticSuccess();
+
+      // Trigger full data sync if required
+      if (data.sync_required && session?.org_id) {
+        setSyncing(true);
+        console.log("[Favourites] Syncing local database...");
+        
+        // Clear cache and sync timestamps
+        dataCache.clear(session.org_id, "items");
+        dataCache.clear(session.org_id, "categories");
+        dataCache.clear(session.org_id, "modifiers");
+        dataCache.clear(session.org_id, "discounts");
+        SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
+        SyncManager.clearSyncTimestamp(session.org_id, "CATEGORIES");
+        SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
+
+        // Full data resync
+        await prefetchOrgData(session.org_id);
+        
+        setSyncing(false);
+        console.log("[Favourites] Local database synced");
+      }
     } catch (error) {
       console.error("Failed to toggle favourite:", error);
       alert("Failed to update favourite");
@@ -120,6 +147,12 @@ export default function FavouritesPage() {
           <h1 className="text-xl font-semibold">Favourites</h1>
           <span className="text-sm text-gray-400">({favouriteCount} items)</span>
         </div>
+        {syncing && (
+          <div className="flex items-center gap-2 text-sm text-penkey-orange">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <span>Syncing...</span>
+          </div>
+        )}
       </header>
 
       {/* Content */}
