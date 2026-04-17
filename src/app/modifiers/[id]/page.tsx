@@ -11,6 +11,7 @@ import { ToastContainer } from "@/components/toast-container";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { addCSRFToken } from "@/lib/utils/csrf-client";
 import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
+import { onSyncComplete } from "@/lib/services/unified-sync";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -84,6 +85,20 @@ export default function EditModifierGroupPage() {
     if (session?.org_id && groupId) {
       fetchGroup();
     }
+  }, [session?.org_id, groupId]);
+
+  // Listen for sync events and reload data
+  useEffect(() => {
+    if (!session?.org_id) return;
+    
+    const unsubscribe = onSyncComplete(() => {
+      console.log('[EditModifierGroup] Sync completed, reloading group data');
+      fetchGroup();
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, [session?.org_id, groupId]);
 
   const fetchGroup = async () => {
