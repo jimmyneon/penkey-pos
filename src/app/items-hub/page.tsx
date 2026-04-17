@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { ArrowLeft, Package, Tag, Boxes, Percent, Trash2, Upload, Download, Home, Loader2 } from "lucide-react";
-import { hapticButtonPress } from "@/lib/haptic";
+import { hapticButtonPress } from "@/lib/utils/haptics";
 import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { ImportResultsDialog } from "@/components/import-results-dialog";
-import { dataCache } from "@/lib/idb/data-cache";
+import { dataCache } from "@/lib/services/data-cache";
 import { SyncManager } from "@/lib/services/sync-manager";
 import { prefetchOrgData } from "@/lib/offline/prefetch";
 
