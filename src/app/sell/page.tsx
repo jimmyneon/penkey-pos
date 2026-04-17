@@ -1347,9 +1347,6 @@ export default function SellPage() {
           upsellSuggestions={upsellSuggestions}
           onSelectUpsellItem={handleUpsellSelect}
           triggerItem={upsellTriggerItem || undefined}
-          dailySales={stats.sales}
-          upsellCount={stats.upsellCount}
-          itemsSold={stats.itemsSold}
           openTicketsCount={savedTickets.length}
           onOpenTickets={() => setOpenTicketsOpen(true)}
           onViewStats={() => router.push("/reports")}
