@@ -14,6 +14,7 @@ export interface Item {
   sku: string | null;
   description: string | null;
   is_favourite?: boolean;
+  favourite_position?: number;
   categories: {
     name: string;
     color: string;

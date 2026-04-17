@@ -275,18 +275,12 @@ export default function SellPage() {
     return item.name.toLowerCase().includes(searchLower);
   });
 
-  console.log('[Search] Query:', searchQuery, 'Filtered count:', filteredItems.length);
-  console.log('[Search] Sample filtered items:', filteredItems.slice(0, 5).map(i => ({ name: i.name, is_fav: (i as any).is_favourite })));
-
-  // Intelligent search ranking: favourites > popularity > alphabetical
+  // Intelligent search ranking: favourites > favourite_position > popularity > alphabetical
   // Create popularity map for ranking
   const popularityMap = new Map<string, number>();
   popularItems.forEach((item, index) => {
     popularityMap.set(item.id, index);
   });
-
-  console.log('[Search] Popularity map size:', popularityMap.size);
-  console.log('[Search] Popular items:', popularItems.slice(0, 5).map(i => i.name));
 
   filteredItems = filteredItems.sort((a, b) => {
     // First priority: is_favourite (favourites come first)
@@ -294,20 +288,21 @@ export default function SellPage() {
     const bFav = (b as any).is_favourite ? 0 : 1;
     if (aFav !== bFav) return aFav - bFav;
 
-    // Second priority: popularity (lower rank = more popular)
+    // Second priority: favourite_position (for favourites only)
+    if (aFav === 0 && bFav === 0) {
+      const aPos = (a as any).favourite_position ?? 9999;
+      const bPos = (b as any).favourite_position ?? 9999;
+      if (aPos !== bPos) return aPos - bPos;
+    }
+
+    // Third priority: popularity (lower rank = more popular)
     const aRank = popularityMap.get(a.id) ?? 9999;
     const bRank = popularityMap.get(b.id) ?? 9999;
     if (aRank !== bRank) return aRank - bRank;
 
-    // Third priority: alphabetical
+    // Fourth priority: alphabetical
     return a.name.localeCompare(b.name);
   });
-
-  console.log('[Search] Sorted items with details:', filteredItems.slice(0, 10).map(i => ({
-    name: i.name,
-    is_fav: (i as any).is_favourite,
-    pop_rank: popularityMap.get(i.id) ?? 9999
-  })));
 
   // If Popular filter is ON, filter to show only popular items
   if (showPopular && popularItems.length > 0) {

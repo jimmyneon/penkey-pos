@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Star, Loader2, Search, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Star, Loader2, Search, Check, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
@@ -105,6 +105,84 @@ export default function FavouritesPage() {
     });
   };
 
+  const moveFavouriteUp = async (item: any, currentIndex: number) => {
+    if (currentIndex === 0) return; // Already at top
+    
+    const favouriteItems = filteredItems.filter((i: any) => i.is_favourite);
+    const itemIndex = favouriteItems.findIndex((i: any) => i.id === item.id);
+    
+    if (itemIndex === 0) return; // Already at top of favourites
+    
+    // Swap positions with item above
+    const itemAbove = favouriteItems[itemIndex - 1];
+    const newPosition = itemAbove.favourite_position || 0;
+    const abovePosition = item.favourite_position || 0;
+    
+    // Optimistic UI update
+    setItems(items.map((i: any) => {
+      if (i.id === item.id) return { ...i, favourite_position: newPosition };
+      if (i.id === itemAbove.id) return { ...i, favourite_position: abovePosition };
+      return i;
+    }));
+    hapticSuccess();
+
+    // Sync positions in background
+    fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favourite_position: newPosition }),
+    }).catch((error) => {
+      console.error("Failed to move item up:", error);
+      alert("Failed to update position");
+    });
+
+    fetch(`/api/items/${itemAbove.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favourite_position: abovePosition }),
+    }).catch((error) => {
+      console.error("Failed to move item down:", error);
+    });
+  };
+
+  const moveFavouriteDown = async (item: any, currentIndex: number) => {
+    const favouriteItems = filteredItems.filter((i: any) => i.is_favourite);
+    const itemIndex = favouriteItems.findIndex((i: any) => i.id === item.id);
+    
+    if (itemIndex === favouriteItems.length - 1) return; // Already at bottom
+    
+    // Swap positions with item below
+    const itemBelow = favouriteItems[itemIndex + 1];
+    const newPosition = itemBelow.favourite_position || 0;
+    const belowPosition = item.favourite_position || 0;
+    
+    // Optimistic UI update
+    setItems(items.map((i: any) => {
+      if (i.id === item.id) return { ...i, favourite_position: newPosition };
+      if (i.id === itemBelow.id) return { ...i, favourite_position: belowPosition };
+      return i;
+    }));
+    hapticSuccess();
+
+    // Sync positions in background
+    fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favourite_position: newPosition }),
+    }).catch((error) => {
+      console.error("Failed to move item down:", error);
+      alert("Failed to update position");
+    });
+
+    fetch(`/api/items/${itemBelow.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favourite_position: belowPosition }),
+    }).catch((error) => {
+      console.error("Failed to move item up:", error);
+    });
+  };
+
   const filteredItems = items.filter(item => {
     const searchLower = searchQuery.toLowerCase();
     // Always filter by contains (consistent behavior for all query lengths)
@@ -162,33 +240,63 @@ export default function FavouritesPage() {
           {/* Items List */}
           <div className="max-h-[60vh] overflow-y-auto space-y-2">
             {filteredItems.length > 0 ? (
-              filteredItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => toggleFavourite(item)}
-                  className="w-full bg-[#2d2d2d] hover:bg-[#4d4d4d] transition-colors rounded-lg p-4 flex items-center justify-between text-left"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium text-sm truncate">{item.name}</h3>
-                    <p className="text-penkey-orange font-semibold text-sm">
-                      {formatCurrency(item.base_price)}
-                    </p>
-                  </div>
+              filteredItems.map((item, index) => {
+                const favouriteItems = filteredItems.filter((i: any) => i.is_favourite);
+                const favIndex = favouriteItems.findIndex((i: any) => i.id === item.id);
+                const isFavourite = item.is_favourite;
+                
+                return (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ml-3 ${
-                      item.is_favourite
-                        ? "bg-yellow-400 text-[#2d2d2d]"
-                        : "bg-gray-600 text-gray-400"
-                    }`}
+                    key={item.id}
+                    className="w-full bg-[#2d2d2d] rounded-lg p-4 flex items-center justify-between"
                   >
-                    {item.is_favourite ? (
-                      <Check className="h-5 w-5" />
-                    ) : (
-                      <Star className="h-4 w-4" />
+                    <button
+                      onClick={() => toggleFavourite(item)}
+                      className="flex-1 min-w-0 flex items-center justify-between text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium text-sm truncate">{item.name}</h3>
+                        <p className="text-penkey-orange font-semibold text-sm">
+                          {formatCurrency(item.base_price)}
+                        </p>
+                      </div>
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ml-3 ${
+                          isFavourite
+                            ? "bg-yellow-400 text-[#2d2d2d]"
+                            : "bg-gray-600 text-gray-400"
+                        }`}
+                      >
+                        {isFavourite ? <Check className="h-5 w-5" /> : null}
+                      </div>
+                    </button>
+                    {isFavourite && (
+                      <div className="flex items-center gap-1 ml-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveFavouriteUp(item, favIndex);
+                          }}
+                          disabled={favIndex === 0}
+                          className="p-1 rounded hover:bg-[#4d4d4d] disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronUp className="h-5 w-5 text-white" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveFavouriteDown(item, favIndex);
+                          }}
+                          disabled={favIndex === favouriteItems.length - 1}
+                          className="p-1 rounded hover:bg-[#4d4d4d] disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronDown className="h-5 w-5 text-white" />
+                        </button>
+                      </div>
                     )}
                   </div>
-                </button>
-              ))
+                );
+              })
             ) : (
               <div className="text-center py-12 text-gray-400">
                 {searchQuery ? "No items found" : "No items available"}

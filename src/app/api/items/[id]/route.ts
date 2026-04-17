@@ -81,6 +81,7 @@ export async function PATCH(
       stock_quantity,
       low_stock_threshold,
       image_url,
+      favourite_position,
     } = body;
 
     const updateData: any = {};
@@ -101,6 +102,7 @@ export async function PATCH(
     if (low_stock_threshold !== undefined)
       updateData.low_stock_threshold = low_stock_threshold;
     if (image_url !== undefined) updateData.image_url = image_url;
+    if (favourite_position !== undefined) updateData.favourite_position = favourite_position;
 
     console.log(`[API-AUTH] Updating item ${id} with data:`, updateData);
 
