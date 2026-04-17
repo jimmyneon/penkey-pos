@@ -28,6 +28,10 @@ export function PriceInputDialog({ open, onClose, onConfirm, itemName }: PriceIn
     setPrice(price + num);
   };
 
+  const handleDoubleZero = () => {
+    setPrice(price + "00");
+  };
+
   const handleBackspace = () => {
     setPrice(price.slice(0, -1));
   };
@@ -37,15 +41,30 @@ export function PriceInputDialog({ open, onClose, onConfirm, itemName }: PriceIn
   };
 
   const handleConfirm = () => {
-    const priceValue = parseFloat(price);
-    if (isNaN(priceValue) || priceValue <= 0) {
+    // Convert zero-based entry: e.g., "500" -> £5.00
+    let priceValue = parseFloat(price);
+    if (isNaN(priceValue)) {
       alert("Please enter a valid price");
       return;
     }
+
+    // If no decimal point, divide by 100 to convert to pounds
+    if (!price.includes(".")) {
+      priceValue = priceValue / 100;
+    }
+
+    if (priceValue <= 0) {
+      alert("Please enter a valid price");
+      return;
+    }
+
     onConfirm(priceValue);
     setPrice("");
     onClose();
   };
+
+  // Format display price
+  const displayPrice = price ? (price.includes(".") ? `£${price}` : `£${(parseFloat(price) / 100).toFixed(2)}`) : "£0.00";
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -60,7 +79,7 @@ export function PriceInputDialog({ open, onClose, onConfirm, itemName }: PriceIn
             <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-4 text-right">
               <div className="text-xs text-gray-400 mb-1">PRICE</div>
               <div className="text-4xl font-bold text-penkey-orange">
-                £{price || "0.00"}
+                {displayPrice}
               </div>
             </div>
           </div>
@@ -89,10 +108,10 @@ export function PriceInputDialog({ open, onClose, onConfirm, itemName }: PriceIn
               0
             </button>
             <button
-              onClick={() => handleNumberClick(".")}
+              onClick={handleDoubleZero}
               className="bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white text-2xl font-semibold py-4 rounded-lg transition-colors"
             >
-              .
+              00
             </button>
           </div>
 
