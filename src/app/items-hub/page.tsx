@@ -9,6 +9,7 @@ import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { ImportResultsDialog } from "@/components/import-results-dialog";
 import { dataCache } from "@/lib/idb/data-cache";
 import { SyncManager } from "@/lib/services/sync-manager";
+import { prefetchOrgData } from "@/lib/offline/prefetch";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -171,15 +172,25 @@ export default function ItemsHubPage() {
       
       const result = await response.json();
       
-      setImportProgress('Refreshing local database...');
+      setImportProgress('Syncing local database...');
       
       if (session?.org_id) {
+        // Clear cache and timestamps
         dataCache.clear(session.org_id, "items");
         dataCache.clear(session.org_id, "categories");
         dataCache.clear(session.org_id, "modifier_groups");
         SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
         SyncManager.clearSyncTimestamp(session.org_id, "CATEGORIES");
         SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
+        
+        // Trigger full resync from Supabase (like initial app load)
+        try {
+          await prefetchOrgData(session.org_id);
+          console.log('[Import] ✅ Full data resync complete');
+        } catch (err) {
+          console.error('[Import] Resync failed:', err);
+          // Continue anyway - data will load on-demand
+        }
       }
       
       setImportProgress('Complete!');
