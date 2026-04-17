@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
 import { Plus, Minus, User, Hash, Trash2 } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
@@ -54,6 +55,17 @@ export function TicketModal({
 }: TicketModalProps) {
   // Use scroll lock hook to manage scroll state
   useScrollLock(open);
+
+  // Track previous lines length to detect transition from items to empty
+  const prevLinesLength = useRef(lines.length);
+
+  // Auto-close modal when all items are deleted (transition from items to empty)
+  useEffect(() => {
+    if (open && prevLinesLength.current > 0 && lines.length === 0) {
+      onClose();
+    }
+    prevLinesLength.current = lines.length;
+  }, [lines.length, open, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
