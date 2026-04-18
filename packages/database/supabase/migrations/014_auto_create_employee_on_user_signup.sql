@@ -87,103 +87,14 @@ EXCEPTION
 END;
 $$;
 
--- Create error logging table
-CREATE TABLE IF NOT EXISTS auth_trigger_errors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID,
-  email TEXT,
-  error_message TEXT,
-  error_detail TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create the function in public schema
-CREATE OR REPLACE FUNCTION public.create_employee_on_user_signup()
-RETURNS TRIGGER
-SECURITY DEFINER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  new_member_id UUID;
-  default_pin TEXT := '0000';
-BEGIN
-  -- Create the org_members entry
-  -- Using hardcoded org_id and role_id from your schema
-  -- Org: Penkey (00000000-0000-0000-0000-000000000001)
-  -- Default role: Cashier (00000000-0000-0000-0000-000000000012)
-  INSERT INTO org_members (
-    id,
-    org_id,
-    user_id,
-    email,
-    first_name,
-    last_name,
-    display_name,
-    role_id,
-    is_active,
-    created_at,
-    updated_at
-  ) VALUES (
-    gen_random_uuid(),
-    '00000000-0000-0000-0000-000000000001'::UUID,
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'first_name', 'New'),
-    COALESCE(NEW.raw_user_meta_data->>'last_name', 'User'),
-    COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
-    '00000000-0000-0000-0000-000000000012'::UUID,
-    true,
-    NOW(),
-    NOW()
-  ) RETURNING id INTO new_member_id;
-  
-  -- Create the employee_pins entry with default PIN "0000"
-  INSERT INTO employee_pins (
-    id,
-    member_id,
-    pin_hash,
-    created_at,
-    updated_at
-  ) VALUES (
-    gen_random_uuid(),
-    new_member_id,
-    hash_pin(default_pin),
-    NOW(),
-    NOW()
-  );
-  
-  -- Log success
-  INSERT INTO auth_trigger_errors (user_id, email, error_message, error_detail)
-    VALUES (NEW.id, NEW.email, 'SUCCESS: Employee records created', NULL);
-  
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    -- Log error to table for debugging
-    INSERT INTO auth_trigger_errors (user_id, email, error_message, error_detail)
-    VALUES (NEW.id, NEW.email, SQLERRM, SQLSTATE);
-    -- Don't fail the user creation
-    RETURN NEW;
-END;
-$$;
+-- NOTE: Using onboarding approach instead of database trigger
+-- The trigger approach was causing issues with Supabase auth.users restrictions
+-- Users will complete onboarding in the app which creates org_members and employee_pins
 
 -- Drop any existing triggers (cleanup)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
--- Create the trigger on auth.users
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW
-EXECUTE FUNCTION public.create_employee_on_user_signup();
+DROP FUNCTION IF EXISTS public.create_employee_on_user_signup() CASCADE;
 
 -- Grant necessary permissions
 GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT, TEXT) TO authenticated;
-
--- Grant supabase_auth_admin permissions to insert into public tables
--- This is required for the trigger to work when users are created in auth
-GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
-GRANT INSERT, SELECT ON TABLE public.org_members TO supabase_auth_admin;
-GRANT INSERT, SELECT ON TABLE public.employee_pins TO supabase_auth_admin;
-GRANT INSERT, SELECT ON TABLE public.auth_trigger_errors TO supabase_auth_admin;
-GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO supabase_auth_admin;
