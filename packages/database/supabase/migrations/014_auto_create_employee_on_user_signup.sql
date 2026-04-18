@@ -87,6 +87,16 @@ EXCEPTION
 END;
 $$;
 
+-- Create error logging table
+CREATE TABLE IF NOT EXISTS auth_trigger_errors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID,
+  email TEXT,
+  error_message TEXT,
+  error_detail TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create the function in public schema
 CREATE OR REPLACE FUNCTION public.create_employee_on_user_signup()
 RETURNS TRIGGER
@@ -142,11 +152,17 @@ BEGIN
     NOW()
   );
   
+  -- Log success
+  INSERT INTO auth_trigger_errors (user_id, email, error_message, error_detail)
+    VALUES (NEW.id, NEW.email, 'SUCCESS: Employee records created', NULL);
+  
   RETURN NEW;
 EXCEPTION
   WHEN OTHERS THEN
-    -- Log error but don't fail the user creation
-    RAISE LOG 'Error creating employee records for user %: %', NEW.id, SQLERRM;
+    -- Log error to table for debugging
+    INSERT INTO auth_trigger_errors (user_id, email, error_message, error_detail)
+    VALUES (NEW.id, NEW.email, SQLERRM, SQLSTATE);
+    -- Don't fail the user creation
     RETURN NEW;
 END;
 $$;
@@ -169,4 +185,5 @@ GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT, TEXT) TO authenticated;
 GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
 GRANT INSERT, SELECT ON TABLE public.org_members TO supabase_auth_admin;
 GRANT INSERT, SELECT ON TABLE public.employee_pins TO supabase_auth_admin;
+GRANT INSERT, SELECT ON TABLE public.auth_trigger_errors TO supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO supabase_auth_admin;
