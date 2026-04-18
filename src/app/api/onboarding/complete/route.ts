@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
+import { generateCSRFToken } from "@/lib/utils/csrf";
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,10 +86,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    // Get role information
+    const { data: role } = await supabase
+      .from('roles')
+      .select('name, permissions')
+      .eq('id', roleData.id)
+      .single() as any;
+
+    // Create session object
+    const sessionData = {
+      user_id: userId,
+      org_id: orgData.id,
+      org_member_id: memberData.id,
+      email,
+      name: `${firstName} ${lastName}`,
+      role: role?.name,
+    };
+
+    // Generate CSRF token
+    const csrfToken = generateCSRFToken();
+
+    // Create response with session data
+    const response = NextResponse.json({
       success: true,
-      member_id: memberData.id,
+      user: sessionData,
     });
+
+    // Set httpOnly, Secure, SameSite session cookie
+    response.cookies.set('pos_session', JSON.stringify(sessionData), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+    });
+
+    // Set CSRF token cookie
+    response.cookies.set('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+    });
+
+    return response;
   } catch (error: any) {
     console.error("Onboarding error:", error);
     return NextResponse.json(
