@@ -10,9 +10,10 @@ interface SaveTicketDialogProps {
   onClose: () => void;
   onSave: (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string } | null;
+  mode?: 'save' | 'assign';
 }
 
-export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: SaveTicketDialogProps) {
+export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment, mode = 'save' }: SaveTicketDialogProps) {
   const [name, setName] = useState("");
   const [comment, setComment] = useState("");
   const [assignType, setAssignType] = useState<'customer' | 'table' | null>(null);
@@ -58,7 +59,9 @@ export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: Sa
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md bg-[#3d3d3d] text-white border-gray-700">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-white">Save Ticket</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-white">
+            {mode === 'assign' ? 'Assign Ticket' : 'Save Ticket'}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

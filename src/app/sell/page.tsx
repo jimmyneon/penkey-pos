@@ -23,8 +23,6 @@ import { SaveTicketDialog } from "./save-ticket-dialog";
 import { OpenTicketsDialog } from "./open-tickets-dialog";
 import { PriceInputDialog } from "./price-input-dialog";
 import { CategorySelectorDialog } from "./category-selector-dialog";
-import { AssignTicketDialog } from "./assign-ticket-dialog";
-// import { EnhancedAssignTicketDialog } from "./enhanced-assign-ticket-dialog"; // TODO: Fix perks integration
 import { MergeTicketsDialog } from "./merge-tickets-dialog";
 import { SplitTicketDialog } from "./split-ticket-dialog";
 import { PenkeyPromptsBar } from "./penkey-prompts-bar";
@@ -93,11 +91,11 @@ export default function SellPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [ticketActionsOpen, setTicketActionsOpen] = useState(false);
   const [saveTicketOpen, setSaveTicketOpen] = useState(false);
+  const [saveTicketMode, setSaveTicketMode] = useState<'save' | 'assign'>('save');
   const [openTicketsOpen, setOpenTicketsOpen] = useState(false);
   const [priceInputOpen, setPriceInputOpen] = useState(false);
   const [categorySelectorOpen, setCategorySelectorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-  const [assignTicketOpen, setAssignTicketOpen] = useState(false);
   const [mergeTicketsOpen, setMergeTicketsOpen] = useState(false);
   const [splitTicketOpen, setSplitTicketOpen] = useState(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; name: string; customer?: any } | null>(null);
@@ -938,6 +936,26 @@ export default function SellPage() {
   const handleSaveTicket = async (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => {
     if (!session) return;
 
+    // If in assign mode (opened from assign button), just set assignment locally without saving
+    if (saveTicketMode === 'assign' && !currentTicketName && !ticketAssignment) {
+      // This is opened from the assign button - just assign locally
+      const assignmentToUse = assignment || ticketAssignment;
+      if (assignmentToUse) {
+        setTicketAssignment(assignmentToUse);
+        setCurrentTicketName(name);
+        setCurrentTicketComment(comment);
+        showToast(`Ticket assigned to ${assignmentToUse.type === 'customer' ? assignmentToUse.name : 'Table ' + assignmentToUse.name}`, 'success');
+        hapticSuccess();
+        playSuccessSound();
+      }
+      setSaveTicketOpen(false);
+      setSaveTicketMode('save');
+      return;
+    }
+
+    // Save mode (from save button or print validation): Save to database
+    const isFromPrintValidation = saveTicketMode === 'assign';
+
     try {
       // Use assignment from parameter if provided, otherwise use existing ticketAssignment state
       const assignmentToUse = assignment || ticketAssignment;
@@ -974,6 +992,17 @@ export default function SellPage() {
       setCurrentTicketName("");
       setCurrentTicketComment("");
       setTicketAssignment(null);
+
+      // If in assign mode (opened from print), auto-print after saving
+      if (isFromPrintValidation) {
+        // Reset mode
+        setSaveTicketMode('save');
+        
+        // Auto-print after a short delay to ensure state is updated
+        setTimeout(() => {
+          handlePrintCurrentTicket();
+        }, 300);
+      }
 
       // Trigger flying animation AFTER clearing (so button appears)
       setTimeout(() => {
@@ -1179,7 +1208,8 @@ export default function SellPage() {
     localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
 
     // Open assign dialog
-    setAssignTicketOpen(true);
+    setSaveTicketMode('assign');
+    setSaveTicketOpen(true);
   };
 
   const handleSplitTicket = async (selectedLineIds: string[]) => {
@@ -1301,6 +1331,7 @@ export default function SellPage() {
     // Require ticket name or assignment before printing
     if (!currentTicketName && !ticketAssignment) {
       showToast('Please assign a customer, table, or enter a ticket name before printing', 'error');
+      setSaveTicketMode('assign');
       setSaveTicketOpen(true);
       return;
     }
@@ -1528,7 +1559,8 @@ export default function SellPage() {
         onAssignCustomerClick={() => {
           hapticButtonPress();
           playButtonSound();
-          setAssignTicketOpen(true);
+          setSaveTicketMode('assign');
+          setSaveTicketOpen(true);
         }}
         onSaveTicketClick={() => {
           // If we already have a ticket name (from loading a ticket), auto-save
@@ -1786,7 +1818,8 @@ export default function SellPage() {
           setSaveTicketOpen(true);
         }}
         onAssignTicket={() => {
-          setAssignTicketOpen(true);
+          setSaveTicketMode('assign');
+          setSaveTicketOpen(true);
         }}
         onMergeTickets={() => {
           if (savedTickets.length === 0) {
@@ -1809,12 +1842,16 @@ export default function SellPage() {
         hasItems={lines.length > 0}
       />
 
-      {/* Save Ticket Dialog */}
+      {/* Save/Assign Ticket Dialog */}
       <SaveTicketDialog
         open={saveTicketOpen}
-        onClose={() => setSaveTicketOpen(false)}
+        onClose={() => {
+          setSaveTicketOpen(false);
+          setSaveTicketMode('save');
+        }}
         onSave={handleSaveTicket}
         ticketAssignment={ticketAssignment}
+        mode={saveTicketMode}
       />
 
       {/* Open Tickets Dialog */}
@@ -1866,13 +1903,6 @@ export default function SellPage() {
         confirmText="Clear All"
         cancelText="Cancel"
         variant="danger"
-      />
-
-      {/* Assign Ticket Dialog */}
-      <AssignTicketDialog
-        open={assignTicketOpen}
-        onClose={() => setAssignTicketOpen(false)}
-        onAssign={handleAssignTicket}
       />
 
       {/* Merge Tickets Dialog */}
