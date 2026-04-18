@@ -102,6 +102,11 @@ export async function getMeta<T = any>(key: string): Promise<T | null> {
   return res ? (res.value as T) : null;
 }
 
+export async function deleteMeta(key: string) {
+  const db = await getDB();
+  await db.delete('meta', key);
+}
+
 export async function clearStore(storeName: string) {
   const db = await getDB();
   const tx = db.transaction(storeName, 'readwrite');

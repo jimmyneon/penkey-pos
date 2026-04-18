@@ -127,12 +127,14 @@ export class UnifiedSyncService {
       
       // Clear IndexedDB item_modifier_groups cache
       try {
-        const { getDB } = await import('@/lib/idb/db');
+        const { getDB, setMeta, deleteMeta } = await import('@/lib/idb/db');
         const db = await getDB();
         const tx = db.transaction('item_modifier_groups', 'readwrite');
         await tx.store.clear();
         await tx.done;
-        console.log('[UnifiedSync] Cleared IndexedDB item_modifier_groups cache');
+        // Clear TTL metadata to force re-fetch
+        await deleteMeta(`item_modifiers_${orgId}_ts`);
+        console.log('[UnifiedSync] Cleared IndexedDB item_modifier_groups cache and TTL');
       } catch (err) {
         console.error('[UnifiedSync] Error clearing item_modifier_groups:', err);
       }
