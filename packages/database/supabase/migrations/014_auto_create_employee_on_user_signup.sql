@@ -87,11 +87,10 @@ EXCEPTION
 END;
 $$;
 
--- Create the function in supabase_auth schema to access auth.users
-CREATE OR REPLACE FUNCTION supabase_auth.create_employee_on_user_signup()
+-- Create the function in public schema
+CREATE OR REPLACE FUNCTION public.create_employee_on_user_signup()
 RETURNS TRIGGER
 SECURITY DEFINER
-SET search_path = public
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -102,7 +101,7 @@ BEGIN
   -- Using hardcoded org_id and role_id from your schema
   -- Org: Penkey (00000000-0000-0000-0000-000000000001)
   -- Default role: Cashier (00000000-0000-0000-0000-000000000012)
-  INSERT INTO public.org_members (
+  INSERT INTO org_members (
     id,
     org_id,
     user_id,
@@ -129,7 +128,7 @@ BEGIN
   ) RETURNING id INTO new_member_id;
   
   -- Create the employee_pins entry with default PIN "0000"
-  INSERT INTO public.employee_pins (
+  INSERT INTO employee_pins (
     id,
     member_id,
     pin_hash,
@@ -138,7 +137,7 @@ BEGIN
   ) VALUES (
     gen_random_uuid(),
     new_member_id,
-    public.hash_pin(default_pin),
+    hash_pin(default_pin),
     NOW(),
     NOW()
   );
@@ -153,13 +152,13 @@ END;
 $$;
 
 -- Drop any existing triggers (cleanup)
-DROP TRIGGER IF EXISTS on_auth_user_created ON supabase_auth.users;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
--- Create the trigger on supabase_auth.users
+-- Create the trigger on auth.users
 CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON supabase_auth.users
+AFTER INSERT ON auth.users
 FOR EACH ROW
-EXECUTE FUNCTION supabase_auth.create_employee_on_user_signup();
+EXECUTE FUNCTION public.create_employee_on_user_signup();
 
 -- Grant necessary permissions
 GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO authenticated;
