@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         pin_hash,
         org_members!inner(
           id,
+          user_id,
           org_id,
           first_name,
           last_name,
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
     // Transform to cacheable format
     const cachedPins = (pins || []).map((pin: any) => ({
       member_id: pin.org_members.id,
+      user_id: pin.org_members.user_id,
       pin_hash: pin.pin_hash,
       org_id: pin.org_members.org_id,
       employee_name: pin.org_members.display_name || pin.org_members.first_name,

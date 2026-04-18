@@ -19,6 +19,7 @@ export default function LockPage() {
   const [authChecking, setAuthChecking] = useState(true);
   // Cached at page-load — avoids a round-trip inside handleSubmit
   const [cachedOrgId, setCachedOrgId] = useState<string | null>(null);
+  const [cachedUserId, setCachedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     // ✅ SECURITY: Check if user is authenticated via httpOnly cookie
@@ -39,10 +40,12 @@ export default function LockPage() {
           return;
         }
         
-        // Authenticated — cache org_id now so submit needs no extra fetch
+        // Authenticated — cache org_id and user_id now so submit needs no extra fetch
         const authData = await response.json();
         const orgId: string = authData.org_id;
+        const userId: string = authData.user_id;
         setCachedOrgId(orgId);
+        setCachedUserId(userId);
         setAuthChecking(false);
 
         // Clear any existing POS session
@@ -116,7 +119,7 @@ export default function LockPage() {
 
       // ⚡ Fast path: verify entirely in browser using cached bcrypt hashes
       if (cachedOrgId) {
-        const localResult = await verifyPinLocally(pin, cachedOrgId);
+        const localResult = await verifyPinLocally(pin, cachedOrgId, cachedUserId || undefined);
 
         if (localResult) {
           console.log('[Lock] ⚡ PIN verified locally — zero network calls');

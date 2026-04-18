@@ -12,6 +12,7 @@ import { getAll, putMany, setMeta, getMeta } from "@/lib/idb/db";
 
 interface CachedPin {
   member_id: string;
+  user_id: string;
   pin_hash: string;
   org_id: string;
   employee_name: string;
@@ -70,7 +71,8 @@ export async function isPinCacheStale(orgId: string): Promise<boolean> {
  */
 export async function verifyPinLocally(
   pin: string,
-  orgId: string
+  orgId: string,
+  userId?: string
 ): Promise<any | null> {
   try {
     const cachedPins = (await getAll('cached_pins')) as CachedPin[];
@@ -86,7 +88,18 @@ export async function verifyPinLocally(
       bcryptModule = await import('bcryptjs');
     }
 
-    for (const entry of orgPins) {
+    // If userId is provided, only check that user's PIN (security fix)
+    // Otherwise fall back to checking all PINs (for backward compatibility)
+    const pinsToCheck = userId
+      ? orgPins.filter(p => p.user_id === userId)
+      : orgPins;
+
+    if (pinsToCheck.length === 0) {
+      console.log('[PinCache] No matching PIN for user, will fall back to API');
+      return null;
+    }
+
+    for (const entry of pinsToCheck) {
       const match = await bcryptModule.compare(pin, entry.pin_hash);
       if (match) {
         console.log('[PinCache] ⚡ PIN verified locally (zero network calls)');
