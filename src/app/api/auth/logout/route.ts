@@ -2,24 +2,19 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Logout endpoint - clears httpOnly session cookie
+ * Logout endpoint - clears httpOnly session cookie and CSRF token
  */
 export async function POST(request: NextRequest) {
   try {
-    // ✅ SECURITY: Clear httpOnly cookie
+    // ✅ SECURITY: Clear httpOnly cookie and CSRF token
     const response = NextResponse.json({
       success: true,
       message: "Logged out successfully",
     });
 
     // Clear the session cookie
-    response.cookies.set('pos_session', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0, // Immediately expire
-      path: '/',
-    });
+    response.cookies.delete('pos_session');
+    response.cookies.delete('csrf_token');
 
     return response;
   } catch (error: any) {

@@ -1200,12 +1200,18 @@ export default function SettingsPage() {
                 <p className="text-gray-400 text-sm">{userEmail}</p>
               </div>
               <Button
-                onClick={() => {
+                onClick={async () => {
                   hapticButtonPress();
-                  sessionStorage.clear();
-                  localStorage.clear();
-                  showToast("Signed out successfully", "success");
-                  setTimeout(() => router.push("/lock"), 500);
+                  try {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    showToast("Signed out successfully", "success");
+                    setTimeout(() => router.push("/login"), 500);
+                  } catch (error) {
+                    console.error("Logout error:", error);
+                    showToast("Failed to sign out", "error");
+                  }
                 }}
                 variant="outline"
                 className="text-red-400 border-red-400/50 hover:bg-red-400/10 min-h-[48px] min-w-[180px] w-full sm:w-auto flex items-center justify-center"
