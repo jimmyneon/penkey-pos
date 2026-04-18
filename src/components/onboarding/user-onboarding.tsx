@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 
 interface UserOnboardingProps {
   userId: string;
@@ -12,6 +11,7 @@ interface UserOnboardingProps {
 export default function UserOnboarding({ userId, email, onComplete }: UserOnboardingProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,65 +20,29 @@ export default function UserOnboarding({ userId, email, onComplete }: UserOnboar
     setLoading(true);
     setError("");
 
+    if (pin.length !== 4) {
+      setError("PIN must be 4 digits");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
-
-      // Get org_id (Penkey org)
-      const { data: orgData } = await supabase
-        .from('orgs')
-        .select('id')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .single();
-
-      if (!orgData) {
-        throw new Error("Organization not found");
-      }
-
-      // Get role_id (default to Cashier)
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('name', 'Cashier')
-        .eq('org_id', orgData.id)
-        .single();
-
-      if (!roleData) {
-        throw new Error("Cashier role not found");
-      }
-
-      // Create org_members entry
-      const { data: memberData, error: memberError } = await supabase
-        .from('org_members')
-        .insert({
-          org_id: orgData.id,
-          user_id: userId,
+      const response = await fetch("/api/onboarding/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
           email,
-          first_name: firstName,
-          last_name: lastName,
-          display_name: `${firstName} ${lastName}`,
-          role_id: roleData.id,
-          is_active: true,
-        })
-        .select('id')
-        .single();
+          firstName,
+          lastName,
+          pin,
+        }),
+      });
 
-      if (memberError || !memberData) {
-        throw new Error("Failed to create employee record");
-      }
+      const data = await response.json();
 
-      // Create employee_pins entry with default PIN "0000"
-      const { error: pinError } = await supabase
-        .from('employee_pins')
-        .insert({
-          member_id: memberData.id,
-          pin_hash: await supabase.rpc('hash_pin', { p_pin: '0000' }),
-        });
-
-      if (pinError) {
-        console.error("Failed to create PIN entry:", pinError);
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to complete onboarding");
       }
 
       onComplete();
@@ -126,9 +90,25 @@ export default function UserOnboarding({ userId, email, onComplete }: UserOnboar
             />
           </div>
 
+          <div>
+            <label className="block text-gray-300 mb-2">PIN (4 digits)</label>
+            <input
+              type="password"
+              value={pin}
+              onChange={(e) => {
+                // Only allow digits, max 4 characters
+                const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                setPin(value);
+              }}
+              required
+              maxLength={4}
+              className="w-full px-4 py-2 bg-[#2d2d2d] border border-gray-600 rounded text-white focus:outline-none focus:border-penkey-orange"
+              placeholder="••••"
+            />
+          </div>
+
           <div className="text-sm text-gray-400">
             <p>Email: {email}</p>
-            <p>Default PIN: 0000 (change in settings)</p>
           </div>
 
           <button
