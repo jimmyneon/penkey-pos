@@ -169,6 +169,5 @@ GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT, TEXT) TO authenticated;
 GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
 GRANT INSERT, SELECT ON TABLE public.org_members TO supabase_auth_admin;
 GRANT INSERT, SELECT ON TABLE public.employee_pins TO supabase_auth_admin;
-GRANT USAGE, SELECT ON SEQUENCE public.org_members_id_seq TO supabase_auth_admin;
-GRANT USAGE, SELECT ON SEQUENCE public.employee_pins_id_seq TO supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO supabase_auth_admin;
+GRANT EXECUTE ON FUNCTION public.uuid_generate_v4() TO supabase_auth_admin;
