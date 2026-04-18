@@ -1298,6 +1298,13 @@ export default function SellPage() {
       return;
     }
 
+    // Require ticket name or assignment before printing
+    if (!currentTicketName && !ticketAssignment) {
+      showToast('Please assign a customer, table, or enter a ticket name before printing', 'error');
+      setSaveTicketOpen(true);
+      return;
+    }
+
     try {
       // Format date and time
       const now = new Date();
