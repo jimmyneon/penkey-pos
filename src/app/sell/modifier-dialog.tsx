@@ -229,8 +229,9 @@ export function ModifierDialog({
         }
       }
 
-      // Multi-select: increment up to 5, but respect maxAllowed cap
-      const nextQty = currentQty >= 5 ? 0 : currentQty + 1;
+      // Multi-select: increment up to maxAllowed (or 5 if unlimited), but respect maxAllowed cap
+      const rotationLimit = maxAllowed === Infinity ? 5 : maxAllowed;
+      const nextQty = currentQty >= rotationLimit ? 0 : currentQty + 1;
 
       const newGroupSelections: Record<string, number> = { ...groupSelections };
       if (nextQty === 0) {
