@@ -21,6 +21,9 @@ interface CachedPin {
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
+// ⚡ PERFORMANCE: Cache bcrypt module globally to avoid re-import overhead
+let bcryptModule: any = null;
+
 /**
  * Fetch and cache all PIN hashes for the organization.
  * Also accepts an optional register object to cache alongside pins,
@@ -78,11 +81,13 @@ export async function verifyPinLocally(
       return null;
     }
 
-    // Lazy-load bcryptjs — only ~25KB, keeps initial bundle small
-    const bcrypt = await import('bcryptjs');
+    // ⚡ PERFORMANCE: Use cached bcrypt module to avoid re-import overhead
+    if (!bcryptModule) {
+      bcryptModule = await import('bcryptjs');
+    }
 
     for (const entry of orgPins) {
-      const match = await bcrypt.compare(pin, entry.pin_hash);
+      const match = await bcryptModule.compare(pin, entry.pin_hash);
       if (match) {
         console.log('[PinCache] ⚡ PIN verified locally (zero network calls)');
         // Return the same shape the API returns

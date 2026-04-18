@@ -71,6 +71,9 @@ export default function LockPage() {
   // ⚡ PERFORMANCE: Warm PIN cache in background without blocking UI
   const warmPinCacheInBackground = async (orgId: string) => {
     try {
+      // Pre-load bcryptjs in background to avoid import delay during PIN verification
+      await import('bcryptjs');
+
       const { isPinCacheStale } = await import("@/lib/services/pin-cache");
       if (await isPinCacheStale(orgId)) {
         console.log("[Lock] Warming PIN cache in background...");
@@ -152,21 +155,17 @@ export default function LockPage() {
       // Store session
       sessionStorage.setItem("pos_session", JSON.stringify(data));
 
-      // Migrate localStorage settings to database
+      // ⚡ PERFORMANCE: Move settings migration to background (don't block redirect)
       if (data.register?.id) {
-        try {
-          await registerSettings.migrateFromLocalStorage(data.register.id);
-          console.log("[Lock] Settings migrated successfully");
-        } catch (migrationError) {
-          console.error("[Lock] Settings migration failed:", migrationError);
-          // Don't block login on migration failure
-        }
+        registerSettings.migrateFromLocalStorage(data.register.id)
+          .then(() => console.log("[Lock] Settings migrated successfully"))
+          .catch((err) => console.error("[Lock] Settings migration failed:", err));
       }
 
       // Pre-load and cache all data AFTER successful PIN entry (non-blocking)
       console.log("[Lock] Starting background data prefetch for org:", data.org_id);
       setLoadingMessage("Ready!");
-      
+
       // Fire-and-forget: Start prefetch in background, don't wait for it
       // This allows instant redirect to sell page while data loads in background
       prefetchOrgData(data.org_id, data.register?.id)
@@ -178,7 +177,7 @@ export default function LockPage() {
           // Data will load on-demand from API if prefetch fails
         });
 
-      // Redirect to sell screen immediately (don't wait for prefetch)
+      // Redirect to sell screen immediately (don't wait for prefetch or migration)
       router.push("/sell");
     } catch (err: any) {
       // Long vibration for error
