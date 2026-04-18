@@ -53,10 +53,14 @@ export async function POST(request: NextRequest) {
       .eq("user_id", authData.user.id) as any;
 
     if (orgError || !orgMembers || orgMembers.length === 0) {
-      return NextResponse.json(
-        { error: "User not associated with any organization" },
-        { status: 403 }
-      );
+      // User needs onboarding - return user info for onboarding component
+      return NextResponse.json({
+        needsOnboarding: true,
+        user: {
+          id: authData.user.id,
+          email: authData.user.email,
+        },
+      });
     }
 
     const orgMember = orgMembers[0];

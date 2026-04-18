@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@penkey/ui";
 import { Eye, EyeOff, LogIn } from "lucide-react";
+import UserOnboarding from "@/components/onboarding/user-onboarding";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +13,8 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [onboardingUser, setOnboardingUser] = useState<{ id: string; email: string } | null>(null);
 
   useEffect(() => {
     // ✅ SECURITY: Check if user is already authenticated via httpOnly cookie
@@ -62,6 +64,13 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
+      // Check if user needs onboarding
+      if (data.needsOnboarding) {
+        setOnboardingUser(data.user);
+        setNeedsOnboarding(true);
+        return;
+      }
+
       // ✅ SECURITY: Session is now stored in httpOnly cookie (set by server)
       // No need to store anything in localStorage
       // Redirect to lock screen for PIN entry
@@ -73,19 +82,34 @@ export default function LoginPage() {
     }
   };
 
+  const handleOnboardingComplete = () => {
+    setNeedsOnboarding(false);
+    // Redirect to lock screen after onboarding
+    router.push("/lock");
+  };
+
   return (
     <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-heading font-bold text-white mb-2">
-            Penkey POS
-          </h1>
-          <p className="text-gray-400">Sign in to continue</p>
-        </div>
+        {/* Show onboarding if needed */}
+        {needsOnboarding && onboardingUser ? (
+          <UserOnboarding
+            userId={onboardingUser.id}
+            email={onboardingUser.email}
+            onComplete={handleOnboardingComplete}
+          />
+        ) : (
+          <>
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-heading font-bold text-white mb-2">
+                Penkey POS
+              </h1>
+              <p className="text-gray-400">Sign in to continue</p>
+            </div>
 
-        {/* Login Form */}
-        <div className="bg-[#3d3d3d] rounded-lg shadow-lg p-8">
+            {/* Login Form */}
+            <div className="bg-[#3d3d3d] rounded-lg shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
@@ -163,11 +187,10 @@ export default function LoginPage() {
             )}
 
             {/* Submit Button */}
-            <Button
+            <button
               type="submit"
               disabled={loading}
-              className="w-full bg-penkey-orange hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              size="lg"
+              className="w-full bg-[#ff6b35] hover:bg-[#ff8c5a] disabled:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -180,7 +203,7 @@ export default function LoginPage() {
                   Sign In
                 </span>
               )}
-            </Button>
+            </button>
           </form>
 
           {/* Help Text */}
@@ -197,6 +220,8 @@ export default function LoginPage() {
             v1.0.0 • Offline-capable PWA
           </p>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
