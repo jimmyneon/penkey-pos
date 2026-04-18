@@ -87,19 +87,16 @@ EXCEPTION
 END;
 $$;
 
--- Create the trigger on auth.users
--- Note: This requires the supabase_auth schema to be accessible
--- First, drop the trigger if it exists on the wrong table
+-- NOTE: Triggers on supabase_auth.auth.users are not supported by Supabase
+-- due to cross-database reference restrictions.
+-- Use the manual script add_user_employee.sql to create employee records
+-- after creating a new user in Supabase Auth.
+
+-- Drop any existing triggers (cleanup)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS on_auth_user_created ON supabase_auth.auth.users;
-
--- Create the trigger on the correct table
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON supabase_auth.auth.users
-FOR EACH ROW
-EXECUTE FUNCTION create_employee_on_user_signup();
+DROP TRIGGER IF EXISTS on_auth_user_created ON users;
 
 -- Grant necessary permissions
 GRANT EXECUTE ON FUNCTION hash_pin(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION verify_pin(TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION create_employee_on_user_signup() TO authenticated;
