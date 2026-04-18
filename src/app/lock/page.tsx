@@ -295,6 +295,10 @@ export default function LockPage() {
                 localStorage.removeItem("pos_auth_token");
                 localStorage.removeItem("pos_auth_expiry");
                 localStorage.removeItem("pos_user");
+                localStorage.removeItem("pos_register_settings"); // Clear settings cache
+                localStorage.removeItem("pos-cart-storage"); // Clear cart
+                localStorage.removeItem("pos_layout"); // Clear old layout preference
+                localStorage.removeItem("pos_upsell_preferences"); // Clear old upsell preferences
                 sessionStorage.clear();
                 // Clear all cached data on logout
                 dataCache.clearAll();

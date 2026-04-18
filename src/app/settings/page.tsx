@@ -1205,7 +1205,7 @@ export default function SettingsPage() {
                   try {
                     await fetch("/api/auth/logout", { method: "POST" });
                     sessionStorage.clear();
-                    localStorage.clear();
+                    localStorage.clear(); // This clears everything including cart and settings
                     showToast("Signed out successfully", "success");
                     setTimeout(() => router.push("/login"), 500);
                   } catch (error) {
