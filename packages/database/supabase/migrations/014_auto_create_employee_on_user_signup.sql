@@ -87,16 +87,80 @@ EXCEPTION
 END;
 $$;
 
--- NOTE: Triggers on supabase_auth.auth.users are not supported by Supabase
--- due to cross-database reference restrictions.
--- Use the manual script add_user_employee.sql to create employee records
--- after creating a new user in Supabase Auth.
+-- Create the function in supabase_auth schema to access auth.users
+CREATE OR REPLACE FUNCTION supabase_auth.create_employee_on_user_signup()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_member_id UUID;
+  default_pin TEXT := '0000';
+BEGIN
+  -- Create the org_members entry
+  -- Using hardcoded org_id and role_id from your schema
+  -- Org: Penkey (00000000-0000-0000-0000-000000000001)
+  -- Default role: Cashier (00000000-0000-0000-0000-000000000012)
+  INSERT INTO public.org_members (
+    id,
+    org_id,
+    user_id,
+    email,
+    first_name,
+    last_name,
+    display_name,
+    role_id,
+    is_active,
+    created_at,
+    updated_at
+  ) VALUES (
+    gen_random_uuid(),
+    '00000000-0000-0000-0000-000000000001'::UUID,
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'first_name', 'New'),
+    COALESCE(NEW.raw_user_meta_data->>'last_name', 'User'),
+    COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
+    '00000000-0000-0000-0000-000000000012'::UUID,
+    true,
+    NOW(),
+    NOW()
+  ) RETURNING id INTO new_member_id;
+  
+  -- Create the employee_pins entry with default PIN "0000"
+  INSERT INTO public.employee_pins (
+    id,
+    member_id,
+    pin_hash,
+    created_at,
+    updated_at
+  ) VALUES (
+    gen_random_uuid(),
+    new_member_id,
+    public.hash_pin(default_pin),
+    NOW(),
+    NOW()
+  );
+  
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log error but don't fail the user creation
+    RAISE LOG 'Error creating employee records for user %: %', NEW.id, SQLERRM;
+    RETURN NEW;
+END;
+$$;
 
 -- Drop any existing triggers (cleanup)
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_created ON supabase_auth.auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_created ON users;
+DROP TRIGGER IF EXISTS on_auth_user_created ON supabase_auth.users;
+
+-- Create the trigger on supabase_auth.users
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON supabase_auth.users
+FOR EACH ROW
+EXECUTE FUNCTION supabase_auth.create_employee_on_user_signup();
 
 -- Grant necessary permissions
-GRANT EXECUTE ON FUNCTION hash_pin(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION verify_pin(TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT, TEXT) TO authenticated;
