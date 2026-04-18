@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Get the employee record for the current user only
+    console.log("PIN verification - querying org_members for user_id:", sessionData.user_id);
     const { data: employeeData, error: employeeError } = await supabase
       .from("org_members")
       .select(`
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
       `)
       .eq("user_id", sessionData.user_id)
       .single() as any;
+
+    console.log("PIN verification - employeeData:", employeeData);
+    console.log("PIN verification - employeeError:", employeeError);
 
     if (employeeError || !employeeData) {
       return NextResponse.json(

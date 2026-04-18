@@ -285,14 +285,20 @@ export default function LockPage() {
         {/* Sign Out Button - Separated far from keypad to prevent accidental clicks */}
         <div className="px-6 sm:px-8 pb-4">
           <button
-            onClick={() => {
+            onClick={async () => {
               hapticButtonPress();
-              localStorage.removeItem("pos_auth_token");
-              localStorage.removeItem("pos_auth_expiry");
-              localStorage.removeItem("pos_user");
-              // Clear all cached data on logout
-              dataCache.clearAll();
-              router.push("/login");
+              try {
+                await fetch("/api/auth/logout", { method: "POST" });
+                localStorage.removeItem("pos_auth_token");
+                localStorage.removeItem("pos_auth_expiry");
+                localStorage.removeItem("pos_user");
+                sessionStorage.clear();
+                // Clear all cached data on logout
+                dataCache.clearAll();
+                router.push("/login");
+              } catch (error) {
+                console.error("Logout error:", error);
+              }
             }}
             disabled={loading}
             className="w-full h-12 sm:h-14 rounded-md bg-red-600/80 border-2 border-red-700 hover:bg-red-700 active:scale-95 transition-all text-white disabled:opacity-50 flex items-center justify-center text-sm sm:text-base"
