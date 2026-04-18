@@ -72,19 +72,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Create employee_pins entry with the user's chosen PIN
+    console.log("[Onboarding] Hashing PIN for user:", userId);
+    const pinHash = await supabase.rpc('hash_pin', { p_pin: pin } as any);
+    console.log("[Onboarding] PIN hash generated:", pinHash ? "success" : "failed");
+
     const { error: pinError } = await supabase
       .from('employee_pins')
       .insert({
         member_id: memberData.id,
-        pin_hash: await supabase.rpc('hash_pin', { p_pin: pin } as any),
+        pin_hash: pinHash,
       } as any);
 
     if (pinError) {
+      console.error("[Onboarding] Failed to save PIN:", pinError);
       return NextResponse.json(
         { error: "Failed to create PIN entry", details: pinError?.message },
         { status: 500 }
       );
     }
+
+    console.log("[Onboarding] PIN saved successfully for member:", memberData.id);
 
     // Get role information
     const { data: role } = await supabase
@@ -111,6 +118,10 @@ export async function POST(request: NextRequest) {
       success: true,
       user: sessionData,
     });
+
+    // Clear any existing session cookies first
+    response.cookies.delete('pos_session');
+    response.cookies.delete('csrf_token');
 
     // Set httpOnly, Secure, SameSite session cookie
     response.cookies.set('pos_session', JSON.stringify(sessionData), {
