@@ -170,4 +170,3 @@ GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
 GRANT INSERT, SELECT ON TABLE public.org_members TO supabase_auth_admin;
 GRANT INSERT, SELECT ON TABLE public.employee_pins TO supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION public.hash_pin(TEXT) TO supabase_auth_admin;
-GRANT EXECUTE ON FUNCTION public.uuid_generate_v4() TO supabase_auth_admin;
