@@ -62,6 +62,11 @@ export default function SellPage() {
   const { toasts, showToast, dismissToast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storeInfo, setStoreInfo] = useState({
+    name: "Penkey Delicaf & Gifts",
+    address: "5 New Street, Lymington",
+    phone: "WhatsApp Pre-orders: 01590 619472"
+  });
   
   // Load register settings with realtime sync
   const { settings: registerSettingsData, updateSetting: updateRegisterSetting } = useRegisterSettings(session?.register?.id);
@@ -360,6 +365,53 @@ export default function SellPage() {
       setLoading(false);
     }
   }, [router]);
+
+  // Load store info when session is loaded
+  useEffect(() => {
+    if (!session) return;
+
+    const loadStoreInfo = async () => {
+      // Try localStorage cache first
+      const storeId = session.register?.store_id;
+      if (storeId) {
+        const cachedStore = localStorage.getItem(`store_info_${storeId}`);
+        if (cachedStore) {
+          try {
+            const store = JSON.parse(cachedStore);
+            setStoreInfo({
+              name: store.name || "Penkey Delicaf & Gifts",
+              address: store.address || "5 New Street, Lymington",
+              phone: store.phone || "WhatsApp Pre-orders: 01590 619472"
+            });
+          } catch (err) {
+            console.warn('[SellPage] Failed to parse cached store info:', err);
+          }
+        }
+        
+        // Fetch fresh from database if online
+        if (navigator.onLine) {
+          try {
+            const response = await fetch(`/api/stores/${storeId}`);
+            if (response.ok) {
+              const store = await response.json();
+              const storeData = {
+                name: store.name || "Penkey Delicaf & Gifts",
+                address: store.address || "5 New Street, Lymington",
+                phone: store.phone || "WhatsApp Pre-orders: 01590 619472"
+              };
+              setStoreInfo(storeData);
+              // Cache for offline use
+              localStorage.setItem(`store_info_${storeId}`, JSON.stringify(store));
+            }
+          } catch (err) {
+            console.warn('[SellPage] Failed to fetch store info, using cached/default:', err);
+          }
+        }
+      }
+    };
+
+    loadStoreInfo();
+  }, [session]);
 
   // Initialize cart sync when session is loaded - LOAD ONLY, no polling
   useEffect(() => {
@@ -1249,11 +1301,11 @@ export default function SellPage() {
       const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-      // Build ticket data - API endpoint will fetch store info from template
+      // Build ticket data with store info
       const ticketData = {
-        store_name: session.register.store_name,
-        store_address: '', // API will fill from template
-        store_phone: '', // API will fill from template
+        store_name: storeInfo.name,
+        store_address: storeInfo.address,
+        store_phone: storeInfo.phone,
         ticket_name: currentTicketName || (ticketAssignment ? ticketAssignment.name : 'Current Ticket'),
         ticket_comment: currentTicketComment,
         date,
@@ -1344,11 +1396,11 @@ export default function SellPage() {
         const ticket = savedTickets.find(t => t.id === ticketId);
         if (!ticket) continue;
 
-        // Build ticket data - API endpoint will fetch store info from template
+        // Build ticket data with store info
         const ticketData = {
-          store_name: session.register.store_name,
-          store_address: '', // API will fill from template
-          store_phone: '', // API will fill from template
+          store_name: storeInfo.name,
+          store_address: storeInfo.address,
+          store_phone: storeInfo.phone,
           ticket_name: ticket.name,
           ticket_comment: ticket.comment || '',
           date,

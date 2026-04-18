@@ -38,39 +38,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch ticket template from print_templates table
-    let templateHeader = "PENKEY DELICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
-    
-    if (session.org_id) {
-      try {
-        const { data: template } = await supabase
-          .from("print_templates")
-          .select("template")
-          .eq("org_id", session.org_id)
-          .eq("type", "receipt")
-          .eq("is_default", true)
-          .maybeSingle();
-        
-        if (template && template.template) {
-          templateHeader = template.template;
-          console.log("[Ticket Print] Using custom receipt template for org:", session.org_id);
-        }
-      } catch (err) {
-        console.warn("[Ticket Print] Failed to fetch receipt template, using defaults:", err);
-      }
-    }
-
-    // Parse header to extract store info
-    const headerLines = templateHeader.split('\n');
-    const storeName = headerLines[0] || "Penkey Delicaf & Gifts";
-    const storeAddress = headerLines[1] || undefined;
-    const storePhone = headerLines[2] || undefined;
-
     // Normalize ticket data to ensure all required fields exist with safe defaults
+    // Use store info from ticket data directly (client should provide it, like receipts)
     const normalizedTicketData: TicketData = {
-      store_name: ticket_data.store_name || storeName,
-      store_address: ticket_data.store_address || storeAddress,
-      store_phone: ticket_data.store_phone || storePhone,
+      store_name: ticket_data.store_name || session.register?.store_name || "Penkey Delicaf & Gifts",
+      store_address: ticket_data.store_address,
+      store_phone: ticket_data.store_phone,
       ticket_name: ticket_data.ticket_name || "Ticket",
       ticket_comment: ticket_data.ticket_comment,
       date: ticket_data.date || new Date().toLocaleDateString("en-GB"),
