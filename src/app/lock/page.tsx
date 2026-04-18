@@ -9,7 +9,6 @@ import { registerSettings } from "@/lib/services/register-settings";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { prefetchOrgData } from "@/lib/offline/prefetch";
 import { verifyPinLocally, cachePinHashes, getCachedRegister } from "@/lib/services/pin-cache";
-import { initializeCacheVersion } from "@/lib/utils/cache-version";
 
 export default function LockPage() {
   const router = useRouter();
@@ -49,25 +48,11 @@ export default function LockPage() {
         // Clear any existing POS session
         sessionStorage.removeItem("pos_session");
 
-        // Check cache version and clear if outdated
-        await initializeCacheVersion();
-
-        // Pre-warm the PIN cache if not already fresh
-        try {
-          const { isPinCacheStale } = await import("@/lib/services/pin-cache");
-          if (await isPinCacheStale(orgId)) {
-            // Also fetch + cache register info so submit is fully offline
-            const regRes = await fetch(`/api/registers?org_id=${orgId}&active=true`, { credentials: "include" });
-            const registers = regRes.ok ? await regRes.json() : [];
-            await cachePinHashes(orgId, registers[0] || null);
-          }
-        } catch (e) {
-          console.warn("[Lock] PIN pre-warm failed (will fall back to API on submit)", e);
+        // ⚡ PERFORMANCE: Pre-warm PIN cache in background (non-blocking)
+        // This runs after UI is shown, doesn't block keypad render
+        if (orgId) {
+          warmPinCacheInBackground(orgId);
         }
-        
-        // Clear data cache (optional - forces fresh data on next login)
-        // Uncomment if you want to clear cache on every lock
-        // dataCache.clearAll();
       } catch (error: any) {
         if (error.name === 'AbortError') {
           console.error("[Lock] Auth check timed out");
@@ -82,6 +67,23 @@ export default function LockPage() {
     
     checkAuth();
   }, [router]);
+
+  // ⚡ PERFORMANCE: Warm PIN cache in background without blocking UI
+  const warmPinCacheInBackground = async (orgId: string) => {
+    try {
+      const { isPinCacheStale } = await import("@/lib/services/pin-cache");
+      if (await isPinCacheStale(orgId)) {
+        console.log("[Lock] Warming PIN cache in background...");
+        // Also fetch + cache register info so submit is fully offline
+        const regRes = await fetch(`/api/registers?org_id=${orgId}&active=true`, { credentials: "include" });
+        const registers = regRes.ok ? await regRes.json() : [];
+        await cachePinHashes(orgId, registers[0] || null);
+        console.log("[Lock] PIN cache warmed in background");
+      }
+    } catch (e) {
+      console.warn("[Lock] PIN pre-warm failed (will fall back to API on submit)", e);
+    }
+  };
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4) {
