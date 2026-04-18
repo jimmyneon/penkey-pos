@@ -24,48 +24,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the current session to identify the user
+    const sessionCookie = request.cookies.get('pos_session');
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: "No active session. Please log in with email and password first." },
+        { status: 401 }
+      );
+    }
+
+    let sessionData;
+    try {
+      sessionData = JSON.parse(sessionCookie.value);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid session" },
+        { status: 401 }
+      );
+    }
+
+    if (!sessionData.user_id) {
+      return NextResponse.json(
+        { error: "Invalid session data" },
+        { status: 401 }
+      );
+    }
+
     // Create Supabase client with service role key for PIN verification
     const supabase = createSupabaseServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Optimized: Use database function to verify PIN in single query
-    // This uses PostgreSQL's crypt function to compare hashes efficiently
-    const { data: employees, error: verifyError } = await supabase
-      .from("employee_pins")
+    // Get the employee record for the current user only
+    const { data: employeeData, error: employeeError } = await supabase
+      .from("org_members")
       .select(`
-        pin_hash,
-        org_members!inner(
-          id,
-          org_id,
-          first_name,
-          last_name,
-          display_name,
-          role_id,
-          roles(name, permissions)
-        )
+        id,
+        org_id,
+        first_name,
+        last_name,
+        display_name,
+        role_id,
+        employee_pins(pin_hash),
+        roles(name, permissions)
       `)
-      .limit(100); // Get all employees to check
+      .eq("user_id", sessionData.user_id)
+      .single() as any;
 
-    if (verifyError) throw verifyError;
-
-    // Find matching PIN by verifying hash
-    let matchedEmployee = null;
-    for (const emp of employees || []) {
-      // Use the database function to verify PIN
-      const { data: isValid } = await supabase.rpc("verify_pin", {
-        p_pin: pin,
-        p_hash: (emp as any).pin_hash,
-      });
-
-      if (isValid) {
-        matchedEmployee = (emp as any).org_members;
-        break;
-      }
+    if (employeeError || !employeeData) {
+      return NextResponse.json(
+        { error: "Employee record not found" },
+        { status: 404 }
+      );
     }
 
-    if (!matchedEmployee) {
+    // Verify the PIN for this specific employee
+    const { data: isValid } = await supabase.rpc("verify_pin", {
+      p_pin: pin,
+      p_hash: employeeData.employee_pins?.pin_hash,
+    } as any);
+
+    if (!isValid) {
       // ✅ SECURITY: Record failed attempt
       recordAuthFailure(request);
       return NextResponse.json(
@@ -92,9 +112,9 @@ export async function POST(request: NextRequest) {
     // Create session data
     const session = {
       employee: {
-        id: (matchedEmployee as any).id,
-        name: (matchedEmployee as any).display_name || (matchedEmployee as any).first_name,
-        role: (matchedEmployee as any).roles?.name,
+        id: employeeData.id,
+        name: employeeData.display_name || employeeData.first_name,
+        role: employeeData.roles?.name,
       },
       register: {
         id: (register as any).id,
@@ -102,7 +122,7 @@ export async function POST(request: NextRequest) {
         store_id: (register as any).store_id,
         store_name: (register as any).stores?.name,
       },
-      org_id: (matchedEmployee as any).org_id,
+      org_id: employeeData.org_id,
       timestamp: new Date().toISOString(),
     };
 
