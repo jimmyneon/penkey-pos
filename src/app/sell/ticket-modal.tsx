@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
-import { Plus, Minus, User, Hash, Trash2, Printer } from "lucide-react";
+import { Plus, Minus, User, Hash, Trash2, Printer, Save } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress, hapticDelete, hapticSuccess } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
@@ -190,44 +190,43 @@ export function TicketModal({
 
         {/* Fixed Action Buttons - Always Visible */}
         <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Button
-              size="lg"
-              variant="outline"
-              className="flex-1 w-full"
+            <button
+              type="button"
               disabled={lines.length === 0}
               onClick={() => {
                 hapticButtonPress();
                 onClose();
                 onSave();
               }}
+              className="flex-1 w-full px-4 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors border border-gray-600 flex items-center justify-center gap-2"
             >
+              <Save className="h-5 w-5" />
               Save Ticket
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="flex-1 w-full"
+            </button>
+            <button
+              type="button"
               disabled={lines.length === 0}
               onClick={() => {
                 hapticButtonPress();
                 onPrint();
               }}
+              className="flex-1 w-full px-4 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors border border-gray-600 flex items-center justify-center gap-2"
             >
-              <Printer className="h-5 w-5 mr-2" />
+              <Printer className="h-5 w-5" />
               Print
-            </Button>
-            <Button
-              size="lg"
-              className="flex-1 w-full bg-penkey-orange hover:bg-penkey-orange/90"
+            </button>
+            <button
+              type="button"
               disabled={lines.length === 0}
               onClick={() => {
                 hapticSuccess();
                 onClose();
                 onCheckout();
               }}
+              className="flex-1 w-full px-4 py-3 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center"
             >
               Charge {formatCurrency(getTotal())}
-            </Button>
+            </button>
           </div>
       </DialogContent>
     </Dialog>

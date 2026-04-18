@@ -1035,6 +1035,9 @@ export default function SellPage() {
       
       hapticSuccess();
       playSuccessSound();
+      showToast('Ticket saved successfully', 'success');
+      setSaveTicketOpen(false);
+      setTicketModalOpen(false);
     } catch (error) {
       console.error('[Tickets] Failed to save:', error);
       showToast('Failed to save ticket', 'error');
@@ -1353,6 +1356,7 @@ export default function SellPage() {
         hapticSuccess();
         playSuccessSound();
         showToast('Ticket sent to printer', 'success');
+        setTicketModalOpen(false);
       } else if (data.receipt_text) {
         // Fallback: no printer configured — open browser print dialog
         const printWindow = window.open("", "_blank");

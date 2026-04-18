@@ -52,11 +52,6 @@ export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: Sa
       : undefined;
     
     onSave(name, comment, assignment);
-    setName("");
-    setComment("");
-    setAssignType(null);
-    setAssignName('');
-    onClose();
   };
 
   return (
@@ -150,21 +145,21 @@ export function SaveTicketDialog({ open, onClose, onSave, ticketAssignment }: Sa
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button
-              size="lg"
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
               onClick={onClose}
+              className="flex-1 px-4 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white font-medium rounded-lg transition-colors border border-gray-600"
             >
               Cancel
-            </Button>
-            <Button
-              size="lg"
-              className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90"
+            </button>
+            <button
+              type="button"
               onClick={handleSave}
+              className="flex-1 px-4 py-3 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium rounded-lg transition-all shadow-lg shadow-orange-500/25"
             >
               Save Ticket
-            </Button>
+            </button>
           </div>
         </div>
       </DialogContent>
