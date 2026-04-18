@@ -73,8 +73,12 @@ export async function POST(request: NextRequest) {
 
     // Create employee_pins entry with the user's chosen PIN
     console.log("[Onboarding] Hashing PIN for user:", userId);
-    const pinHash = await supabase.rpc('hash_pin', { p_pin: pin } as any);
-    console.log("[Onboarding] PIN hash generated:", pinHash ? "success" : "failed");
+    const pinHashResponse = await supabase.rpc('hash_pin', { p_pin: pin } as any);
+    console.log("[Onboarding] PIN hash response:", pinHashResponse);
+
+    // Extract the actual hash from the RPC response
+    const pinHash = pinHashResponse?.data || pinHashResponse;
+    console.log("[Onboarding] PIN hash extracted:", pinHash ? "success" : "failed");
 
     const { error: pinError } = await supabase
       .from('employee_pins')
