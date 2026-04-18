@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
     let sessionData;
     try {
       sessionData = JSON.parse(sessionCookie.value);
+      console.log("PIN verification - session data:", sessionData);
     } catch {
       return NextResponse.json(
         { error: "Invalid session" },

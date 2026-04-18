@@ -54,13 +54,17 @@ export async function POST(request: NextRequest) {
 
     if (orgError || !orgMembers || orgMembers.length === 0) {
       // User needs onboarding - return user info for onboarding component
-      return NextResponse.json({
+      // Clear any existing session cookies to prevent using old session
+      const response = NextResponse.json({
         needsOnboarding: true,
         user: {
           id: authData.user.id,
           email: authData.user.email,
         },
       });
+      response.cookies.delete('pos_session');
+      response.cookies.delete('csrf_token');
+      return response;
     }
 
     const orgMember = orgMembers[0];
