@@ -269,6 +269,11 @@ async function importHistoricalData() {
         // Create line items
         const lineItems = lineItemsByReceipt.get(receiptNumber) || [];
         
+        if (lineItems.length === 0) {
+          console.warn(`⚠️  No line items found for receipt ${receiptNumber}`);
+        }
+        
+        const lineItemsToInsert = [];
         for (let j = 0; j < lineItems.length; j++) {
           const item = lineItems[j];
           const itemId = await getItemIdByName(item.item);
@@ -279,22 +284,33 @@ async function importHistoricalData() {
             console.warn(`⚠️  Item not in current catalog: ${item.item} (receipt ${receiptNumber}) - storing as historical data`);
           }
           
-          await supabase
+          lineItemsToInsert.push({
+            receipt_id: receipt.id,
+            org_id: ORG_ID,
+            item_id: itemId || null, // null for historical items no longer in catalog
+            name: item.item, // Always store the actual item name from Loyverse
+            quantity: Math.abs(item.quantity),
+            unit_price: item.quantity !== 0 ? Math.abs(item.net_sales / item.quantity) : 0,
+            discount_amount: 0,
+            tax_rate: 0,
+            tax_amount: 0,
+            line_total: Math.abs(item.net_sales),
+            modifiers: item.modifiers ? [{ name: item.modifiers, price_adjustment: 0 }] : null,
+            sort_order: j
+          });
+        }
+        
+        // Batch insert all line items for this receipt
+        if (lineItemsToInsert.length > 0) {
+          const { error: linesError } = await supabase
             .from('receipt_lines')
-            .insert({
-              receipt_id: receipt.id,
-              org_id: ORG_ID,
-              item_id: itemId || null, // null for historical items no longer in catalog
-              name: item.item, // Always store the actual item name from Loyverse
-              quantity: Math.abs(item.quantity),
-              unit_price: item.quantity !== 0 ? Math.abs(item.net_sales / item.quantity) : 0,
-              discount_amount: 0,
-              tax_rate: 0,
-              tax_amount: 0,
-              line_total: Math.abs(item.net_sales),
-              modifiers: item.modifiers ? [{ name: item.modifiers, price_adjustment: 0 }] : null,
-              sort_order: j
-            });
+            .insert(lineItemsToInsert);
+          
+          if (linesError) {
+            console.error(`❌ Error inserting line items for receipt ${receiptNumber}:`, linesError.message);
+            errors++;
+            continue;
+          }
         }
         
         imported++;
