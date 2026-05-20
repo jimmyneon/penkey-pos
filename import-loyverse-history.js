@@ -9,15 +9,23 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
-// Load environment variables
-require('dotenv').config({ path: '.env.local' });
+// Try to load from .env.local if it exists, otherwise use environment variables
+try {
+  require('dotenv').config({ path: '.env.local' });
+} catch (e) {
+  // .env.local doesn't exist, will use process.env
+}
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ORG_ID = '00000000-0000-0000-0000-000000000001'; // Penkey org ID
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('❌ Missing Supabase credentials in .env.local');
+  console.error('❌ Missing Supabase credentials');
+  console.error('Please set environment variables:');
+  console.error('  export NEXT_PUBLIC_SUPABASE_URL=your_url');
+  console.error('  export SUPABASE_SERVICE_ROLE_KEY=your_key');
+  console.error('\nOr create .env.local with these values');
   process.exit(1);
 }
 
@@ -138,7 +146,7 @@ async function importHistoricalData() {
   
   console.log(`✅ Grouped ${lineItemsByReceipt.size} unique receipts\n`);
   
-  // Get default employee and store
+  // Get default employee, store, and register
   const { data: defaultEmployee } = await supabase
     .from('org_members')
     .select('id')
@@ -154,13 +162,20 @@ async function importHistoricalData() {
     .limit(1)
     .single();
   
-  if (!defaultEmployee || !defaultStore) {
-    console.error('❌ Missing default employee or store');
+  const { data: defaultRegister } = await supabase
+    .from('registers')
+    .select('id')
+    .limit(1)
+    .single();
+  
+  if (!defaultEmployee || !defaultStore || !defaultRegister) {
+    console.error('❌ Missing default employee, store, or register');
     process.exit(1);
   }
   
   console.log(`👤 Default employee: ${defaultEmployee.id}`);
-  console.log(`🏪 Default store: ${defaultStore.id}\n`);
+  console.log(`🏪 Default store: ${defaultStore.id}`);
+  console.log(`🖥️  Default register: ${defaultRegister.id}\n`);
   
   let imported = 0;
   let skipped = 0;
@@ -218,16 +233,19 @@ async function importHistoricalData() {
           .insert({
             org_id: ORG_ID,
             store_id: defaultStore.id,
+            register_id: defaultRegister.id,
             member_id: defaultEmployee.id,
             receipt_number: receiptNumber,
             subtotal: grossSales,
             discount_total: discounts,
             tax_total: 0,
+            tip_total: 0,
             total: netSales,
+            paid_amount: netSales,
+            change_amount: 0,
             status: 'completed',
-            payment_method: paymentType === 'sumup' ? 'card' : 'cash',
-            created_at: createdAt,
-            updated_at: createdAt
+            dining_option: 'takeaway',
+            created_at: createdAt
           })
           .select()
           .single();
@@ -255,21 +273,26 @@ async function importHistoricalData() {
           const item = lineItems[j];
           const itemId = await getItemIdByName(item.item);
           
+          // If item doesn't exist in current catalog, still create the line with null item_id
+          // This preserves historical data even for deleted/changed menu items
           if (!itemId) {
-            console.warn(`⚠️  Item not found: ${item.item} (receipt ${receiptNumber})`);
-            continue;
+            console.warn(`⚠️  Item not in current catalog: ${item.item} (receipt ${receiptNumber}) - storing as historical data`);
           }
           
           await supabase
             .from('receipt_lines')
             .insert({
               receipt_id: receipt.id,
-              item_id: itemId,
-              name: item.item,
+              org_id: ORG_ID,
+              item_id: itemId || null, // null for historical items no longer in catalog
+              name: item.item, // Always store the actual item name from Loyverse
               quantity: Math.abs(item.quantity),
-              unit_price: item.quantity !== 0 ? item.net_sales / item.quantity : 0,
-              line_total: item.net_sales,
-              modifiers: item.modifiers ? JSON.stringify([{ name: item.modifiers }]) : null,
+              unit_price: item.quantity !== 0 ? Math.abs(item.net_sales / item.quantity) : 0,
+              discount_amount: 0,
+              tax_rate: 0,
+              tax_amount: 0,
+              line_total: Math.abs(item.net_sales),
+              modifiers: item.modifiers ? [{ name: item.modifiers, price_adjustment: 0 }] : null,
               sort_order: j
             });
         }
