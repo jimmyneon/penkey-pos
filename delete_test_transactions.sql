@@ -9,31 +9,34 @@
 
 BEGIN;
 
--- Step 1: Delete all receipt items (line items from receipts)
-DELETE FROM receipt_items;
+-- Step 1: Delete all receipt lines (line items from receipts)
+DELETE FROM receipt_lines;
 
--- Step 2: Delete all receipts (transactions)
-DELETE FROM receipts;
+-- Step 2: Delete all payments
+DELETE FROM payments;
 
 -- Step 3: Delete all refunds (if any)
-DELETE FROM refunds WHERE TRUE;
+DELETE FROM refunds;
 
--- Step 4: Delete all print jobs related to receipts
+-- Step 4: Delete all receipts (transactions)
+DELETE FROM receipts;
+
+-- Step 5: Delete all print jobs related to receipts
 DELETE FROM print_jobs WHERE receipt_id IS NOT NULL;
 
--- Step 5: Delete any orphaned print jobs (optional - keeps non-receipt print jobs)
+-- Step 6: Delete any orphaned print jobs (optional - keeps non-receipt print jobs)
 -- Uncomment the line below if you want to delete ALL print jobs
 -- DELETE FROM print_jobs;
 
--- Step 6: Delete all active carts (saved tickets)
+-- Step 7: Delete all active carts (saved tickets)
 DELETE FROM active_carts;
 
--- Step 7: Reset any shift data (if you want to clear shift history)
+-- Step 8: Reset any shift data (if you want to clear shift history)
 -- Uncomment the lines below if you want to delete shift data as well
 -- DELETE FROM shift_receipts;
 -- DELETE FROM shifts;
 
--- Step 8: Clear any cached analytics or summary data (if such tables exist)
+-- Step 9: Clear any cached analytics or summary data (if such tables exist)
 -- Add any additional cleanup queries here for custom tables
 
 COMMIT;
@@ -46,8 +49,11 @@ COMMIT;
 -- Check receipt counts (should be 0)
 SELECT COUNT(*) as receipt_count FROM receipts;
 
--- Check receipt items counts (should be 0)
-SELECT COUNT(*) as receipt_items_count FROM receipt_items;
+-- Check receipt lines counts (should be 0)
+SELECT COUNT(*) as receipt_lines_count FROM receipt_lines;
+
+-- Check payments counts (should be 0)
+SELECT COUNT(*) as payments_count FROM payments;
 
 -- Check refunds counts (should be 0)
 SELECT COUNT(*) as refunds_count FROM refunds;
