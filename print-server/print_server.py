@@ -98,6 +98,71 @@ class PrintServer:
             logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
         except Exception as e:
             logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
+    
+    async def check_for_updates(self) -> bool:
+        """
+        Check if there are updates available on GitHub and pull them.
+        Returns True if updates were pulled, False otherwise.
+        """
+        try:
+            import subprocess
+            
+            logger.info("[Update] Checking for updates from GitHub...")
+            
+            # Fetch latest from origin
+            fetch_result = subprocess.run(
+                ['git', 'fetch', 'origin', 'main'],
+                cwd='/home/jimmy/penkey-pos',
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if fetch_result.returncode != 0:
+                logger.warning(f"[Update] Git fetch failed: {fetch_result.stderr}")
+                return False
+            
+            # Check if local is behind remote
+            status_result = subprocess.run(
+                ['git', 'rev-list', '--count', 'HEAD..origin/main'],
+                cwd='/home/jimmy/penkey-pos',
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if status_result.returncode != 0:
+                logger.warning(f"[Update] Git status check failed: {status_result.stderr}")
+                return False
+            
+            commits_behind = int(status_result.stdout.strip() or '0')
+            
+            if commits_behind > 0:
+                logger.info(f"[Update] Found {commits_behind} new commit(s) - pulling updates...")
+                
+                # Pull the updates
+                pull_result = subprocess.run(
+                    ['git', 'pull', 'origin', 'main'],
+                    cwd='/home/jimmy/penkey-pos',
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if pull_result.returncode == 0:
+                    logger.info(f"[Update] Successfully pulled updates: {pull_result.stdout}")
+                    logger.info("[Update] Restarting to apply updates...")
+                    return True
+                else:
+                    logger.error(f"[Update] Git pull failed: {pull_result.stderr}")
+                    return False
+            else:
+                logger.info("[Update] Already up to date - no updates needed")
+                return False
+                
+        except Exception as e:
+            logger.error(f"[Update] Failed to check for updates: {e}")
+            return False
 
     # ------------------------------------------------------------------
     # Realtime subscription
@@ -413,6 +478,15 @@ class PrintServer:
         self.running = True
 
         await self.connect()
+        
+        # Check for updates on startup
+        updates_pulled = await self.check_for_updates()
+        if updates_pulled:
+            logger.info("[Update] Updates were pulled - restarting to apply changes...")
+            self.running = False
+            self._shutdown_event.set()
+            return
+        
         await self.update_printer_status('online')
 
         # Start realtime subscription
