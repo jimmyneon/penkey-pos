@@ -88,7 +88,9 @@ class EpsonSerialPrinter:
             logger.info("[Print] Receipt printed successfully")
             return True
         except Exception as e:
-            logger.error(f"[Print] Failed to print receipt: {e}")
+            logger.error(f"[Print] Failed to print receipt: {e}", exc_info=True)
+            logger.error(f"[Print] Exception type: {type(e).__name__}")
+            logger.error(f"[Print] Exception args: {e.args}")
             return False
 
     def print_text(self, text: str, settings: Optional[Dict] = None) -> bool:

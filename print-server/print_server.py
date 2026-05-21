@@ -347,10 +347,16 @@ class PrintServer:
         Print receipt - app is responsible for all layout and formatting.
         Print server acts as simple rendering layer only.
         """
+        logger.info(f"[Print] _print_receipt called with data keys: {list(data.keys())}")
+        logger.info(f"[Print] settings: {settings}")
         receipt_text = data.get('receipt_text')
         if not receipt_text:
             logger.error("Print job missing 'receipt_text' - app must provide formatted receipt content")
+            logger.error(f"[Print] Available data keys: {list(data.keys())}")
+            logger.error(f"[Print] Data sample: {str(data)[:500]}")
             return False
+        logger.info(f"[Print] receipt_text found, length: {len(receipt_text)}")
+        logger.info(f"[Print] receipt_text first 100 chars: {receipt_text[:100]}")
         return self.printer.print_receipt(receipt_text, settings)
 
     # ------------------------------------------------------------------
