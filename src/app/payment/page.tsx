@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus } from "lucide-react";
+import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { CashTenderedDialog } from "./cash-tendered-dialog";
+import { ManualPaymentDialog } from "./manual-payment-dialog";
 import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
@@ -37,6 +38,7 @@ export default function PaymentPage() {
   const [itemsDialogOpen, setItemsDialogOpen] = useState(false);
   const [terminalDialogOpen, setTerminalDialogOpen] = useState(false);
   const [assignTicketOpen, setAssignTicketOpen] = useState(false);
+  const [manualPaymentDialogOpen, setManualPaymentDialogOpen] = useState(false);
   const [availableTerminals, setAvailableTerminals] = useState<any[]>([]);
   const [cachedTerminals, setCachedTerminals] = useState<any[]>([]); // Cache from page mount
   const [selectedTerminal, setSelectedTerminal] = useState<any | null>(null);
@@ -450,6 +452,118 @@ export default function PaymentPage() {
       // Note: Outbox service handles background sync automatically - no manual sync needed
     } catch (err: any) {
       console.error("[Payment] Failed to save receipt:", err);
+      showToast(err.message || "Failed to complete sale", "error");
+      playPaymentFailedSound();
+      setProcessing(false);
+    }
+  };
+
+  const handleManualPayment = async (method: "cash" | "card") => {
+    if (!session) return;
+
+    // Reset payment completion flag for new payment
+    paymentCompletedRef.current = false;
+
+    playPaymentInitSound();
+    setProcessing(true);
+    setManualPaymentDialogOpen(false);
+    playPaymentProcessingSound();
+
+    console.log("[Payment] Manual payment - method:", method);
+
+    // Guard: Prevent multiple calls for the same payment
+    if (paymentCompletedRef.current) {
+      console.log('[Payment] Payment already completed, skipping duplicate call');
+      return;
+    }
+    paymentCompletedRef.current = true;
+
+    const receiptData = {
+      lines: lines,
+      payment_method: `manual_${method}`,
+      cash_tendered: method === "cash" ? total : 0,
+      employee_id: session.employee.id,
+      register_id: session.register.id,
+      store_id: session.register.store_id,
+      org_id: session.org_id,
+      created_at: new Date().toISOString(),
+      customer_id: ticketAssignment?.customer?.id || null,
+      customer_name: ticketAssignment?.type === 'customer' ? ticketAssignment.name : null,
+      customer_email: ticketAssignment?.customer?.email || null,
+      customer_phone: ticketAssignment?.customer?.phone || null,
+      table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
+      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+    };
+    
+    console.log('[Payment] Creating manual receipt with method:', method);
+
+    try {
+      const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      const subtotal = lines.reduce((sum, line) => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        return sum + (line.unit_price + modifiersTotal) * line.quantity;
+      }, 0);
+
+      const taxTotal = lines.reduce((sum, line) => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        return sum + (line.unit_price + modifiersTotal) * line.quantity * (line.tax_rate || 0);
+      }, 0);
+
+      const storeName = storeInfo.name;
+      const storeAddress = storeInfo.address;
+      const storePhone = storeInfo.phone;
+      
+      const linesWithTotals = lines.map(line => {
+        const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
+        const lineTotal = (line.unit_price + modifiersTotal) * line.quantity;
+        return {
+          ...line,
+          line_total: lineTotal
+        };
+      });
+      
+      const receiptToSave = {
+        id: tempReceiptId,
+        ...receiptData,
+        lines: linesWithTotals,
+        created_at: new Date().toISOString(),
+        total: total,
+        subtotal: subtotal,
+        tax_total: taxTotal,
+        change: 0,
+        change_amount: 0,
+        cash_change: 0,
+        paid_amount: total,
+        offline: true,
+        store_name: storeName,
+        store_address: storeAddress,
+        store_phone: storePhone,
+        employee_name: session.employee.name,
+        register_name: session.register.name,
+        date: new Date().toLocaleDateString("en-GB"),
+        time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+        receipt_number: 0,
+      };
+      console.log('[Payment] Saving manual receipt to IndexedDB:', receiptToSave);
+
+      await Promise.all([
+        putMany("receipts", [receiptToSave]),
+        OutboxSyncService.addToOutbox('receipt', receiptData, session.org_id, true)
+      ]);
+      
+      console.log('[Payment] Manual receipt saved locally and queued for sync:', tempReceiptId);
+
+      clearCart();
+      CartSyncService.clearCart();
+      sessionStorage.removeItem("pos_ticket_assignment");
+
+      setPaymentCompleted(true);
+      console.log("[Payment] Navigating to success (manual payment)");
+      router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0&offline=true`);
+
+    } catch (err: any) {
+      console.error("[Payment] Failed to save manual receipt:", err);
       showToast(err.message || "Failed to complete sale", "error");
       playPaymentFailedSound();
       setProcessing(false);
@@ -1389,7 +1503,7 @@ export default function PaymentPage() {
         <div className="max-w-2xl mx-auto">
           {/* Payment Methods */}
           <h2 className="text-xl font-bold text-white mb-4">Select Payment Method</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Cash Payment Button */}
             <button
               onClick={() => setCashDialogOpen(true)}
@@ -1415,6 +1529,17 @@ export default function PaymentPage() {
                 }`} />
               )}
             </button>
+
+            {/* Manual Payment Button */}
+            <button
+              onClick={() => setManualPaymentDialogOpen(true)}
+              disabled={processing}
+              className="bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
+            >
+              <Edit3 className="h-16 w-16" />
+              <span className="text-2xl font-bold">Manual</span>
+              <span className="text-xs text-gray-400 text-center">Record only</span>
+            </button>
           </div>
 
           {/* Cancel Button - spans full width */}
@@ -1434,6 +1559,13 @@ export default function PaymentPage() {
         onClose={() => setCashDialogOpen(false)}
         onConfirm={handleCashPayment}
         totalDue={total}
+      />
+
+      {/* Manual Payment Dialog */}
+      <ManualPaymentDialog
+        open={manualPaymentDialogOpen}
+        onClose={() => setManualPaymentDialogOpen(false)}
+        onConfirm={handleManualPayment}
       />
 
       {/* Terminal Selection Dialog */}

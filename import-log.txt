@@ -1,0 +1,11 @@
+◇ injected env (3) from .env.local // tip: ⌁ auth for agents [www.vestauth.com]
+📊 Importing Loyverse Historical Data
+
+============================================================
+📄 Found 4084 receipts
+📦 Found 7516 line items
+
+🔄 Processing line items...
+✅ Grouped 4084 unique receipts
+
+❌ Missing default employee, store, or register
