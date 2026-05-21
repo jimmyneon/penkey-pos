@@ -13,10 +13,12 @@ import { useHourlySales } from "@/lib/hooks/use-hourly-sales";
 
 export default function ReportsPage() {
   const router = useRouter();
-  const [selectedPeriod, setSelectedPeriod] = useState<"today" | "week" | "month" | "year" | "custom">("today");
+  const [selectedPeriod, setSelectedPeriod] = useState<"today" | "week" | "month" | "year" | "alltime" | "custom">("today");
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [customDays, setCustomDays] = useState(30);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [showAllItems, setShowAllItems] = useState(false);
+  const [showWorstSelling, setShowWorstSelling] = useState(false);
   
   // Manage scroll lock when any modal is open
   useScrollLock(activeModal !== null || showCustomDate);
@@ -35,6 +37,7 @@ export default function ReportsPage() {
       case "week": return 7;
       case "month": return 30;
       case "year": return 365;
+      case "alltime": return 9999; // Large number to fetch all historical data
       case "custom": return customDays;
       default: return 1;
     }
@@ -121,12 +124,14 @@ export default function ReportsPage() {
       : selectedPeriod === "week" ? "this week"
       : selectedPeriod === "month" ? "this month"
       : selectedPeriod === "year" ? "this year"
+      : selectedPeriod === "alltime" ? "all time"
       : `in the last ${customDays} days`;
     
     const comparisonLabel = selectedPeriod === "today" ? "yesterday"
       : selectedPeriod === "week" ? "last week"
       : selectedPeriod === "month" ? "last month" 
       : selectedPeriod === "year" ? "last year"
+      : selectedPeriod === "alltime" ? "the previous period"
       : "the previous period";
 
     if (comparison.diff > 0) {
@@ -166,6 +171,7 @@ export default function ReportsPage() {
       case "week": return 7000; // £1,000/day * 7
       case "month": return 30000; // £1,000/day * 30
       case "year": return 365000; // £1,000/day * 365
+      case "alltime": return 50000; // £50,000 all-time target
       case "custom": return customDays * 1000; // £1,000/day * custom days
       default: return 1000;
     }
@@ -227,6 +233,7 @@ export default function ReportsPage() {
                 {selectedPeriod === "week" && "Last 7 days"}
                 {selectedPeriod === "month" && "Last 30 days"}
                 {selectedPeriod === "year" && "Last 365 days"}
+                {selectedPeriod === "alltime" && "All time"}
                 {selectedPeriod === "custom" && `Last ${customDays} days`}
                 {" • "}
                 {data?.salesData.receipts.length || 0} receipt{data?.salesData.receipts.length !== 1 ? 's' : ''}
@@ -279,6 +286,19 @@ export default function ReportsPage() {
                 </button>
               </div>
               
+              {/* All Time - Full Width */}
+              <button
+                onClick={() => setSelectedPeriod("alltime")}
+                className={`w-full py-4 px-4 rounded-xl font-semibold text-base transition-all min-h-[56px] flex items-center justify-center gap-2 active:scale-95 ${
+                  selectedPeriod === "alltime"
+                    ? "bg-penkey-orange text-white shadow-lg shadow-penkey-orange/30"
+                    : "bg-[#3d3d3d] text-gray-300 hover:bg-[#4d4d4d]"
+                }`}
+              >
+                <Trophy className="h-5 w-5" />
+                All Time
+              </button>
+              
               {/* Custom Period - Full Width */}
               <button
                 onClick={() => {
@@ -316,6 +336,7 @@ export default function ReportsPage() {
                         : selectedPeriod === "week" ? "Great Week!"
                         : selectedPeriod === "month" ? "Great Month!"
                         : selectedPeriod === "year" ? "Amazing Year!"
+                        : selectedPeriod === "alltime" ? "Incredible Performance!"
                         : "Great Period!")
                       : comparison.diff < 0 ? "Keep Going!" : "Steady Performance"}
                   </h3>
@@ -330,6 +351,7 @@ export default function ReportsPage() {
                       : selectedPeriod === "week" ? "this week"
                       : selectedPeriod === "month" ? "this month"
                       : selectedPeriod === "year" ? "this year"
+                      : selectedPeriod === "alltime" ? "all time"
                       : `in ${customDays} days`}
                     </>
                   ) : (
@@ -351,6 +373,7 @@ export default function ReportsPage() {
                       : selectedPeriod === "week" ? "last week"
                       : selectedPeriod === "month" ? "last month"
                       : selectedPeriod === "year" ? "last year"
+                      : selectedPeriod === "alltime" ? "the beginning"
                       : "previous period"}
                   </p>
                 )}
@@ -404,6 +427,7 @@ export default function ReportsPage() {
                     : selectedPeriod === "week" ? "this week"
                     : selectedPeriod === "month" ? "this month"
                     : selectedPeriod === "year" ? "this year"
+                    : selectedPeriod === "alltime" ? "all time"
                     : `in ${customDays} days`}
                 </p>
               </button>
@@ -486,6 +510,7 @@ export default function ReportsPage() {
                   : selectedPeriod === "week" ? "This Week's Story"
                   : selectedPeriod === "month" ? "This Month's Story"
                   : selectedPeriod === "year" ? "This Year's Story"
+                  : selectedPeriod === "alltime" ? "Your Complete Story"
                   : "Period Story"}
               </h3>
               <p className="text-sm text-gray-400">Tap to see full insights</p>
@@ -502,6 +527,7 @@ export default function ReportsPage() {
                   : selectedPeriod === "week" ? "This Week's Goals"
                   : selectedPeriod === "month" ? "This Month's Goals"
                   : selectedPeriod === "year" ? "This Year's Goals"
+                  : selectedPeriod === "alltime" ? "All-Time Goals"
                   : "Period Goals"}
               </h3>
               <div className="flex items-center gap-2">
@@ -691,6 +717,7 @@ export default function ReportsPage() {
                   : selectedPeriod === "week" ? "This Week's Story"
                   : selectedPeriod === "month" ? "This Month's Story"
                   : selectedPeriod === "year" ? "This Year's Story"
+                  : selectedPeriod === "alltime" ? "Your Complete Story"
                   : "Period Story"}
               </h3>
               <button
@@ -738,6 +765,7 @@ export default function ReportsPage() {
                   : selectedPeriod === "week" ? "This Week's Goals"
                   : selectedPeriod === "month" ? "This Month's Goals"
                   : selectedPeriod === "year" ? "This Year's Goals"
+                  : selectedPeriod === "alltime" ? "All-Time Goals"
                   : "Period Goals"}
               </h3>
               <button
@@ -797,6 +825,7 @@ export default function ReportsPage() {
                         : selectedPeriod === "week" ? "last week's"
                         : selectedPeriod === "month" ? "last month's"
                         : selectedPeriod === "year" ? "last year's"
+                        : selectedPeriod === "alltime" ? "all previous"
                         : "previous period's"} sales
                     </p>
                     <p className="text-sm text-gray-400">
@@ -897,8 +926,35 @@ export default function ReportsPage() {
                   </div>
                 </div>
                 
+                {/* Toggle buttons */}
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setShowWorstSelling(false)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                      !showWorstSelling
+                        ? "bg-penkey-orange text-white"
+                        : "bg-[#2d2d2d] text-gray-400 hover:bg-[#3d3d3d]"
+                    }`}
+                  >
+                    Top Selling
+                  </button>
+                  <button
+                    onClick={() => setShowWorstSelling(true)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                      showWorstSelling
+                        ? "bg-penkey-orange text-white"
+                        : "bg-[#2d2d2d] text-gray-400 hover:bg-[#3d3d3d]"
+                    }`}
+                  >
+                    Worst Selling
+                  </button>
+                </div>
+                
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {itemsData.items.slice(0, 10).map((item, index) => (
+                  {(showWorstSelling 
+                    ? [...itemsData.items].reverse().slice(0, showAllItems ? itemsData.items.length : 10)
+                    : itemsData.items.slice(0, showAllItems ? itemsData.items.length : 10)
+                  ).map((item, index) => (
                     <div key={index} className="bg-[#2d2d2d] rounded-lg p-3 flex justify-between items-center">
                       <div>
                         <p className="text-white font-medium">{item.name}</p>
@@ -908,6 +964,26 @@ export default function ReportsPage() {
                     </div>
                   ))}
                 </div>
+                
+                {/* Show More/Less button */}
+                {itemsData.items.length > 10 && (
+                  <button
+                    onClick={() => setShowAllItems(!showAllItems)}
+                    className="w-full mt-3 py-2 px-4 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm font-medium hover:bg-[#3d3d3d] transition-all flex items-center justify-center gap-2"
+                  >
+                    {showAllItems ? (
+                      <>
+                        <ChevronUp className="h-4 w-4" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-4 w-4" />
+                        Show All ({itemsData.items.length} items)
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             ) : (
               <p className="text-gray-400">No data available</p>
