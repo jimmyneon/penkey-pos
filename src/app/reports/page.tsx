@@ -378,7 +378,7 @@ export default function ReportsPage() {
 
                 <p className="text-gray-300 text-base">
                   {periodMetrics.receiptCount > 0 ? (
-                    <>You served {periodMetrics.receiptCount} customer{periodMetrics.receiptCount !== 1 ? 's' : ''} 
+                    <>You served {periodMetrics.receiptCount} ticket{periodMetrics.receiptCount !== 1 ? 's' : ''} 
                     {selectedPeriod === "today" ? "today" 
                       : selectedPeriod === "week" ? "this week"
                       : selectedPeriod === "month" ? "this month"
@@ -450,7 +450,7 @@ export default function ReportsPage() {
                 className="bg-[#3d3d3d] rounded-xl p-5 shadow-md min-h-[120px] flex flex-col justify-between hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-400">Customers</p>
+                  <p className="text-sm text-gray-400">Tickets</p>
                   <Users className="h-5 w-5 text-penkey-orange" />
                 </div>
                 <p className="text-3xl font-bold text-white">{periodMetrics.receiptCount}</p>
@@ -473,7 +473,7 @@ export default function ReportsPage() {
                   <DollarSign className="h-5 w-5 text-penkey-orange" />
                 </div>
                 <p className="text-3xl font-bold text-white">£{periodMetrics.avgOrder.toFixed(2)}</p>
-                <p className="text-xs text-gray-400 mt-1">per customer</p>
+                <p className="text-xs text-gray-400 mt-1">per ticket</p>
               </button>
             </div>
 
@@ -978,11 +978,11 @@ export default function ReportsPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-[#2d2d2d] rounded-lg p-3">
-                    <p className="text-xs text-gray-400">Total Items</p>
+                    <p className="text-xs text-gray-400">Unique Products</p>
                     <p className="text-xl font-bold text-white">{itemsData.summary.total_items}</p>
                   </div>
                   <div className="bg-[#2d2d2d] rounded-lg p-3">
-                    <p className="text-xs text-gray-400">Total Quantity</p>
+                    <p className="text-xs text-gray-400">Items Sold</p>
                     <p className="text-xl font-bold text-white">{itemsData.summary.total_quantity_sold}</p>
                   </div>
                 </div>
