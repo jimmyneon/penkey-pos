@@ -147,15 +147,31 @@ export default function ReportsPage() {
         : busiestTime.period === "morning" ? "morning (6am-12pm)"
         : busiestTime.period === "afternoon" ? "afternoon (3pm-6pm)"
         : "evening";
-      messages.push(`Your busiest time was ${timeLabel} with ${busiestTime.count} customers!`);
+      messages.push(`Your busiest time was ${timeLabel} with ${busiestTime.count} tickets!`);
     }
 
     if (periodMetrics.receiptCount > 0) {
-      messages.push(`You've served ${periodMetrics.receiptCount} happy customer${periodMetrics.receiptCount !== 1 ? 's' : ''} ${periodLabel}!`);
+      messages.push(`You've served ${periodMetrics.receiptCount} ticket${periodMetrics.receiptCount !== 1 ? 's' : ''} ${periodLabel}!`);
+    }
+    
+    // Add upsell insights if available
+    if (itemsData?.summary?.upsell_rate > 0) {
+      const upsellRate = itemsData.summary.upsell_rate;
+      const modifierRevenue = itemsData.summary.modifier_revenue;
+      
+      if (upsellRate >= 30) {
+        messages.push(`🌟 Amazing upselling! ${upsellRate.toFixed(0)}% of items had add-ons, bringing in £${modifierRevenue.toFixed(2)} extra!`);
+      } else if (upsellRate >= 20) {
+        messages.push(`Great job on upsells! ${upsellRate.toFixed(0)}% of items had add-ons worth £${modifierRevenue.toFixed(2)}.`);
+      } else if (upsellRate >= 10) {
+        messages.push(`You added £${modifierRevenue.toFixed(2)} through modifiers. Try suggesting more add-ons!`);
+      } else {
+        messages.push(`Remember to suggest add-ons! Even small upsells add up.`);
+      }
     }
 
     return messages;
-  }, [periodMetrics, comparison, busiestTime, selectedPeriod, customDays]);
+  }, [periodMetrics, comparison, busiestTime, selectedPeriod, customDays, itemsData]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -584,25 +600,43 @@ export default function ReportsPage() {
             
             <div className="space-y-4">
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
-                <span className="text-gray-400">Total Sales:</span>
+                <span className="text-gray-400">Gross Sales:</span>
                 <span className="text-white font-bold text-lg">£{periodMetrics.grossSales.toFixed(2)}</span>
               </div>
+              {data?.salesData?.refunds > 0 && (
+                <div className="flex justify-between items-center py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Refunds:</span>
+                  <span className="text-red-400 font-semibold">-£{data.salesData.refunds.toFixed(2)}</span>
+                </div>
+              )}
+              {data?.salesData?.discounts > 0 && (
+                <div className="flex justify-between items-center py-3 border-b border-gray-700">
+                  <span className="text-gray-400">Discounts:</span>
+                  <span className="text-yellow-400 font-semibold">-£{data.salesData.discounts.toFixed(2)}</span>
+                </div>
+              )}
+              {(data?.salesData?.refunds > 0 || data?.salesData?.discounts > 0) && (
+                <div className="flex justify-between items-center py-3 border-b border-gray-700 bg-[#2d2d2d] -mx-4 px-4">
+                  <span className="text-gray-300 font-semibold">Net Sales:</span>
+                  <span className="text-green-400 font-bold">£{data?.salesData?.netSales.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
-                <span className="text-gray-400">Total Receipts:</span>
+                <span className="text-gray-400">Total Tickets:</span>
                 <span className="text-white font-semibold">{periodMetrics.receiptCount}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
-                <span className="text-gray-400">Average Order:</span>
+                <span className="text-gray-400">Average Ticket:</span>
                 <span className="text-white font-semibold">£{periodMetrics.avgOrder.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
-                <span className="text-gray-400">Highest Sale:</span>
+                <span className="text-gray-400">Highest Ticket:</span>
                 <span className="text-white font-semibold">
                   £{periodReceipts.length > 0 ? Math.max(...periodReceipts.map((r: any) => parseFloat(r.total || "0"))).toFixed(2) : "0.00"}
                 </span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
-                <span className="text-gray-400">Lowest Sale:</span>
+                <span className="text-gray-400">Lowest Ticket:</span>
                 <span className="text-white font-semibold">
                   £{periodReceipts.length > 0 ? Math.min(...periodReceipts.map((r: any) => parseFloat(r.total || "0"))).toFixed(2) : "0.00"}
                 </span>
@@ -626,7 +660,7 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                 <Users className="h-6 w-6 text-penkey-orange" />
-                Customer Breakdown
+                Ticket Breakdown
               </h3>
               <button
                 onClick={closeModal}
@@ -638,13 +672,13 @@ export default function ReportsPage() {
             
             <div className="space-y-4">
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
-                <span className="text-gray-400">Total Customers:</span>
+                <span className="text-gray-400">Total Tickets:</span>
                 <span className="text-white font-bold text-lg">{periodMetrics.receiptCount}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-gray-700">
                 <span className="text-gray-400">Daily Average:</span>
                 <span className="text-white font-semibold">
-                  {(periodMetrics.receiptCount / getDaysForPeriod()).toFixed(1)} customers/day
+                  {(periodMetrics.receiptCount / getDaysForPeriod()).toFixed(1)} tickets/day
                 </span>
               </div>
               {busiestTime && (
@@ -654,7 +688,7 @@ export default function ReportsPage() {
                     {busiestTime.period === "lunch" ? "Lunch (12pm-3pm)"
                       : busiestTime.period === "morning" ? "Morning (6am-12pm)"
                       : busiestTime.period === "afternoon" ? "Afternoon (3pm-6pm)"
-                      : "Evening"} - {busiestTime.count} customers
+                      : "Evening"} - {busiestTime.count} tickets
                   </span>
                 </div>
               )}
@@ -791,28 +825,28 @@ export default function ReportsPage() {
             </div>
             
             <div className="space-y-3">
-              {/* Goal 1: Serve 50+ customers */}
+              {/* Goal 1: Serve 20+ tickets */}
               <div className={`p-4 rounded-xl border-2 transition-all ${
-                periodMetrics.receiptCount >= 50 
+                periodMetrics.receiptCount >= 20 
                   ? 'bg-green-500/10 border-green-500/50' 
                   : 'bg-[#2d2d2d] border-gray-700'
               }`}>
                 <div className="flex items-start gap-3">
-                  {periodMetrics.receiptCount >= 50 ? (
+                  {periodMetrics.receiptCount >= 20 ? (
                     <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0 mt-0.5" />
                   ) : (
                     <Circle className="h-6 w-6 text-gray-600 flex-shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1">
                     <p className={`font-semibold mb-1 ${
-                      periodMetrics.receiptCount >= 50 ? 'text-white' : 'text-gray-400'
+                      periodMetrics.receiptCount >= 20 ? 'text-white' : 'text-gray-400'
                     }`}>
-                      Serve 50+ customers
+                      Serve 20+ tickets
                     </p>
                     <p className="text-sm text-gray-400">
-                      Progress: {periodMetrics.receiptCount} / 50 customers
+                      Progress: {periodMetrics.receiptCount} / 20 tickets
                     </p>
-                    {periodMetrics.receiptCount >= 50 && (
+                    {periodMetrics.receiptCount >= 20 && (
                       <p className="text-sm text-green-400 mt-1">✓ Goal achieved!</p>
                     )}
                   </div>
