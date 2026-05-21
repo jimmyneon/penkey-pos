@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     );
 
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    // For days=1 (today), we want 0 days back. For days=7, we want 6 days back, etc.
+    startDate.setDate(startDate.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
 
     console.log(`[Hourly Sales] Fetching for last ${days} days, from ${startDate.toISOString()}`);

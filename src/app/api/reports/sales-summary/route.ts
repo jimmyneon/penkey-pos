@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
     const daysBack = parseInt(searchParams.get("days") || "30");
     
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysBack);
+    // For days=1 (today), we want 0 days back. For days=7, we want 6 days back, etc.
+    startDate.setDate(startDate.getDate() - (daysBack - 1));
     startDate.setHours(0, 0, 0, 0);
 
     console.log(`[Sales Summary] Fetching receipts for last ${daysBack} days, from ${startDate.toISOString()}`);
