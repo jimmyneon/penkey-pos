@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
         .select("id, total, subtotal, tax_total, discount_total, member_id, created_at")
         .eq("org_id", orgId)
         .gte("created_at", startDate.toISOString())
+        .neq("status", "fully_refunded")  // Exclude refunded receipts
+        .neq("status", "voided")  // Exclude voided receipts
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 

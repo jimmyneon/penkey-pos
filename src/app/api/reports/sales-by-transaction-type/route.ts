@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Sales by Transaction Type] Fetching for last ${days} days, from ${startDate.toISOString()}`);
 
-    // Fetch payments with receipt details
+    // Fetch payments with receipt details (excluding refunded/voided)
     const { data: payments, error: paymentsError } = await supabase
       .from("payments")
       .select(`
@@ -54,11 +54,14 @@ export async function GET(request: NextRequest) {
         receipts!inner (
           created_at,
           org_id,
-          total
+          total,
+          status
         )
       `)
       .eq("receipts.org_id", orgId)
-      .gte("receipts.created_at", startDate.toISOString());
+      .gte("receipts.created_at", startDate.toISOString())
+      .neq("receipts.status", "fully_refunded")
+      .neq("receipts.status", "voided");
 
     if (paymentsError) {
       console.error("[Sales by Transaction Type] Error fetching payments:", paymentsError);

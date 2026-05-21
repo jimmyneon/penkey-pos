@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Sales by Employee] Fetching for last ${days} days, from ${startDate.toISOString()}`);
 
-    // Fetch receipts with employee details
+    // Fetch receipts with employee details (excluding refunded/voided)
     const { data: receipts, error: receiptsError } = await supabase
       .from("receipts")
       .select(`
@@ -60,7 +60,9 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq("org_id", orgId)
-      .gte("created_at", startDate.toISOString());
+      .gte("created_at", startDate.toISOString())
+      .neq("status", "fully_refunded")
+      .neq("status", "voided");
 
     if (receiptsError) {
       console.error("[Sales by Employee] Error fetching receipts:", receiptsError);

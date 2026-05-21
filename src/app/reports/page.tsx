@@ -164,16 +164,30 @@ export default function ReportsPage() {
     return "Good evening";
   };
 
-  // Scale target based on period
+  // Scale target based on period with realistic daily targets
   const getTarget = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    
+    // Realistic daily targets: Mon-Wed £150, Thu-Fri £200, Sat-Sun £250
+    const getDailyTarget = () => {
+      if (dayOfWeek === 0 || dayOfWeek === 6) return 250; // Weekend
+      if (dayOfWeek === 4 || dayOfWeek === 5) return 200; // Thu-Fri
+      return 150; // Mon-Wed
+    };
+    
     switch (selectedPeriod) {
-      case "today": return 1000; // £1,000/day
-      case "week": return 7000; // £1,000/day * 7
-      case "month": return 30000; // £1,000/day * 30
-      case "year": return 365000; // £1,000/day * 365
+      case "today": return getDailyTarget();
+      case "week": return 1000; // £1,000/week target
+      case "month": return 4300; // ~£1,000/week * 4.3 weeks
+      case "year": return 52000; // £1,000/week * 52 weeks
       case "alltime": return 50000; // £50,000 all-time target
-      case "custom": return customDays * 1000; // £1,000/day * custom days
-      default: return 1000;
+      case "custom": {
+        // Calculate based on mix of weekdays/weekends in period
+        const avgDaily = 185; // Weighted average: (3*150 + 2*200 + 2*250) / 7 ≈ 185
+        return customDays * avgDaily;
+      }
+      default: return getDailyTarget();
     }
   };
   
@@ -925,6 +939,29 @@ export default function ReportsPage() {
                     <p className="text-xl font-bold text-white">{itemsData.summary.total_quantity_sold}</p>
                   </div>
                 </div>
+                
+                {/* Upsell Metrics */}
+                {itemsData.summary.upsell_rate > 0 && (
+                  <div className="bg-gradient-to-r from-green-600/20 to-green-500/20 border border-green-500/30 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-5 w-5 text-green-400" />
+                      <h4 className="text-sm font-semibold text-white">Upsell Performance</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-400">Upsell Rate</p>
+                        <p className="text-lg font-bold text-green-400">{itemsData.summary.upsell_rate.toFixed(1)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Modifier Revenue</p>
+                        <p className="text-lg font-bold text-green-400">£{itemsData.summary.modifier_revenue.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-2">
+                      {itemsData.summary.items_with_modifiers} items sold with add-ons
+                    </p>
+                  </div>
+                )}
                 
                 {/* Toggle buttons */}
                 <div className="flex gap-2 mb-3">

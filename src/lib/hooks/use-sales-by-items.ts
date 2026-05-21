@@ -9,6 +9,8 @@ interface ItemData {
   total_discount: number;
   avg_price: number;
   transaction_count: number;
+  items_with_modifiers: number;
+  modifier_revenue: number;
 }
 
 interface SummaryData {
@@ -16,6 +18,9 @@ interface SummaryData {
   total_quantity_sold: number;
   total_revenue: number;
   top_selling_item: ItemData | null;
+  items_with_modifiers: number;
+  modifier_revenue: number;
+  upsell_rate: number;
 }
 
 interface SalesByItemsData {

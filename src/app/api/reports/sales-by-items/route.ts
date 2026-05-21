@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Sales by Items] Fetching for last ${days} days, from ${startDate.toISOString()}`);
 
-    // Fetch receipt lines with item details
+    // Fetch receipt lines with item details (excluding refunded/voided)
     const { data: receiptLines, error: linesError } = await supabase
       .from("receipt_lines")
       .select(`
@@ -55,22 +55,28 @@ export async function GET(request: NextRequest) {
         tax_rate,
         tax_amount,
         line_total,
+        modifiers,
         receipt_id,
         receipts!inner (
           created_at,
-          org_id
+          org_id,
+          status
         )
       `)
       .eq("receipts.org_id", orgId)
-      .gte("receipts.created_at", startDate.toISOString());
+      .gte("receipts.created_at", startDate.toISOString())
+      .neq("receipts.status", "fully_refunded")
+      .neq("receipts.status", "voided");
 
     if (linesError) {
       console.error("[Sales by Items] Error fetching receipt lines:", linesError);
       return NextResponse.json({ error: "Failed to fetch item sales data" }, { status: 500 });
     }
 
-    // Aggregate data by item
+    // Aggregate data by item and track upsells
     const itemMap = new Map();
+    let totalItemsWithModifiers = 0;
+    let totalModifierRevenue = 0;
 
     (receiptLines || []).forEach((line: any) => {
       const key = line.item_id || line.name;
@@ -84,6 +90,8 @@ export async function GET(request: NextRequest) {
           total_discount: 0,
           avg_price: 0,
           transaction_count: 0,
+          items_with_modifiers: 0,
+          modifier_revenue: 0,
         });
       }
 
@@ -93,6 +101,22 @@ export async function GET(request: NextRequest) {
       item.total_tax += parseFloat(line.tax_amount || "0");
       item.total_discount += parseFloat(line.discount_amount || "0");
       item.transaction_count += 1;
+      
+      // Track upsells (modifiers)
+      if (line.modifiers && Array.isArray(line.modifiers) && line.modifiers.length > 0) {
+        const hasPayingModifiers = line.modifiers.some((m: any) => m.price_adjustment && m.price_adjustment > 0);
+        if (hasPayingModifiers) {
+          item.items_with_modifiers += line.quantity;
+          totalItemsWithModifiers += line.quantity;
+          
+          // Calculate modifier revenue
+          const modifierRevenue = line.modifiers.reduce((sum: number, m: any) => 
+            sum + (parseFloat(m.price_adjustment || "0") * line.quantity), 0
+          );
+          item.modifier_revenue += modifierRevenue;
+          totalModifierRevenue += modifierRevenue;
+        }
+      }
     });
 
     // Calculate averages and convert to array
@@ -108,6 +132,7 @@ export async function GET(request: NextRequest) {
     const totalItems = items.length;
     const totalQuantitySold = items.reduce((sum, item) => sum + item.quantity_sold, 0);
     const totalRevenue = items.reduce((sum, item) => sum + item.total_revenue, 0);
+    const upsellRate = totalQuantitySold > 0 ? (totalItemsWithModifiers / totalQuantitySold) * 100 : 0;
 
     return NextResponse.json({
       items,
@@ -116,6 +141,10 @@ export async function GET(request: NextRequest) {
         total_quantity_sold: totalQuantitySold,
         total_revenue: totalRevenue,
         top_selling_item: items.length > 0 ? items[0] : null,
+        // Upsell metrics
+        items_with_modifiers: totalItemsWithModifiers,
+        modifier_revenue: totalModifierRevenue,
+        upsell_rate: upsellRate,
       },
     });
   } catch (error: any) {
