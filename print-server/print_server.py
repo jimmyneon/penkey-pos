@@ -77,33 +77,48 @@ class PrintServer:
 
     async def connect(self) -> None:
         """Connect to Supabase and initialise printer"""
-        # Disable schema caching to avoid cache mismatch errors
-        self.supabase = AsyncClient(
-            self.supabase_url, 
-            self.supabase_key,
-            options={
-                'db': {
-                    'schema': 'public'
-                }
-            }
-        )
-        
-        logger.info("Connected to Supabase")
-        
-        # Set up Supabase log handler for remote logging (works without printer)
+        # Try to connect to Supabase, but don't fail if not available
         try:
-            self.supabase_log_handler = SupabaseLogHandler(
-                self.supabase,
-                self.printer_id,
-                batch_size=10,
-                flush_interval=5.0,
-                level=logging.INFO  # Only send INFO and above to Supabase
+            # Disable schema caching to avoid cache mismatch errors
+            self.supabase = AsyncClient(
+                self.supabase_url, 
+                self.supabase_key,
+                options={
+                    'db': {
+                        'schema': 'public'
+                    }
+                }
             )
-            # Add to root logger so all logs go to Supabase
-            logging.getLogger().addHandler(self.supabase_log_handler)
-            logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
+            logger.info("Connected to Supabase")
         except Exception as e:
-            logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
+            logger.warning(f"Could not connect to Supabase: {e} - will run in offline mode")
+            self.supabase = None
+        
+        # Set up local file logging (always works)
+        try:
+            file_handler = logging.FileHandler('/home/jimmy/print-server/print.log')
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            logging.getLogger().addHandler(file_handler)
+            logger.info("[Logging] Local file logging initialized")
+        except Exception as e:
+            logger.warning(f"[Logging] Failed to initialize local file logging: {e}")
+        
+        # Set up Supabase log handler (only if Supabase is available)
+        if self.supabase:
+            try:
+                self.supabase_log_handler = SupabaseLogHandler(
+                    self.supabase,
+                    self.printer_id,
+                    batch_size=10,
+                    flush_interval=5.0,
+                    level=logging.INFO  # Only send INFO and above to Supabase
+                )
+                # Add to root logger so all logs go to Supabase
+                logging.getLogger().addHandler(self.supabase_log_handler)
+                logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
+            except Exception as e:
+                logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
         
         # Try to connect to printer, but don't fail if not connected
         try:
@@ -303,6 +318,10 @@ class PrintServer:
 
     async def update_printer_status(self, status: str, error: Optional[str] = None) -> None:
         """Update printer status and heartbeat in Supabase"""
+        if not self.supabase:
+            logger.debug(f"[Status] Supabase not connected - skipping status update: {status}")
+            return
+        
         try:
             updates: Dict[str, Any] = {
                 'status': status,
@@ -320,6 +339,10 @@ class PrintServer:
 
     async def get_pending_jobs(self) -> list:
         """Fetch all pending jobs for this printer (fallback poll)"""
+        if not self.supabase:
+            logger.debug("[Jobs] Supabase not connected - skipping job fetch")
+            return []
+        
         try:
             response = await self.supabase.table('print_jobs') \
                 .select('*') \
@@ -334,6 +357,10 @@ class PrintServer:
 
     async def update_job_status(self, job_id: str, status: str, error: Optional[str] = None) -> None:
         """Update a job's status, incrementing attempts when moving to 'printing'"""
+        if not self.supabase:
+            logger.debug(f"[DB] Supabase not connected - skipping job status update: {job_id} → {status}")
+            return
+        
         try:
             updates: Dict[str, Any] = {'status': status}
 
