@@ -16,11 +16,12 @@ from dotenv import load_dotenv
 
 from supabase import create_client, AsyncClient
 from printer import EpsonSerialPrinter
+from supabase_logger import SupabaseLogHandler
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging
+# Configure logging - will add Supabase handler after client is created
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -59,6 +60,10 @@ class PrintServer:
         # Track jobs currently being processed to avoid double-dispatch
         self._processing: set = set()
         self._job_lock = asyncio.Lock()
+        
+        # Supabase log handler
+        self.supabase_log_handler: Optional[SupabaseLogHandler] = None
+        self._log_flush_task: Optional[asyncio.Task] = None
 
         if not all([self.supabase_url, self.supabase_key, self.printer_id]):
             raise ValueError(
@@ -78,6 +83,21 @@ class PrintServer:
             baudrate=self.printer_baud
         )
         logger.info(f"Connected to Supabase and printer at {self.printer_device} ({self.printer_baud} baud)")
+        
+        # Set up Supabase log handler for remote logging
+        try:
+            self.supabase_log_handler = SupabaseLogHandler(
+                self.supabase,
+                self.printer_id,
+                batch_size=10,
+                flush_interval=5.0,
+                level=logging.INFO  # Only send INFO and above to Supabase
+            )
+            # Add to root logger so all logs go to Supabase
+            logging.getLogger().addHandler(self.supabase_log_handler)
+            logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
+        except Exception as e:
+            logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
 
     # ------------------------------------------------------------------
     # Realtime subscription
@@ -397,6 +417,13 @@ class PrintServer:
 
         # Start realtime subscription
         await self._subscribe_realtime()
+        
+        # Start periodic log flushing
+        if self.supabase_log_handler:
+            self._log_flush_task = asyncio.create_task(
+                self.supabase_log_handler.start_periodic_flush()
+            )
+            logger.info("[Logging] Started periodic log flush task")
 
         # Process any jobs that were queued before we started (startup drain)
         logger.info("Draining any jobs queued before startup...")
@@ -447,6 +474,13 @@ class PrintServer:
             pass
         if self.printer:
             self.printer._disconnect()
+        
+        # Stop log flushing and send remaining logs
+        if self.supabase_log_handler:
+            logger.info("[Logging] Flushing remaining logs to Supabase...")
+            await self.supabase_log_handler.stop()
+            logging.getLogger().removeHandler(self.supabase_log_handler)
+        
         # AsyncClient doesn't have close(), just let it cleanup naturally
 
     # ------------------------------------------------------------------

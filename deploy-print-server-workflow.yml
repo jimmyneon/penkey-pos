@@ -1,0 +1,85 @@
+name: Deploy Print Server to Raspberry Pi
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'print-server/**'
+      - 'packages/print-adapters/**'
+      - '.github/workflows/deploy-print-server.yml'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Raspberry Pi
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger update via Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRINTER_ID: ${{ secrets.PRINTER_ID }}
+        run: |
+          # Send update command to printer via Supabase
+          curl -X PATCH "${SUPABASE_URL}/rest/v1/printers?id=eq.${PRINTER_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{\"config\": {\"command\": \"update\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting 30 seconds for Raspberry Pi to pull and restart..."
+          sleep 30
+
+      - name: Check printer status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRINTER_ID: ${{ secrets.PRINTER_ID }}
+        run: |
+          # Check if printer came back online
+          STATUS=$(curl -s "${SUPABASE_URL}/rest/v1/printers?id=eq.${PRINTER_ID}&select=status,last_seen_at" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+          
+          echo "Printer status: $STATUS"
+          
+          # Check if status is online
+          if echo "$STATUS" | grep -q '"status":"online"'; then
+            echo "✅ Printer is online"
+          else
+            echo "⚠️ Warning: Printer may not be online yet"
+            exit 1
+          fi
+
+      - name: Send deployment notification
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRINTER_ID: ${{ secrets.PRINTER_ID }}
+        run: |
+          # Log deployment to printer_logs
+          curl -X POST "${SUPABASE_URL}/rest/v1/printer_logs" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{
+              \"printer_id\": \"${PRINTER_ID}\",
+              \"level\": \"INFO\",
+              \"message\": \"Deployment triggered by GitHub Actions - commit: ${{ github.sha }}\",
+              \"context\": {
+                \"commit\": \"${{ github.sha }}\",
+                \"author\": \"${{ github.actor }}\",
+                \"workflow\": \"${{ github.workflow }}\",
+                \"run_id\": \"${{ github.run_id }}\"
+              }
+            }"
