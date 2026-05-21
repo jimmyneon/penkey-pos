@@ -133,8 +133,8 @@ class SupabaseLogHandler(logging.Handler):
 
 class LocalFileHandler(logging.Handler):
     """
-    Fallback handler that writes to local file if Supabase is unavailable.
-    Also useful for debugging.
+    Primary handler that writes to local file.
+    Always works, can't be broken by network issues or Supabase changes.
     """
     
     def __init__(self, filename: str, level=logging.DEBUG):
@@ -147,4 +147,4 @@ class LocalFileHandler(logging.Handler):
             with open(self.filename, 'a') as f:
                 f.write(f"{message}\n")
         except Exception:
-            self.handleError(record)
+            pass  # Silently fail - don't crash logging
