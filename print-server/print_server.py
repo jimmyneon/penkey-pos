@@ -88,13 +88,9 @@ class PrintServer:
             }
         )
         
-        self.printer = EpsonSerialPrinter(
-            device=self.printer_device,
-            baudrate=self.printer_baud
-        )
-        logger.info(f"Connected to Supabase and printer at {self.printer_device} ({self.printer_baud} baud)")
+        logger.info("Connected to Supabase")
         
-        # Set up Supabase log handler for remote logging
+        # Set up Supabase log handler for remote logging (works without printer)
         try:
             self.supabase_log_handler = SupabaseLogHandler(
                 self.supabase,
@@ -108,6 +104,17 @@ class PrintServer:
             logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
         except Exception as e:
             logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
+        
+        # Try to connect to printer, but don't fail if not connected
+        try:
+            self.printer = EpsonSerialPrinter(
+                device=self.printer_device,
+                baudrate=self.printer_baud
+            )
+            logger.info(f"[Printer] Connected to printer at {self.printer_device} ({self.printer_baud} baud)")
+        except Exception as e:
+            logger.warning(f"[Printer] Could not connect to printer: {e} - will run in offline mode")
+            self.printer = None
     
     async def check_for_updates(self) -> bool:
         """
@@ -462,6 +469,10 @@ class PrintServer:
         Print receipt - app is responsible for all layout and formatting.
         Print server acts as simple rendering layer only.
         """
+        if not self.printer:
+            logger.error("[Print] Printer not connected - cannot print job")
+            return False
+        
         logger.info(f"[Print] _print_receipt called with data keys: {list(data.keys())}")
         logger.info(f"[Print] settings: {settings}")
         receipt_text = data.get('receipt_text')
@@ -497,7 +508,9 @@ class PrintServer:
             self._shutdown_event.set()
             return
         
-        await self.update_printer_status('online')
+        # Set status based on whether printer is connected
+        printer_status = 'online' if self.printer else 'offline'
+        await self.update_printer_status(printer_status)
 
         # Start realtime subscription
         await self._subscribe_realtime()
