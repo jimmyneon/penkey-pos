@@ -4,7 +4,7 @@
  * "People who bought X also bought Y" analysis
  */
 
-import { dataCache } from "./data-cache";
+import { upsellRAMCache } from "./upsell-ram-cache";
 
 interface Item {
   id: string;
@@ -98,45 +98,20 @@ export class UpsellLearningEngine {
   }
   
   /**
-   * Load learned associations from cache or API
+   * Load learned associations from RAM cache (INSTANT!)
    * This should be called after initialize
    */
   async loadAssociations(orgId: string, forceRefresh: boolean = false): Promise<void> {
     try {
-      // Check cache first
-      if (!forceRefresh) {
-        const cached = dataCache.get<Map<string, ItemPair[]>>(orgId, "upsell_associations");
-        if (cached) {
-          // Convert plain object back to Map
-          this.associations = new Map(Object.entries(cached));
-          console.log(`[UpsellLearning] Loaded ${this.associations.size} associations from cache`);
-          return;
-        }
-      }
-
-      // Fetch from API
-      console.log("[UpsellLearning] Fetching associations from API...");
-      const response = await fetch(`/api/analytics/item-associations?org_id=${orgId}`);
+      // Preload into RAM cache (fetches from IndexedDB or API if needed)
+      await upsellRAMCache.preload(orgId);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`[UpsellLearning] API returned ${data.length} association pairs`);
+      // Get from RAM cache (instant!)
+      const cached = upsellRAMCache.getAll();
+      if (cached) {
+        this.associations = cached;
+        console.log(`[UpsellLearning] ⚡ Loaded ${this.associations.size} associations from RAM cache (instant!)`);
         
-        // Build associations map
-        this.associations.clear();
-        data.forEach((pair: ItemPair) => {
-          const existing = this.associations.get(pair.item_a_id) || [];
-          existing.push(pair);
-          this.associations.set(pair.item_a_id, existing);
-        });
-        
-        // Cache for 6 hours (updates throughout the day)
-        const cacheService = new (await import("./data-cache")).DataCacheService({ ttlHours: 6 });
-        // Convert Map to plain object for JSON serialization
-        const cacheData = Object.fromEntries(this.associations);
-        cacheService.set(orgId, "upsell_associations", cacheData);
-        
-        console.log(`[UpsellLearning] Loaded ${this.associations.size} unique items with associations`);
         // Log a sample
         if (this.associations.size > 0) {
           const firstKey = Array.from(this.associations.keys())[0];
@@ -144,8 +119,7 @@ export class UpsellLearningEngine {
           console.log(`[UpsellLearning] Sample: Item ${firstKey} has ${firstAssocs?.length} associations`);
         }
       } else {
-        const errorText = await response.text();
-        console.warn(`[UpsellLearning] Failed to load associations (${response.status}):`, errorText);
+        console.log("[UpsellLearning] No associations available yet");
       }
     } catch (err) {
       console.error("[UpsellLearning] Error loading associations:", err);

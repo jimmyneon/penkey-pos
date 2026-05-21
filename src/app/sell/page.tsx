@@ -11,6 +11,7 @@ import { useCartStore } from "@/lib/store/cart-store";
 import { UnifiedSyncService } from "@/lib/services/unified-sync";
 import { SyncManager } from "@/lib/services/sync-manager";
 import { useModifierPreload } from "@/lib/hooks/use-modifier-preload";
+import { useUpsellPreload } from "@/lib/hooks/use-upsell-preload";
 import { useSessionManager } from "@/lib/hooks/use-session-manager";
 import { formatCurrency } from "@penkey/ui";
 import { VariantDialog } from "./variant-dialog";
@@ -248,6 +249,9 @@ export default function SellPage() {
   // Memoize itemIds to prevent unnecessary preload triggers on every render
   const memoizedItemIds = useMemo(() => items.map(item => item.id), [items]);
   useModifierPreload(memoizedItemIds);
+  
+  // Preload upsell associations into RAM cache (instant upsells!)
+  useUpsellPreload(session?.org_id);
 
   // Initialize upsell learning engine when items are loaded
   useEffect(() => {
