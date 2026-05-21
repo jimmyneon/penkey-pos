@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=simple
 User=jimmy
-WorkingDirectory=/home/jimmy/penkey-pos
+WorkingDirectory=/home/jimmy/print-server
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/jimmy/print-server/start.sh
+ExecStart=/bin/bash /home/jimmy/print-server/start.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal
