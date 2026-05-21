@@ -5,7 +5,7 @@ import { RefreshCw, X } from "lucide-react";
 
 export function PWAUpdateNotifier() {
   const [showUpdate, setShowUpdate] = useState(false);
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
@@ -14,19 +14,21 @@ export function PWAUpdateNotifier() {
 
     let unsubscribe: (() => void) | undefined;
 
+    // Listen for the custom update event from service-worker-register
+    const handleUpdateAvailable = (event: Event) => {
+      const customEvent = event as CustomEvent<{ worker: ServiceWorker }>;
+      console.log("[PWA Update] Update available event received");
+      setWaitingWorker(customEvent.detail.worker);
+      setShowUpdate(true);
+    };
+
+    window.addEventListener("swUpdateAvailable", handleUpdateAvailable);
+
     navigator.serviceWorker.ready
       .then((reg) => {
-        setRegistration(reg);
-
-        // Check for updates every hour
-        const interval = setInterval(() => {
-          reg.update().catch(() => {
-            // Silently fail if update check fails
-          });
-        }, 60 * 60 * 1000);
-
-        // Listen for new service worker waiting
+        // Listen for controller change (when new SW takes over)
         const handleControllerChange = () => {
+          console.log("[PWA Update] Controller changed, reloading page");
           window.location.reload();
         };
 
@@ -35,28 +37,19 @@ export function PWAUpdateNotifier() {
           handleControllerChange
         );
 
-        // Check if there's a waiting service worker
+        // Check if there's already a waiting service worker on mount
         if (reg.waiting) {
+          console.log("[PWA Update] Waiting worker found on mount");
+          setWaitingWorker(reg.waiting);
           setShowUpdate(true);
         }
 
-        // Listen for updates
-        const handleMessage = (event: Event) => {
-          const messageEvent = event as MessageEvent;
-          if (messageEvent.data && messageEvent.data.type === "UPDATE_AVAILABLE") {
-            setShowUpdate(true);
-          }
-        };
-
-        navigator.serviceWorker.addEventListener("message", handleMessage as EventListener);
-
         unsubscribe = () => {
-          clearInterval(interval);
+          window.removeEventListener("swUpdateAvailable", handleUpdateAvailable);
           navigator.serviceWorker.removeEventListener(
             "controllerchange",
             handleControllerChange
           );
-          navigator.serviceWorker.removeEventListener("message", handleMessage as EventListener);
         };
       })
       .catch(() => {
@@ -69,8 +62,9 @@ export function PWAUpdateNotifier() {
   }, []);
 
   const handleUpdate = () => {
-    if (registration?.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    if (waitingWorker) {
+      console.log("[PWA Update] Sending SKIP_WAITING message to service worker");
+      waitingWorker.postMessage({ type: "SKIP_WAITING" });
       setShowUpdate(false);
     }
   };

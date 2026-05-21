@@ -30,18 +30,56 @@ export function ServiceWorkerRegister() {
 
         console.log("[SW] Service worker registered successfully:", registration);
 
-        // Listen for updates
+        // Check if there's already a waiting service worker
+        if (registration.waiting) {
+          console.log("[SW] Update already waiting");
+          notifyUpdateAvailable(registration.waiting);
+        }
+
+        // Listen for new service worker installing
         registration.addEventListener("updatefound", () => {
           console.log("[SW] Service worker update found");
+          const newWorker = registration.installing;
+          
+          if (!newWorker) return;
+
+          newWorker.addEventListener("statechange", () => {
+            console.log("[SW] New service worker state:", newWorker.state);
+            
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              // New service worker is installed and waiting
+              console.log("[SW] New service worker installed and waiting");
+              notifyUpdateAvailable(newWorker);
+            }
+          });
         });
 
-        // Check for updates periodically
+        // Check for updates periodically (every 5 minutes)
         setInterval(() => {
+          console.log("[SW] Checking for updates...");
           registration.update();
-        }, 60000); // Check every minute
+        }, 5 * 60 * 1000);
+
+        // Also check for updates when page becomes visible
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) {
+            console.log("[SW] Page visible, checking for updates...");
+            registration.update();
+          }
+        });
       } catch (error) {
         console.error("[SW] Service worker registration failed:", error);
       }
+    };
+
+    // Helper to notify about available updates
+    const notifyUpdateAvailable = (worker: ServiceWorker) => {
+      // Dispatch custom event that PWAUpdateNotifier can listen to
+      window.dispatchEvent(
+        new CustomEvent("swUpdateAvailable", {
+          detail: { worker },
+        })
+      );
     };
 
     // Register immediately
