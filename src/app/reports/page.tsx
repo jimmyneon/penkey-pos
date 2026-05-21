@@ -155,9 +155,9 @@ export default function ReportsPage() {
     }
     
     // Add upsell insights if available
-    if (itemsData?.summary?.upsell_rate > 0) {
-      const upsellRate = itemsData.summary.upsell_rate;
-      const modifierRevenue = itemsData.summary.modifier_revenue;
+    if (itemsData?.summary) {
+      const upsellRate = itemsData.summary.upsell_rate || 0;
+      const modifierRevenue = itemsData.summary.modifier_revenue || 0;
       
       if (upsellRate >= 30) {
         messages.push(`🌟 Amazing upselling! ${upsellRate.toFixed(0)}% of items had add-ons, bringing in £${modifierRevenue.toFixed(2)} extra!`);
@@ -165,8 +165,10 @@ export default function ReportsPage() {
         messages.push(`Great job on upsells! ${upsellRate.toFixed(0)}% of items had add-ons worth £${modifierRevenue.toFixed(2)}.`);
       } else if (upsellRate >= 10) {
         messages.push(`You added £${modifierRevenue.toFixed(2)} through modifiers. Try suggesting more add-ons!`);
-      } else {
-        messages.push(`Remember to suggest add-ons! Even small upsells add up.`);
+      } else if (upsellRate > 0) {
+        messages.push(`You had ${upsellRate.toFixed(0)}% upsells worth £${modifierRevenue.toFixed(2)}. Keep suggesting add-ons!`);
+      } else if (periodMetrics.receiptCount > 0) {
+        messages.push(`💡 Try suggesting add-ons like extra shots, syrups, or milk alternatives to increase sales!`);
       }
     }
 
@@ -825,33 +827,44 @@ export default function ReportsPage() {
             </div>
             
             <div className="space-y-3">
-              {/* Goal 1: Serve 20+ tickets */}
-              <div className={`p-4 rounded-xl border-2 transition-all ${
-                periodMetrics.receiptCount >= 20 
-                  ? 'bg-green-500/10 border-green-500/50' 
-                  : 'bg-[#2d2d2d] border-gray-700'
-              }`}>
-                <div className="flex items-start gap-3">
-                  {periodMetrics.receiptCount >= 20 ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Circle className="h-6 w-6 text-gray-600 flex-shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className={`font-semibold mb-1 ${
-                      periodMetrics.receiptCount >= 20 ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      Serve 20+ tickets
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Progress: {periodMetrics.receiptCount} / 20 tickets
-                    </p>
-                    {periodMetrics.receiptCount >= 20 && (
-                      <p className="text-sm text-green-400 mt-1">✓ Goal achieved!</p>
-                    )}
+              {/* Goal 1: Serve tickets based on period */}
+              {(() => {
+                const ticketGoal = selectedPeriod === "today" ? 20
+                  : selectedPeriod === "week" ? 140  // 20/day * 7
+                  : selectedPeriod === "month" ? 600  // 20/day * 30
+                  : selectedPeriod === "year" ? 7300  // 20/day * 365
+                  : selectedPeriod === "alltime" ? 10000
+                  : customDays * 20;
+                
+                return (
+                  <div className={`p-4 rounded-xl border-2 transition-all ${
+                    periodMetrics.receiptCount >= ticketGoal 
+                      ? 'bg-green-500/10 border-green-500/50' 
+                      : 'bg-[#2d2d2d] border-gray-700'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      {periodMetrics.receiptCount >= ticketGoal ? (
+                        <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <Circle className="h-6 w-6 text-gray-600 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`font-semibold mb-1 ${
+                          periodMetrics.receiptCount >= ticketGoal ? 'text-white' : 'text-gray-400'
+                        }`}>
+                          Serve {ticketGoal}+ tickets
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Progress: {periodMetrics.receiptCount} / {ticketGoal} tickets
+                        </p>
+                        {periodMetrics.receiptCount >= ticketGoal && (
+                          <p className="text-sm text-green-400 mt-1">✓ Goal achieved!</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Goal 2: Beat previous period */}
               <div className={`p-4 rounded-xl border-2 transition-all ${
