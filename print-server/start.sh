@@ -2,7 +2,7 @@
 # Print server wrapper - handles updates and robust logging before main server starts
 
 LOG_FILE="/home/jimmy/print-server/print.log"
-CODE_DIR="/home/jimmy/penkey-pos/print-server"
+CODE_DIR="/home/jimmy/print-server"
 
 # Function to log with timestamp
 log() {
@@ -13,7 +13,7 @@ log "=== Print Server Starting ==="
 
 # Step 1: Check for updates FIRST (can't be broken by updates)
 log "[Update] Checking for updates from GitHub..."
-cd /home/jimmy/penkey-pos
+cd /home/jimmy/print-server
 
 # Fetch latest
 if git fetch origin main 2>> "$LOG_FILE"; then
@@ -26,7 +26,7 @@ if git fetch origin main 2>> "$LOG_FILE"; then
         if git pull origin main >> "$LOG_FILE" 2>&1; then
             log "[Update] Successfully pulled updates - restarting to apply..."
             # Restart systemd service (this will re-run this script)
-            systemctl restart print-server
+            sudo systemctl restart print-server
             exit 0
         else
             log "[Update] ERROR: Git pull failed - continuing with current version"
