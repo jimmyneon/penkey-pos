@@ -140,6 +140,26 @@ class PrintServer:
                     logger.info("[Remote] Test print command received")
                     if self.printer:
                         self.printer.test_print()
+                elif command == 'update':
+                    logger.info("[Remote] Update command received — pulling latest code")
+                    try:
+                        import subprocess
+                        result = subprocess.run(
+                            ['git', 'pull', 'origin', 'main'],
+                            cwd='/home/jimmy/penkey-pos',
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        logger.info(f"[Remote] Git pull output: {result.stdout}")
+                        if result.returncode == 0:
+                            logger.info("[Remote] Update successful — restarting")
+                            self.running = False
+                            self._shutdown_event.set()
+                        else:
+                            logger.error(f"[Remote] Git pull failed: {result.stderr}")
+                    except Exception as update_err:
+                        logger.error(f"[Remote] Update failed: {update_err}")
             except Exception as e:
                 logger.error(f"[Remote] Error processing printer command: {e}")
 
