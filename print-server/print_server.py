@@ -77,7 +77,17 @@ class PrintServer:
 
     async def connect(self) -> None:
         """Connect to Supabase and initialise printer"""
-        self.supabase = AsyncClient(self.supabase_url, self.supabase_key)
+        # Disable schema caching to avoid cache mismatch errors
+        self.supabase = AsyncClient(
+            self.supabase_url, 
+            self.supabase_key,
+            options={
+                'db': {
+                    'schema': 'public'
+                }
+            }
+        )
+        
         self.printer = EpsonSerialPrinter(
             device=self.printer_device,
             baudrate=self.printer_baud
@@ -294,12 +304,12 @@ class PrintServer:
             if error:
                 updates['config'] = {'last_error': error}
 
-            await self.supabase.table('printers') \
-                .update(updates) \
-                .eq('id', self.printer_id) \
-                .execute()
+            # Use raw table access to avoid schema cache issues
+            table = self.supabase.table('printers')
+            await table.update(updates).eq('id', self.printer_id).execute()
         except Exception as e:
             logger.error(f"Failed to update printer heartbeat: {e}")
+            # Don't crash - continue running
 
     async def get_pending_jobs(self) -> list:
         """Fetch all pending jobs for this printer (fallback poll)"""
