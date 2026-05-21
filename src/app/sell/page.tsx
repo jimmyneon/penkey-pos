@@ -332,9 +332,14 @@ export default function SellPage() {
     return a.name.localeCompare(b.name);
   });
 
-  // If Popular filter is ON, filter to show only popular items
+  // If Popular filter is ON, sort by popularity (don't filter out items)
+  // This ensures ALL items are shown, just reordered by sales data
   if (showPopular && popularItems.length > 0) {
-    filteredItems = filteredItems.filter(item => popularityMap.has(item.id));
+    filteredItems = filteredItems.sort((a, b) => {
+      const aRank = popularityMap.get(a.id) ?? 9999;
+      const bRank = popularityMap.get(b.id) ?? 9999;
+      return aRank - bRank;
+    });
   }
 
   // If Favourites filter is ON, filter to show only favourite items

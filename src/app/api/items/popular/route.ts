@@ -74,55 +74,118 @@ export async function GET(request: NextRequest) {
       // If function doesn't exist yet, fall back to simpler query
       console.log("[Popular Items] RPC function not found, using fallback query");
       
-      // Fallback: Get most sold items in last 30 days (no time filtering)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Fallback: Use weighted scoring (70% recent + 30% all-time)
+      // This picks up changes quickly while still respecting historical data
+      
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { data: receiptLines, error: fallbackError } = await supabase
-        .from("receipt_lines")
+      // Get ALL active items first
+      const { data: allItems, error: itemsError } = await supabase
+        .from("items")
         .select(`
-          item_id,
-          variant_id,
-          quantity,
-          items!inner(
-            id,
-            name,
-            image_url,
-            base_price,
-            has_variants,
-            category_id,
-            is_active,
-            categories(name, color),
-            item_variants(id, name, price, is_default)
-          )
+          id,
+          name,
+          image_url,
+          base_price,
+          has_variants,
+          category_id,
+          is_active,
+          categories(name, color),
+          item_variants(id, name, price, is_default)
         `)
         .eq("org_id", orgId)
-        .gte("created_at", thirtyDaysAgo.toISOString())
-        .eq("items.is_active", true);
+        .eq("is_active", true);
 
-      if (fallbackError) throw fallbackError;
+      if (itemsError) throw itemsError;
 
-      // Aggregate by item_id
-      const itemSales = new Map<string, { item: any; totalQuantity: number }>();
-      
-      receiptLines?.forEach((line: any) => {
-        const itemId = line.item_id;
-        if (!itemSales.has(itemId)) {
-          itemSales.set(itemId, {
-            item: line.items,
-            totalQuantity: 0,
-          });
-        }
-        const current = itemSales.get(itemId)!;
-        current.totalQuantity += parseFloat(line.quantity);
+      // Get recent sales (last 7 days)
+      const { data: recentLines, error: recentError } = await supabase
+        .from("receipt_lines")
+        .select("item_id, name, quantity, receipts!inner(created_at, status)")
+        .eq("org_id", orgId)
+        .gte("receipts.created_at", sevenDaysAgo.toISOString())
+        .neq("receipts.status", "fully_refunded")
+        .neq("receipts.status", "voided");
+
+      if (recentError) throw recentError;
+
+      // Get all-time sales
+      const { data: allTimeLines, error: allTimeError } = await supabase
+        .from("receipt_lines")
+        .select("item_id, name, quantity, receipts!inner(status)")
+        .eq("org_id", orgId)
+        .neq("receipts.status", "fully_refunded")
+        .neq("receipts.status", "voided");
+
+      if (allTimeError) throw allTimeError;
+
+      // Calculate scores for each item
+      const itemScores = new Map<string, { item: any; score: number; recentQty: number; allTimeQty: number }>();
+
+      // Initialize with all active items
+      allItems?.forEach((item: any) => {
+        itemScores.set(item.id, {
+          item,
+          score: 0,
+          recentQty: 0,
+          allTimeQty: 0,
+        });
       });
 
-      // Sort by quantity and take top items
-      const sortedItems = Array.from(itemSales.values())
-        .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      // Count recent sales (by item_id OR name matching)
+      recentLines?.forEach((line: any) => {
+        const qty = parseFloat(line.quantity || 0);
+        
+        // Try to match by item_id first
+        if (line.item_id && itemScores.has(line.item_id)) {
+          const entry = itemScores.get(line.item_id)!;
+          entry.recentQty += qty;
+        } else if (line.name) {
+          // Match by name for historical items (case-insensitive)
+          const matchingItem = allItems?.find((item: any) => 
+            item.name.toLowerCase() === line.name.toLowerCase()
+          );
+          if (matchingItem && itemScores.has(matchingItem.id)) {
+            const entry = itemScores.get(matchingItem.id)!;
+            entry.recentQty += qty;
+          }
+        }
+      });
+
+      // Count all-time sales (by item_id OR name matching)
+      allTimeLines?.forEach((line: any) => {
+        const qty = parseFloat(line.quantity || 0);
+        
+        // Try to match by item_id first
+        if (line.item_id && itemScores.has(line.item_id)) {
+          const entry = itemScores.get(line.item_id)!;
+          entry.allTimeQty += qty;
+        } else if (line.name) {
+          // Match by name for historical items (case-insensitive)
+          const matchingItem = allItems?.find((item: any) => 
+            item.name.toLowerCase() === line.name.toLowerCase()
+          );
+          if (matchingItem && itemScores.has(matchingItem.id)) {
+            const entry = itemScores.get(matchingItem.id)!;
+            entry.allTimeQty += qty;
+          }
+        }
+      });
+
+      // Calculate weighted score: 70% recent + 30% all-time
+      itemScores.forEach((entry) => {
+        entry.score = (entry.recentQty * 0.7) + (entry.allTimeQty * 0.3);
+      });
+
+      // Sort by score and take top items
+      const sortedItems = Array.from(itemScores.values())
+        .filter((entry) => entry.score > 0) // Only include items with sales
+        .sort((a, b) => b.score - a.score)
         .slice(0, limit)
         .map((entry) => entry.item);
 
+      console.log(`[Popular Items] Calculated ${sortedItems.length} items with weighted scores`);
       return NextResponse.json(sortedItems);
     }
 
