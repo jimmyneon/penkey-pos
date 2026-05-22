@@ -551,7 +551,10 @@ class PrintServer:
                 logger.debug("[Fallback] Polling for missed pending jobs...")
                 for job in await self.get_pending_jobs():
                     await self._dispatch_job(job)
-                # Only update status on startup/shutdown, not every heartbeat to avoid rate limits
+                
+                # Heartbeat - update last_seen_at periodically
+                printer_status = 'online' if self.printer else 'offline'
+                await self.update_printer_status(printer_status)
 
             except Exception as e:
                 logger.error(f"Error in main loop: {e}")
