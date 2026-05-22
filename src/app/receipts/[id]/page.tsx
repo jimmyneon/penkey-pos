@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Button, Badge } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
@@ -104,6 +104,8 @@ export default function TransactionDetailsPage() {
   const [showTransactionInfo, setShowTransactionInfo] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+  // Guards against double-fire of the refund handler while a request is in flight
+  const refundingRef = useRef(false);
 
   const [orgId, setOrgId] = useState<string | null>(null);
 
@@ -272,7 +274,13 @@ export default function TransactionDetailsPage() {
 
   const handleRefund = async (amount: number, reason: string, selectedItems?: string[]) => {
     if (!receipt) return;
-    
+    // Guard: prevent double-fire from rapid re-clicks while request is in flight
+    if (refundingRef.current) {
+      console.warn("[Refund] Refund already in flight, ignoring duplicate trigger");
+      return;
+    }
+    refundingRef.current = true;
+
     try {
       const sessionData = sessionStorage.getItem("pos_session");
       if (!sessionData) {
@@ -281,11 +289,19 @@ export default function TransactionDetailsPage() {
       }
 
       const session = JSON.parse(sessionData);
-      
+
+      // Read CSRF token from cookie so server-side validateCSRF passes
+      const csrfToken = (() => {
+        const m = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_token='));
+        return m ? m.substring('csrf_token='.length) : '';
+      })();
+
       const response = await fetch(`/api/receipts/${params.id}/refund`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
         },
         body: JSON.stringify({
           amount,
@@ -320,6 +336,8 @@ export default function TransactionDetailsPage() {
     } catch (error) {
       console.error("Error processing refund:", error);
       showToast(error instanceof Error ? error.message : "Failed to process refund", "error");
+    } finally {
+      refundingRef.current = false;
     }
   };
 

@@ -223,7 +223,26 @@ export async function POST(request: NextRequest) {
       console.error('[Receipt Create] Receipt insert failed:', receiptError);
       throw receiptError;
     }
-    console.log('[Receipt Create] Receipt inserted:', (receipt as any).id);
+    const newReceiptId = (receipt as any).id;
+    console.log('[Receipt Create] Receipt inserted:', newReceiptId);
+
+    // ✅ ATOMICITY: From this point on, any failure must roll back the receipt
+    // row so the next outbox retry (which uses the same idempotency_key) can
+    // create the receipt cleanly. Without this rollback, a partial insert
+    // (receipt with no lines/payment) would be permanently locked in by the
+    // idempotency check at the top of this handler.
+    const rollbackReceipt = async (reason: string, err: any) => {
+      console.error(`[Receipt Create] Rolling back receipt ${newReceiptId} - reason: ${reason}`, err);
+      try {
+        // Delete child rows first (no-op if none inserted yet, safe regardless of FK CASCADE settings)
+        await supabase.from("payments").delete().eq("receipt_id", newReceiptId);
+        await supabase.from("receipt_lines").delete().eq("receipt_id", newReceiptId);
+        await supabase.from("receipts").delete().eq("id", newReceiptId);
+        console.log(`[Receipt Create] Rollback complete for ${newReceiptId}`);
+      } catch (rollbackError) {
+        console.error(`[Receipt Create] CRITICAL: rollback failed for ${newReceiptId}:`, rollbackError);
+      }
+    };
 
     // Insert receipt lines
     const receiptLines = lines.map((line: any, index: number) => {
@@ -231,7 +250,7 @@ export async function POST(request: NextRequest) {
       const lineSubtotal = (line.unit_price + modifiersTotal) * line.quantity;
       const lineTax = lineSubtotal * (line.tax_rate || 0);
       return {
-        receipt_id: (receipt as any).id,
+        receipt_id: newReceiptId,
         org_id,
         item_id: line.item_id,
         variant_id: line.variant_id || null,
@@ -251,13 +270,14 @@ export async function POST(request: NextRequest) {
     const { error: linesError } = await supabase.from("receipt_lines").insert(receiptLines);
     if (linesError) {
       console.error('[Receipt Create] Lines insert failed:', linesError);
+      await rollbackReceipt('lines insert failed', linesError);
       throw linesError;
     }
     console.log('[Receipt Create] Lines inserted:', receiptLines.length);
 
     // Insert payment record
     const paymentData: any = {
-      receipt_id: (receipt as any).id,
+      receipt_id: newReceiptId,
       method: payment_method,
       amount: total,
       tip_amount: 0,
@@ -276,11 +296,14 @@ export async function POST(request: NextRequest) {
     const { error: paymentError } = await supabase.from("payments").insert(paymentData);
     if (paymentError) {
       console.error('[Receipt Create] Payment insert failed:', paymentError);
+      await rollbackReceipt('payment insert failed', paymentError);
       throw paymentError;
     }
     console.log('[Receipt Create] Payment inserted for method:', payment_method);
 
     // Batch inventory deduction
+    // NOTE: Inventory failures DO NOT roll back the receipt. Sales must always
+    // be recorded; inventory tracking is best-effort and can be reconciled later.
     const itemIds = [...new Set(lines.map((l: any) => l.item_id))];
     const { data: items } = await supabase
       .from("items")

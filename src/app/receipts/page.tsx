@@ -143,6 +143,27 @@ export default function ReceiptsPage() {
         const recent = await getAllByIndexRange<ReceiptData>("receipts", "by_created_at", sinceIso as any);
         idbReceipts = recent.filter(r => (r as any).org_id === orgId) as any;
         console.log(`[ReceiptsPage] Loaded ${idbReceipts.length} receipts from IndexedDB`);
+
+        // ✅ Cleanup stale orphan temp receipts (>5 min old). These are leftovers
+        // from older builds where the outbox sync didn't include an id and so
+        // never cleaned up the temp record after successful server sync.
+        try {
+          const { getDB } = await import("@/lib/idb/db");
+          const db = await getDB();
+          const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+          const stale = idbReceipts.filter((r: any) => {
+            if (!r.id || typeof r.id !== "string" || !r.id.startsWith("temp_")) return false;
+            const createdMs = new Date(r.created_at).getTime();
+            return Number.isFinite(createdMs) && createdMs < fiveMinutesAgo;
+          });
+          if (stale.length > 0) {
+            console.log(`[ReceiptsPage] Cleaning up ${stale.length} stale temp receipts`);
+            await Promise.all(stale.map((r: any) => db.delete("receipts", r.id)));
+            idbReceipts = idbReceipts.filter((r: any) => !stale.find((s: any) => s.id === r.id));
+          }
+        } catch (cleanupErr) {
+          console.warn("[ReceiptsPage] Failed to clean stale temp receipts:", cleanupErr);
+        }
       } catch (error) {
         console.error("[ReceiptsPage] Error loading from IndexedDB:", error);
       }
@@ -589,11 +610,17 @@ export default function ReceiptsPage() {
               const { receipt } = await detailResp.json();
               const remaining = (receipt.total || 0) - (receipt.refunded_amount || 0);
               if (remaining <= 0) continue;
+              const csrfToken = (() => {
+                const m = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_token='));
+                return m ? m.substring('csrf_token='.length) : '';
+              })();
               await fetch(`/api/receipts/${id}/refund`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                   'Content-Type': 'application/json',
                   'x-pos-session': sessionData,
+                  ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
                 },
                 body: JSON.stringify({ amount: remaining, reason: 'Void receipt', memberId: JSON.parse(sessionData).user_id, orgId: JSON.parse(sessionData).org_id }),
               });

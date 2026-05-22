@@ -345,7 +345,12 @@ export default function PaymentPage() {
     }
     paymentCompletedRef.current = true;
 
+    // Generate stable temp/idempotency ID up-front so it can be used as
+    // the idempotency key on the server and as the IndexedDB primary key.
+    const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     const receiptData = {
+      id: tempReceiptId, // ✅ Idempotency key — prevents duplicate receipts on outbox retry
       lines: lines,
       payment_method: "cash",
       cash_tendered: amount,
@@ -372,8 +377,6 @@ export default function PaymentPage() {
     });
 
     try {
-      // Generate receipt ID
-      const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const changeAmount = change.toFixed(2);
 
       // Calculate subtotal and tax from lines
@@ -404,8 +407,8 @@ export default function PaymentPage() {
       
       // OFFLINE-FIRST: Save locally immediately for instant response
       // Include ALL fields needed for printing
+      // Note: receiptData already includes id (tempReceiptId) used as idempotency key.
       const receiptToSave = {
-        id: tempReceiptId,
         ...receiptData,
         lines: linesWithTotals,
         created_at: new Date().toISOString(),
@@ -478,7 +481,12 @@ export default function PaymentPage() {
     }
     paymentCompletedRef.current = true;
 
+    // Generate stable temp/idempotency ID up-front so it can be used as
+    // the idempotency key on the server and as the IndexedDB primary key.
+    const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     const receiptData = {
+      id: tempReceiptId, // ✅ Idempotency key — prevents duplicate receipts on outbox retry
       lines: lines,
       payment_method: `manual_${method}`,
       cash_tendered: method === "cash" ? total : 0,
@@ -498,7 +506,6 @@ export default function PaymentPage() {
     console.log('[Payment] Creating manual receipt with method:', method);
 
     try {
-      const tempReceiptId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       const subtotal = lines.reduce((sum, line) => {
         const modifiersTotal = (line.modifiers || []).reduce((s: number, m: any) => s + (m.price_adjustment || 0), 0);
@@ -523,8 +530,8 @@ export default function PaymentPage() {
         };
       });
       
+      // Note: receiptData already includes id (tempReceiptId) used as idempotency key.
       const receiptToSave = {
-        id: tempReceiptId,
         ...receiptData,
         lines: linesWithTotals,
         created_at: new Date().toISOString(),

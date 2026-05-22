@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
-import { validatePOSSession } from "@/lib/api/auth";
+import { validatePOSSession, unauthorizedResponse } from "@/lib/api/auth";
+import { validateCSRF, csrfErrorResponse } from "@/lib/api/csrf-middleware";
 
 export async function POST(
   request: NextRequest,
@@ -9,6 +10,21 @@ export async function POST(
 ) {
   try {
     const { id: receiptId } = await params;
+
+    // ✅ SECURITY: Validate session — refunds touch real money so this must be authenticated
+    const session = await validatePOSSession(request);
+    if (!session) {
+      console.warn(`[API-AUTH] Unauthorized POST /api/receipts/${receiptId}/refund`);
+      return unauthorizedResponse();
+    }
+
+    // ✅ SECURITY: Validate CSRF token
+    const csrfValid = await validateCSRF(request);
+    if (!csrfValid) {
+      console.warn(`[API-CSRF] Invalid CSRF token for POST /api/receipts/${receiptId}/refund`);
+      return csrfErrorResponse();
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -28,6 +44,43 @@ export async function POST(
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    // ✅ SECURITY: org_id from body must match the authenticated session's org
+    if (orgId !== session.org_id) {
+      console.warn(`[API-AUTH] Org mismatch on refund - body: ${orgId}, session: ${session.org_id}`);
+      return unauthorizedResponse();
+    }
+
+    // ✅ DUPLICATE PREVENTION: Block accidental double-clicks / retries.
+    // If a completed refund for the same receipt with the same amount already
+    // exists in the last 30s, return that one instead of issuing another.
+    // For SumUp card payments this is critical — each call hits SumUp's refund
+    // endpoint and would otherwise refund the customer twice.
+    try {
+      const thirtySecondsAgo = new Date(Date.now() - 30_000).toISOString();
+      const { data: recentDup } = await supabase
+        .from("refunds")
+        .select("id, refund_number, amount, status, created_at")
+        .eq("receipt_id", receiptId)
+        .eq("amount", amount)
+        .eq("status", "completed")
+        .gte("created_at", thirtySecondsAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentDup) {
+        console.warn(`[Refund] Duplicate refund attempt blocked for receipt ${receiptId} amount ${amount} (existing: ${(recentDup as any).id})`);
+        return NextResponse.json({
+          success: true,
+          duplicate: true,
+          refund: recentDup,
+          message: "Refund already processed",
+        });
+      }
+    } catch (dedupErr) {
+      console.error("[Refund] Duplicate check failed (continuing cautiously):", dedupErr);
     }
 
     // Get receipt details
