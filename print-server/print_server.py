@@ -80,12 +80,7 @@ class PrintServer:
         # Disable schema caching to avoid cache mismatch errors
         self.supabase = AsyncClient(
             self.supabase_url, 
-            self.supabase_key,
-            options={
-                'db': {
-                    'schema': 'public'
-                }
-            }
+            self.supabase_key
         )
         
         logger.info("Connected to Supabase")
