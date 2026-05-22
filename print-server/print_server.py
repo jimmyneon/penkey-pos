@@ -77,48 +77,33 @@ class PrintServer:
 
     async def connect(self) -> None:
         """Connect to Supabase and initialise printer"""
-        # Try to connect to Supabase, but don't fail if not available
-        try:
-            # Disable schema caching to avoid cache mismatch errors
-            self.supabase = AsyncClient(
-                self.supabase_url, 
-                self.supabase_key,
-                options={
-                    'db': {
-                        'schema': 'public'
-                    }
+        # Disable schema caching to avoid cache mismatch errors
+        self.supabase = AsyncClient(
+            self.supabase_url, 
+            self.supabase_key,
+            options={
+                'db': {
+                    'schema': 'public'
                 }
-            )
-            logger.info("Connected to Supabase")
-        except Exception as e:
-            logger.warning(f"Could not connect to Supabase: {e} - will run in offline mode")
-            self.supabase = None
+            }
+        )
         
-        # Set up local file logging (always works)
+        logger.info("Connected to Supabase")
+        
+        # Set up Supabase log handler for remote logging (works without printer)
         try:
-            file_handler = logging.FileHandler('/home/jimmy/print-server/print.log')
-            file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-            logging.getLogger().addHandler(file_handler)
-            logger.info("[Logging] Local file logging initialized")
+            self.supabase_log_handler = SupabaseLogHandler(
+                self.supabase,
+                self.printer_id,
+                batch_size=10,
+                flush_interval=5.0,
+                level=logging.INFO  # Only send INFO and above to Supabase
+            )
+            # Add to root logger so all logs go to Supabase
+            logging.getLogger().addHandler(self.supabase_log_handler)
+            logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
         except Exception as e:
-            logger.warning(f"[Logging] Failed to initialize local file logging: {e}")
-        
-        # Set up Supabase log handler (only if Supabase is available)
-        if self.supabase:
-            try:
-                self.supabase_log_handler = SupabaseLogHandler(
-                    self.supabase,
-                    self.printer_id,
-                    batch_size=10,
-                    flush_interval=5.0,
-                    level=logging.INFO  # Only send INFO and above to Supabase
-                )
-                # Add to root logger so all logs go to Supabase
-                logging.getLogger().addHandler(self.supabase_log_handler)
-                logger.info("[Logging] Supabase log handler initialized - logs will be sent to database")
-            except Exception as e:
-                logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
+            logger.warning(f"[Logging] Failed to initialize Supabase log handler: {e} - continuing with local logs only")
         
         # Try to connect to printer, but don't fail if not connected
         try:
@@ -228,10 +213,6 @@ class PrintServer:
             else:
                 logger.debug(f"[Realtime] Channel status: {status}")
 
-        if not self.supabase:
-            logger.warning("[Realtime] Supabase not connected - skipping realtime subscription")
-            return
-
         channel = (
             self.supabase
             .channel(f"print-jobs-{self.printer_id}")
@@ -289,10 +270,6 @@ class PrintServer:
                 logger.info("[Realtime] Subscribed to printer config changes (remote commands)")
             elif status in ('CHANNEL_ERROR', 'TIMED_OUT'):
                 logger.warning(f"[Realtime] Printer config channel issue ({status}): {err}")
-
-        if not self.supabase:
-            logger.warning("[Realtime] Supabase not connected - skipping printer command subscription")
-            return
 
         cmd_channel = (
             self.supabase
