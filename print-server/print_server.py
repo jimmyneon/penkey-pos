@@ -83,7 +83,7 @@ class PrintServer:
             self.supabase_key
         )
         
-        logger.info("Connected to Supabase")
+        logger.info("Connected to Supabase - auto-update test")
         
         # Set up Supabase log handler for remote logging (works without printer)
         try:
