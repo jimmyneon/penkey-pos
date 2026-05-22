@@ -144,7 +144,7 @@ class PrintServer:
             # Fetch latest from origin
             fetch_result = subprocess.run(
                 ['git', 'fetch', 'origin', 'main'],
-                cwd='/home/jimmy/penkey-pos',
+                cwd='/home/jimmy/print-server',
                 capture_output=True,
                 text=True,
                 timeout=30
@@ -157,7 +157,7 @@ class PrintServer:
             # Check if local is behind remote
             status_result = subprocess.run(
                 ['git', 'rev-list', '--count', 'HEAD..origin/main'],
-                cwd='/home/jimmy/penkey-pos',
+                cwd='/home/jimmy/print-server',
                 capture_output=True,
                 text=True,
                 timeout=10
@@ -175,7 +175,7 @@ class PrintServer:
                 # Pull the updates
                 pull_result = subprocess.run(
                     ['git', 'pull', 'origin', 'main'],
-                    cwd='/home/jimmy/penkey-pos',
+                    cwd='/home/jimmy/print-server',
                     capture_output=True,
                     text=True,
                     timeout=30
@@ -227,6 +227,10 @@ class PrintServer:
                 logger.warning(f"[Realtime] Channel issue ({status}): {err} — fallback poll active")
             else:
                 logger.debug(f"[Realtime] Channel status: {status}")
+
+        if not self.supabase:
+            logger.warning("[Realtime] Supabase not connected - skipping realtime subscription")
+            return
 
         channel = (
             self.supabase
@@ -285,6 +289,10 @@ class PrintServer:
                 logger.info("[Realtime] Subscribed to printer config changes (remote commands)")
             elif status in ('CHANNEL_ERROR', 'TIMED_OUT'):
                 logger.warning(f"[Realtime] Printer config channel issue ({status}): {err}")
+
+        if not self.supabase:
+            logger.warning("[Realtime] Supabase not connected - skipping printer command subscription")
+            return
 
         cmd_channel = (
             self.supabase
