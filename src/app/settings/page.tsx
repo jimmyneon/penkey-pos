@@ -1330,6 +1330,21 @@ export default function SettingsPage() {
                     <span className="text-white text-lg font-semibold">{totalScans}</span>
                   </div>
                 </SettingRow>
+
+                <SettingRow
+                  label="View Metrics"
+                  description="Detailed scan statistics and goals"
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push("/qr-metrics")}
+                    className="min-h-[44px] min-w-[140px] border-gray-600 text-black"
+                  >
+                    <QrCode className="h-4 w-4 mr-2" />
+                    View Metrics
+                  </Button>
+                </SettingRow>
               </>
             ) : (
               <>
