@@ -704,21 +704,40 @@ export function PenkeyPromptsBar({
         )}
       </div>
 
+      {/* Backdrop for expanded upsell section */}
+      {expansionHeight > 0 && currentPrompt.expandable && upsellSuggestions.length > 0 && (
+        <div 
+          className={`fixed inset-0 bg-black/70 z-10 transition-opacity duration-300 ${
+            isExpanded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => {
+            if (autoCollapseTimeoutRef.current) {
+              clearTimeout(autoCollapseTimeoutRef.current);
+            }
+            isCollapsingRef.current = true;
+            setIsCollapsing(true);
+            setIsExpanded(false);
+            setDragOffset(0);
+            setTimeout(() => {
+              isCollapsingRef.current = false;
+              setIsCollapsing(false);
+            }, 300);
+          }}
+        />
+      )}
+
       {/* Expandable Upsell Items Section - Seamlessly connected to bar */}
       {expansionHeight > 0 && currentPrompt.expandable && upsellSuggestions.length > 0 && (
         <div 
-          className="fixed left-0 right-0 bottom-0 bg-[#3d3d3d] z-20 overflow-hidden"
+          className="fixed left-0 right-0 bottom-0 bg-[#3d3d3d] z-20 overflow-hidden rounded-t-3xl sm:rounded-xl"
           style={{
             height: `${expansionHeight}px`,
             borderLeft: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
             borderRight: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
             borderBottom: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
             borderTop: 'none',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
             transitionProperty: 'height, border-left-color, border-right-color, border-bottom-color',
             transitionDuration: isDragging ? '0s' : '0.3s, 0.5s, 0.5s, 0.5s',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.3)',
           }}
         >
           <div 
