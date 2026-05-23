@@ -6,6 +6,7 @@ import { Button } from "@penkey/ui";
 import { Delete, LogOut } from "lucide-react";
 import { dataCache } from "@/lib/services/data-cache";
 import { registerSettings } from "@/lib/services/register-settings";
+import { userPreferences } from "@/lib/services/user-preferences";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { prefetchOrgData } from "@/lib/offline/prefetch";
 import { verifyPinLocally, cachePinHashes, getCachedRegister } from "@/lib/services/pin-cache";
@@ -163,6 +164,13 @@ export default function LockPage() {
         registerSettings.migrateFromLocalStorage(data.register.id)
           .then(() => console.log("[Lock] Settings migrated successfully"))
           .catch((err) => console.error("[Lock] Settings migration failed:", err));
+      }
+
+      // ⚡ PERFORMANCE: Move user preferences migration to background (don't block redirect)
+      if (data.user_id && data.org_id) {
+        userPreferences.migrateFromLocalStorage(data.user_id, data.org_id)
+          .then(() => console.log("[Lock] User preferences migrated successfully"))
+          .catch((err) => console.error("[Lock] User preferences migration failed:", err));
       }
 
       // Pre-load and cache all data AFTER successful PIN entry (non-blocking)

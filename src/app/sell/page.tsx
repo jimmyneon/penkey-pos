@@ -36,6 +36,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { upsellLearningEngine } from "@/lib/services/upsell-learning-engine";
 import { useRegisterSettings } from "@/lib/hooks/use-register-settings";
+import { useUserPreferences } from "@/lib/hooks/use-user-preferences";
 import { getAll, getByKey } from "@/lib/idb/db";
 import { modifierRAMCache } from "@/lib/services/modifier-ram-cache";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
@@ -43,6 +44,7 @@ import { CartSyncService } from "@/lib/services/cart-sync";
 import { TicketSyncService } from "@/lib/services/ticket-sync";
 
 interface Session {
+  user_id: string;
   employee: {
     id: string;
     name: string;
@@ -51,6 +53,7 @@ interface Session {
   register: {
     id: string;
     name: string;
+    store_id: string;
     store_name: string;
   };
   org_id: string;
@@ -69,21 +72,11 @@ export default function SellPage() {
   
   // Load register settings with realtime sync
   const { settings: registerSettingsData, updateSetting: updateRegisterSetting } = useRegisterSettings(session?.register?.id);
+  
+  // Load user preferences with realtime sync (scoped to individual user)
+  const { preferences: userPreferencesData, updatePreference: updateUserPreference } = useUserPreferences(session?.user_id, session?.org_id);
+  
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const [showPopular, setShowPopular] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('showPopular');
-      return saved !== null ? saved === 'true' : true;
-    }
-    return true;
-  });
-  const [showFavourites, setShowFavourites] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('showFavourites');
-      return saved === 'true';
-    }
-    return false;
-  });
   const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [pendingItemEvent, setPendingItemEvent] = useState<React.MouseEvent | null>(null);
@@ -290,14 +283,7 @@ export default function SellPage() {
     };
   }, [upsellDebounceTimer, upsellResetTimer]);
 
-  // Persist filter states to localStorage
-  useEffect(() => {
-    localStorage.setItem('showPopular', showPopular.toString());
-  }, [showPopular]);
-
-  useEffect(() => {
-    localStorage.setItem('showFavourites', showFavourites.toString());
-  }, [showFavourites]);
+  // Filter states are now persisted to database via userPreferences (scoped to individual user)
 
   // Filter and sort items by search query and popularity
   const searchLower = searchQuery.toLowerCase();
@@ -338,7 +324,7 @@ export default function SellPage() {
 
   // If Popular filter is ON, sort by popularity (don't filter out items)
   // This ensures ALL items are shown, just reordered by sales data
-  if (showPopular && popularItems.length > 0) {
+  if (userPreferencesData.show_popular && popularItems.length > 0) {
     filteredItems = filteredItems.sort((a, b) => {
       const aRank = popularityMap.get(a.id) ?? 9999;
       const bRank = popularityMap.get(b.id) ?? 9999;
@@ -347,7 +333,7 @@ export default function SellPage() {
   }
 
   // If Favourites filter is ON, filter to show only favourite items
-  if (showFavourites) {
+  if (userPreferencesData.show_favourites) {
     filteredItems = filteredItems.filter(item => (item as any).is_favourite === true);
   }
 
@@ -1635,27 +1621,27 @@ export default function SellPage() {
                 </button>
                 <div className="flex-1" />
                 <button
-                  onClick={() => setShowPopular(!showPopular)}
+                  onClick={() => updateUserPreference('show_popular', !userPreferencesData.show_popular)}
                   className={`rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap min-w-fit ${
-                    showPopular
+                    userPreferencesData.show_popular
                       ? "bg-gradient-to-br from-yellow-500 to-orange-500 text-white"
                       : "bg-[#3d3d3d] text-white hover:bg-[#4d4d4d]"
                   }`}
                   title="Toggle popular items filter"
                 >
-                  <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${showPopular ? "fill-white" : ""}`} />
+                  <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${userPreferencesData.show_popular ? "fill-white" : ""}`} />
                   <span className="text-xs sm:text-sm">Popular</span>
                 </button>
                 <button
-                  onClick={() => setShowFavourites(!showFavourites)}
+                  onClick={() => updateUserPreference('show_favourites', !userPreferencesData.show_favourites)}
                   className={`rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap min-w-fit ${
-                    showFavourites
+                    userPreferencesData.show_favourites
                       ? "bg-gradient-to-br from-yellow-400 to-yellow-500 text-[#2d2d2d]"
                       : "bg-[#3d3d3d] text-white hover:bg-[#4d4d4d]"
                   }`}
                   title="Toggle favourites filter"
                 >
-                  <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${showFavourites ? "fill-[#2d2d2d]" : ""}`} />
+                  <Star className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${userPreferencesData.show_favourites ? "fill-[#2d2d2d]" : ""}`} />
                   <span className="text-xs sm:text-sm">Favourites</span>
                 </button>
                 <Button
