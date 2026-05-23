@@ -150,7 +150,7 @@ export function UpsellPanel({
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/70 z-40 transition-opacity duration-300 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}
         onClick={() => handleClose(false)}
@@ -163,9 +163,7 @@ export function UpsellPanel({
         } transition-opacity duration-300`}
       >
         <div
-          className={`bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto shadow-2xl transition-transform ease-out ${
-            isVisible ? "translate-y-0" : "translate-y-full"
-          }`}
+          className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
         {/* Header */}

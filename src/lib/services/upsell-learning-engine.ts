@@ -271,8 +271,19 @@ export class UpsellLearningEngine {
         if (seenNames.has(item.name)) continue;
         if (!item.category_id) continue;
         
+        // Exclude gifts and retail items
+        const itemName = item.name.toLowerCase();
+        const isGiftOrRetail = itemName.includes('gift') || 
+                             itemName.includes('retail') ||
+                             itemName.includes('card') ||
+                             itemName.includes('merchandise');
+        if (isGiftOrRetail) continue;
+        
         const itemCategoryName = this.categoryMap.get(item.category_id)?.toLowerCase();
         if (!itemCategoryName) continue;
+        
+        // Also exclude by category name
+        if (itemCategoryName.includes('gift') || itemCategoryName.includes('retail')) continue;
         
         // Check if item's category matches the paired category
         if (itemCategoryName.includes(pairedCatName) || pairedCatName.includes(itemCategoryName)) {
@@ -291,10 +302,28 @@ export class UpsellLearningEngine {
    */
   private getRandomFallback(itemsInCart: Set<string>, limit: number): Item[] {
     const complementaryItems = this.items
-      .filter(item => 
-        item.id &&
-        !itemsInCart.has(item.id)
-      );
+      .filter(item => {
+        if (!item.id) return false;
+        if (itemsInCart.has(item.id)) return false;
+        
+        // Exclude gifts and retail items
+        const itemName = item.name.toLowerCase();
+        const isGiftOrRetail = itemName.includes('gift') || 
+                             itemName.includes('retail') ||
+                             itemName.includes('card') ||
+                             itemName.includes('merchandise');
+        if (isGiftOrRetail) return false;
+        
+        // Also exclude by category name if available
+        if (item.category_id) {
+          const categoryName = this.categoryMap.get(item.category_id)?.toLowerCase();
+          if (categoryName && (categoryName.includes('gift') || categoryName.includes('retail'))) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
     
     // Shuffle and take first N
     const shuffled = complementaryItems.sort(() => Math.random() - 0.5);
@@ -308,6 +337,22 @@ export class UpsellLearningEngine {
     return this.items
       .filter(item => {
         if (itemsInCart.has(item.id)) return false;
+        
+        // Exclude gifts and retail items
+        const itemName = item.name.toLowerCase();
+        const isGiftOrRetail = itemName.includes('gift') || 
+                             itemName.includes('retail') ||
+                             itemName.includes('card') ||
+                             itemName.includes('merchandise');
+        if (isGiftOrRetail) return false;
+        
+        // Also exclude by category name if available
+        if (item.category_id) {
+          const categoryName = this.categoryMap.get(item.category_id)?.toLowerCase();
+          if (categoryName && (categoryName.includes('gift') || categoryName.includes('retail'))) {
+            return false;
+          }
+        }
         
         const price = item.has_variants
           ? Math.max(...(item.item_variants?.map(v => v.price) || [0]))
