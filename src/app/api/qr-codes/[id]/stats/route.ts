@@ -14,7 +14,7 @@ export async function GET(
     const { id } = params;
     
     // Get total scans
-    const { data: totalScans, error: totalError } = await supabase
+    const { count: totalScans, error: totalError } = await supabase
       .from('qr_scans')
       .select('id', { count: 'exact', head: true })
       .eq('qr_code_id', id);
