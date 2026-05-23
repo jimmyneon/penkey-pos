@@ -265,6 +265,7 @@ export function UpsellPanel({
           </button>
         </div>
       </div>
+    </div>
     </>
   );
 }
