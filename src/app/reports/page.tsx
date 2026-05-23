@@ -10,6 +10,8 @@ import { useSalesByItems } from "@/lib/hooks/use-sales-by-items";
 import { useSalesByTransactionType } from "@/lib/hooks/use-sales-by-transaction-type";
 import { useSalesByEmployee } from "@/lib/hooks/use-sales-by-employee";
 import { useHourlySales } from "@/lib/hooks/use-hourly-sales";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -18,7 +20,10 @@ export default function ReportsPage() {
   const [customDays, setCustomDays] = useState(30);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
-  const [selectingEndDate, setSelectingEndDate] = useState(false);
+  const [selectedRange, setSelectedRange] = useState<{ from: Date | undefined; to?: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showAllItems, setShowAllItems] = useState(false);
   const [showWorstSelling, setShowWorstSelling] = useState(false);
@@ -442,7 +447,7 @@ export default function ReportsPage() {
               <button
                 onClick={() => {
                   setSelectedPeriod("custom");
-                  setSelectingEndDate(false);
+                  setSelectedRange({ from: undefined, to: undefined });
                   setShowCustomDate(true);
                 }}
                 className={`w-full py-4 px-4 rounded-xl font-semibold text-base transition-all min-h-[56px] flex items-center justify-center gap-2 active:scale-95 ${
@@ -1397,29 +1402,51 @@ export default function ReportsPage() {
             </div>
             
             <div className="space-y-4">
-              <div>
-                <label className="text-sm text-gray-400 mb-2 block">
-                  {selectingEndDate ? "Select End Date" : "Select Start Date"}
-                </label>
-                <input
-                  type="date"
-                  value={selectingEndDate ? customEndDate : customStartDate}
-                  onChange={(e) => {
-                    if (!selectingEndDate) {
-                      setCustomStartDate(e.target.value);
-                      setSelectingEndDate(true);
-                    } else {
-                      setCustomEndDate(e.target.value);
+              <div className="bg-[#2d2d2d] rounded-lg p-4">
+                <style>{`
+                  .rdp {
+                    --rdp-background-color: #2d2d2d;
+                    --rdp-text-color: white;
+                    --rdp-accent-color: #f97316;
+                    --rdp-accent-background-color: #f97316;
+                  }
+                  .rdp-day_selected, .rdp-day_range-start, .rdp-day_range-end {
+                    background-color: #f97316 !important;
+                    color: white !important;
+                  }
+                  .rdp-day_range {
+                    background-color: rgba(249, 115, 22, 0.3) !important;
+                  }
+                  .rdp-head_cell {
+                    color: #9ca3af;
+                  }
+                  .rdp-nav_button {
+                    color: white;
+                  }
+                `}</style>
+                <DayPicker
+                  mode="range"
+                  selected={selectedRange}
+                  onSelect={(range) => {
+                    if (range) {
+                      setSelectedRange(range);
+                      if (range.from) {
+                        setCustomStartDate(range.from.toISOString().split('T')[0]);
+                      }
+                      if (range.to) {
+                        setCustomEndDate(range.to.toISOString().split('T')[0]);
+                      }
                     }
                   }}
-                  className="w-full bg-[#2d2d2d] text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-penkey-orange focus:outline-none"
+                  numberOfMonths={1}
+                  className="rdp"
                 />
               </div>
               
-              {customStartDate && (
-                <div className="text-sm text-gray-400">
-                  {customStartDate && <span>Start: {new Date(customStartDate).toLocaleDateString('en-GB')}</span>}
-                  {customStartDate && customEndDate && <span> • End: {new Date(customEndDate).toLocaleDateString('en-GB')}</span>}
+              {selectedRange.from && (
+                <div className="text-sm text-gray-400 text-center">
+                  {selectedRange.from && <span>Start: {selectedRange.from.toLocaleDateString('en-GB')}</span>}
+                  {selectedRange.to && <span> • End: {selectedRange.to.toLocaleDateString('en-GB')}</span>}
                 </div>
               )}
               
@@ -1429,9 +1456,9 @@ export default function ReportsPage() {
                     const end = new Date();
                     const start = new Date();
                     start.setDate(start.getDate() - 7);
+                    setSelectedRange({ from: start, to: end });
                     setCustomStartDate(start.toISOString().split('T')[0]);
                     setCustomEndDate(end.toISOString().split('T')[0]);
-                    setSelectingEndDate(false);
                   }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
@@ -1442,9 +1469,9 @@ export default function ReportsPage() {
                     const end = new Date();
                     const start = new Date();
                     start.setDate(start.getDate() - 30);
+                    setSelectedRange({ from: start, to: end });
                     setCustomStartDate(start.toISOString().split('T')[0]);
                     setCustomEndDate(end.toISOString().split('T')[0]);
-                    setSelectingEndDate(false);
                   }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
@@ -1455,9 +1482,9 @@ export default function ReportsPage() {
                     const end = new Date();
                     const start = new Date();
                     start.setDate(start.getDate() - 90);
+                    setSelectedRange({ from: start, to: end });
                     setCustomStartDate(start.toISOString().split('T')[0]);
                     setCustomEndDate(end.toISOString().split('T')[0]);
-                    setSelectingEndDate(false);
                   }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
