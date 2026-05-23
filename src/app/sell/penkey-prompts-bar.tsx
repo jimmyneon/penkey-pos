@@ -123,7 +123,6 @@ export function PenkeyPromptsBar({
   const isCollapsingRef = useRef(false);
   const isExpandedRef = useRef(false);
   const collapsingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const maxDragHeight = 450; // Max height for expanded section - enough space for all buttons
 
   // Keep ref in sync with state
@@ -434,12 +433,6 @@ export function PenkeyPromptsBar({
       else if ((deltaY > 100 || (deltaY > 50 && velocity > 0.5)) && isExpanded) {
         hapticButtonPress();
         
-        // Clear auto-collapse timer
-        if (autoCollapseTimeoutRef.current) {
-          clearTimeout(autoCollapseTimeoutRef.current);
-          autoCollapseTimeoutRef.current = null;
-        }
-        
         isCollapsingRef.current = true;
         setIsCollapsing(true);
         setIsExpanded(false);
@@ -461,12 +454,6 @@ export function PenkeyPromptsBar({
       } else if (dragOffset > 0) {
         // Only snap to closed if we actually dragged (dragOffset > 0)
         hapticButtonPress(); // Haptic on snap
-        
-        // Clear auto-collapse timer
-        if (autoCollapseTimeoutRef.current) {
-          clearTimeout(autoCollapseTimeoutRef.current);
-          autoCollapseTimeoutRef.current = null;
-        }
         
         isCollapsingRef.current = true;
         setIsCollapsing(true);
@@ -556,43 +543,10 @@ export function PenkeyPromptsBar({
     
     console.log('[PromptsBar] 🛒 Upsell item clicked:', item.name);
     
-    // Clear any existing auto-collapse timer and restart it
-    if (autoCollapseTimeoutRef.current) {
-      clearTimeout(autoCollapseTimeoutRef.current);
-      console.log('[PromptsBar] 🔄 Restarting auto-collapse timer (6s)');
-    }
-    
-    // Start auto-collapse timer - collapses after 6 seconds of inactivity
-    autoCollapseTimeoutRef.current = setTimeout(() => {
-      console.log('[PromptsBar] ⏰ Auto-collapsing after 6s of inactivity');
-      
-      // Set collapsing flag to block prompt changes
-      isCollapsingRef.current = true;
-      setIsCollapsing(true);
-      
-      setIsExpanded(false);
-      setDragOffset(0);
-      
-      // Don't clear suggestions - just collapse the bar
-      // Suggestions should persist until ticket is saved/cleared
-      
-      // Wait 15 seconds after auto-collapse before allowing prompt changes
-      setTimeout(() => {
-        isCollapsingRef.current = false;
-        setIsCollapsing(false);
-        console.log('[PromptsBar] 🟢 15s grace period ended - prompts can update now');
-      }, 15000);
-      
-      autoCollapseTimeoutRef.current = null;
-    }, 6000);
-    
     hapticItemAdded();
     if (onSelectUpsellItem) {
       onSelectUpsellItem(item, event);
     }
-    
-    // Wait 1 second after collapse before allowing prompt rotation
-    // This keeps the upsell prompt visible briefly after selection
   };
 
   if (!currentPrompt) return null;
@@ -622,35 +576,22 @@ export function PenkeyPromptsBar({
   
   return (
     <>
-      {/* Backdrop blur when expanded - only blur tiled items area */}
+      {/* Backdrop when expanded - full screen like reports modal */}
       {expansionHeight > 0 && (
         <div 
-          className="fixed left-0 right-0 z-20 backdrop-blur-sm bg-black/30 transition-opacity duration-200"
+          className={`fixed inset-0 bg-black/70 z-10 transition-opacity duration-300 ${
+            isExpanded ? 'opacity-100' : 'opacity-0'
+          }`}
           onClick={() => {
-            // Clear auto-collapse timer
-            if (autoCollapseTimeoutRef.current) {
-              clearTimeout(autoCollapseTimeoutRef.current);
-              autoCollapseTimeoutRef.current = null;
-            }
-            
             isCollapsingRef.current = true;
             setIsCollapsing(true);
             setIsExpanded(false);
             setDragOffset(0);
             
-            // Don't clear suggestions - just collapse the bar
-            // Suggestions should persist as long as items are in cart
-            
             setTimeout(() => {
               isCollapsingRef.current = false;
               setIsCollapsing(false);
-            }, 500);
-          }}
-          style={{
-            top: '220px', // Below category selector
-            bottom: `${74 + expansionHeight}px`,
-            backdropFilter: `blur(${expandProgress * 6}px)`,
-            opacity: expandProgress * 0.8,
+            }, 300);
           }}
         />
       )}
@@ -704,28 +645,6 @@ export function PenkeyPromptsBar({
         )}
       </div>
 
-      {/* Backdrop for expanded upsell section */}
-      {expansionHeight > 0 && currentPrompt.expandable && upsellSuggestions.length > 0 && (
-        <div 
-          className={`fixed inset-0 bg-black/70 z-10 transition-opacity duration-300 ${
-            isExpanded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={() => {
-            if (autoCollapseTimeoutRef.current) {
-              clearTimeout(autoCollapseTimeoutRef.current);
-            }
-            isCollapsingRef.current = true;
-            setIsCollapsing(true);
-            setIsExpanded(false);
-            setDragOffset(0);
-            setTimeout(() => {
-              isCollapsingRef.current = false;
-              setIsCollapsing(false);
-            }, 300);
-          }}
-        />
-      )}
-
       {/* Expandable Upsell Items Section - Seamlessly connected to bar */}
       {expansionHeight > 0 && currentPrompt.expandable && upsellSuggestions.length > 0 && (
         <div 
@@ -752,52 +671,12 @@ export function PenkeyPromptsBar({
               transition: 'all 0.3s ease-out',
             }}
             onTouchStart={() => {
-              // Reset timer when user touches the grid
-              if (autoCollapseTimeoutRef.current) {
-                clearTimeout(autoCollapseTimeoutRef.current);
-                console.log('[PromptsBar] 🔄 Restarting timer - user touching grid');
-                autoCollapseTimeoutRef.current = setTimeout(() => {
-                  console.log('[PromptsBar] ⏰ Auto-collapsing after 6s of inactivity');
-                  
-                  isCollapsingRef.current = true;
-                  setIsCollapsing(true);
-                  
-                  setIsExpanded(false);
-                  setDragOffset(0);
-                  // Don't clear suggestions - they persist until ticket is saved
-                  
-                  setTimeout(() => {
-                    isCollapsingRef.current = false;
-                    setIsCollapsing(false);
-                  }, 15000);
-                  
-                  autoCollapseTimeoutRef.current = null;
-                }, 6000);
-              }
+              // No auto-collapse - user controls manually
+              console.log('[PromptsBar] User touching grid');
             }}
             onScroll={() => {
-              // Reset timer when user scrolls
-              if (autoCollapseTimeoutRef.current) {
-                clearTimeout(autoCollapseTimeoutRef.current);
-                console.log('[PromptsBar] 🔄 Restarting timer - user scrolling');
-                autoCollapseTimeoutRef.current = setTimeout(() => {
-                  console.log('[PromptsBar] ⏰ Auto-collapsing after 6s of inactivity');
-                  
-                  isCollapsingRef.current = true;
-                  setIsCollapsing(true);
-                  
-                  setIsExpanded(false);
-                  setDragOffset(0);
-                  // Don't clear suggestions - they persist until ticket is saved
-                  
-                  setTimeout(() => {
-                    isCollapsingRef.current = false;
-                    setIsCollapsing(false);
-                  }, 15000);
-                  
-                  autoCollapseTimeoutRef.current = null;
-                }, 6000);
-              }
+              // No auto-collapse - user controls manually
+              console.log('[PromptsBar] User scrolling grid');
             }}
           >
             {upsellSuggestions.map((item) => {

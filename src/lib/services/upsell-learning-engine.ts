@@ -138,7 +138,7 @@ export class UpsellLearningEngine {
     const itemsInCart = new Set(cartLines.map(line => line.item_id));
     const seenNames = new Set<string>(); // Track names to avoid duplicate items with same name
     
-    // Strategy 1: Learned associations (highest priority)
+    // Strategy 1: Learned associations (highest priority) - "people who bought X also bought Y"
     const learnedSuggestions = this.getLearnedAssociations(
       triggerItem,
       itemsInCart
@@ -150,7 +150,19 @@ export class UpsellLearningEngine {
       }
     }
     
-    // Strategy 2: Category-based fallback (if not enough learned data)
+    // Strategy 2: High-value items (premium upsell) - always include some premium options
+    const premiumSuggestions = this.getHighValueItems(
+      itemsInCart,
+      limit * 2 // Get more to filter from
+    );
+    for (const item of premiumSuggestions) {
+      if (!seenNames.has(item.name) && suggestions.length < limit) {
+        suggestions.push(item);
+        seenNames.add(item.name);
+      }
+    }
+    
+    // Strategy 3: Category-based fallback (if not enough learned data)
     if (suggestions.length < limit) {
       const fallbackSuggestions = this.getCategoryFallback(
         triggerItem,
@@ -158,20 +170,6 @@ export class UpsellLearningEngine {
         limit * 2 // Get more to filter from
       );
       for (const item of fallbackSuggestions) {
-        if (!seenNames.has(item.name) && suggestions.length < limit) {
-          suggestions.push(item);
-          seenNames.add(item.name);
-        }
-      }
-    }
-    
-    // Strategy 3: High-value items (premium upsell)
-    if (suggestions.length < limit) {
-      const premiumSuggestions = this.getHighValueItems(
-        itemsInCart,
-        limit * 2 // Get more to filter from
-      );
-      for (const item of premiumSuggestions) {
         if (!seenNames.has(item.name) && suggestions.length < limit) {
           suggestions.push(item);
           seenNames.add(item.name);
