@@ -708,19 +708,32 @@ export default function ItemsOnlyPage() {
           onAssign={async (groups) => {
             try {
               const itemIds = Array.from(selectedIds);
+
+              // Use additive POST for bulk-add (existing assignments must be preserved),
+              // then refresh local item_modifier_groups cache so the sell page reflects
+              // the new links immediately without waiting for the next full sync.
               await Promise.all(
                 groups.map((g) =>
                   fetch(`/api/items/modifiers/assign`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
+                    credentials: "include",
                     body: JSON.stringify({ modifier_group_id: g.id, item_ids: itemIds }),
                   })
                 )
               );
-              // Clear cache and trigger full refresh
+
+              // Refresh local cache for affected items (non-destructive on failure)
+              try {
+                const { refreshLocalItemModifierGroups } = await import('@/lib/services/modifier-assignment');
+                await refreshLocalItemModifierGroups(itemIds, session.org_id);
+              } catch (refreshErr) {
+                console.warn('[BulkAssignModifier] Local cache refresh failed (will sync later):', refreshErr);
+              }
+
+              // Clear in-memory caches so listing UIs re-read from IDB/API
               dataCache.clear(session.org_id, "items");
               SyncManager.clearSyncTimestamp(session.org_id, "ITEMS");
-              // Also clear modifier groups cache
               SyncManager.clearSyncTimestamp(session.org_id, "MODIFIERS");
               showToast(`${itemIds.length} item(s) assigned to ${groups.length} modifier group(s)`, "success");
               setModifierDialogOpen(false);

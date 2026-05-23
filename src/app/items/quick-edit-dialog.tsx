@@ -14,6 +14,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { SyncManager } from "@/lib/services/sync-manager";
 import { dataCache } from "@/lib/services/data-cache";
 import { getByKey } from "@/lib/idb/db";
+import { setModifierGroupItems } from "@/lib/services/modifier-assignment";
 
 interface QuickEditItemDialogProps {
   open: boolean;
@@ -156,24 +157,43 @@ export function QuickEditItemDialog({
       }
 
       console.log('Updating item with data:', updateData);
-      const response = await fetch(`/api/items/${item.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-pos-session": sessionData,
-        },
-        body: JSON.stringify(updateData),
-      });
+      let queued = false;
+      try {
+        const response = await fetch(`/api/items/${item.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-pos-session": sessionData,
+          },
+          body: JSON.stringify(updateData),
+        });
 
-      console.log('Update response:', response);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update item");
+        if (!response.ok) {
+          // 5xx -> queue to outbox so the edit isn't lost; 4xx -> surface error
+          if (response.status >= 500) {
+            const { OutboxSyncService } = await import('@/lib/services/outbox-sync');
+            await OutboxSyncService.addToOutbox('item_update', { id: item.id, ...updateData }, orgId, true);
+            queued = true;
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || "Failed to update item");
+          }
+        }
+      } catch (netErr: any) {
+        // Network error / offline → queue to outbox; the item edit is never lost.
+        console.warn('[QuickEditDialog] Item PATCH failed, queueing to outbox', netErr);
+        const { OutboxSyncService } = await import('@/lib/services/outbox-sync');
+        await OutboxSyncService.addToOutbox('item_update', { id: item.id, ...updateData }, orgId, true);
+        queued = true;
       }
 
       hapticSuccess();
-      showToast(`${formData.name} updated successfully`, "success");
+      showToast(
+        queued
+          ? `${formData.name} saved (will sync when online)`
+          : `${formData.name} updated successfully`,
+        "success"
+      );
       // Clear cache so items reload from API
       dataCache.clear(orgId, "items");
       SyncManager.clearSyncTimestamp(orgId, "ITEMS");
@@ -434,28 +454,29 @@ export function QuickEditItemDialog({
                       className="bg-red-600 hover:bg-red-700 text-white"
                       onClick={async () => {
                         try {
-                          // Fetch all items currently assigned to this group
+                          // Fetch all items currently assigned to this group, then
+                          // PUT the reconciled set without the current item.
                           const sessionData = sessionStorage.getItem('pos_session');
                           if (!sessionData) {
                             alert('Session expired. Please log in again.');
                             return;
                           }
                           const resp = await fetch(`/api/items/modifiers?modifier_group_id=${g.id}`, {
-                            headers: {
-                              'x-pos-session': sessionData,
-                            },
+                            headers: { 'x-pos-session': sessionData },
                           });
                           if (!resp.ok) throw new Error("Failed to fetch group assignments");
                           const data: { item_id: string }[] = await resp.json();
-                          const remaining = data.map((x) => x.item_id).filter((id) => id !== item.id);
-                          await fetch(`/api/items/modifiers/assign`, {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                              "x-pos-session": sessionData,
-                            },
-                            body: JSON.stringify({ modifier_group_id: g.id, item_ids: remaining }),
+                          const previous = data.map((x) => x.item_id);
+                          const desired = previous.filter((id) => id !== item.id);
+                          const result = await setModifierGroupItems({
+                            modifierGroupId: g.id,
+                            itemIds: desired,
+                            orgId,
+                            previousItemIds: previous,
                           });
+                          if (!result.ok && !result.queued) {
+                            throw new Error(result.error || 'Failed to remove modifier group');
+                          }
                           setAssignedGroups((prev) => prev.filter((x) => x.id !== g.id));
                         } catch (e) {
                           console.error(e);
@@ -513,38 +534,33 @@ export function QuickEditItemDialog({
         orgId={orgId}
         onSelect={async (group) => {
           try {
-            // Get current assignments for this group
+            // Get current assignments for this group, then PUT the union
+            // (current ∪ this item) via the set-based reconcile helper.
             const sessionData = sessionStorage.getItem('pos_session');
             if (!sessionData) {
               alert('Session expired. Please log in again.');
               return;
             }
             const resp = await fetch(`/api/items/modifiers?modifier_group_id=${group.id}`, {
-              headers: {
-                'x-pos-session': sessionData,
-              },
+              headers: { 'x-pos-session': sessionData },
             });
             const current: { item_id: string }[] = resp.ok ? await resp.json() : [];
-            const currentIds = new Set(current.map((x) => x.item_id));
-            // Ensure current item is included
-            currentIds.add(item.id);
-            // Assign union
-            await fetch(`/api/items/modifiers/assign`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-pos-session": sessionData,
-              },
-              body: JSON.stringify({
-                modifier_group_id: group.id,
-                item_ids: Array.from(currentIds),
-              }),
+            const previousIds = current.map((x) => x.item_id);
+            const desiredIds = Array.from(new Set([...previousIds, item.id]));
+
+            const result = await setModifierGroupItems({
+              modifierGroupId: group.id,
+              itemIds: desiredIds,
+              orgId,
+              previousItemIds: previousIds,
             });
-            // Refresh local list
+            if (!result.ok && !result.queued) {
+              throw new Error(result.error || 'Failed to assign modifier group');
+            }
+
+            // Refresh local list shown in the dialog
             const fresh = await fetch(`/api/items/${item.id}/modifiers`, {
-              headers: {
-                'x-pos-session': sessionData,
-              },
+              headers: { 'x-pos-session': sessionData },
             });
             const data = fresh.ok ? await fresh.json() : [];
             setAssignedGroups(data || []);

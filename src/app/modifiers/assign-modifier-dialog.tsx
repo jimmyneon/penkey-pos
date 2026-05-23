@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Check, Loader2, Search } from "lucide-react";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
 import { dataCache } from "@/lib/services/data-cache";
+import { setModifierGroupItems } from "@/lib/services/modifier-assignment";
 
 interface Item {
   id: string;
@@ -77,14 +78,18 @@ export function AssignModifierDialog({
     }
   };
 
+  // Track the original set so we can pass previousItemIds for proper cache refresh
+  const [originalAssigned, setOriginalAssigned] = useState<Set<string>>(new Set());
+
   const fetchAssignedItems = async () => {
     try {
       const response = await fetch(`/api/items/modifiers?modifier_group_id=${modifierGroup.id}`);
       if (!response.ok) throw new Error("Failed to fetch assigned items");
       
       const data = await response.json();
-      const assignedIds = data.map((item: any) => item.item_id);
+      const assignedIds: string[] = data.map((item: any) => item.item_id);
       setSelectedItems(new Set(assignedIds));
+      setOriginalAssigned(new Set(assignedIds));
     } catch (error) {
       console.error("Failed to fetch assigned items:", error);
     }
@@ -110,17 +115,32 @@ export function AssignModifierDialog({
         ? modifierGroupIds
         : [modifierGroup.id];
 
-      // Assign each group to the selected items
-      for (const gid of groupIds) {
-        const response = await fetch(`/api/items/modifiers/assign`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            modifier_group_id: gid,
-            item_ids: Array.from(selectedItems),
-          }),
-        });
-        if (!response.ok) throw new Error("Failed to assign modifiers");
+      const desired = Array.from(selectedItems);
+      const previous = Array.from(originalAssigned);
+
+      // Set-based reconcile: replaces the full set of items for each group.
+      // Falls back to outbox on network/server failure (never silently lost).
+      const results = await Promise.all(
+        groupIds.map((gid) =>
+          setModifierGroupItems({
+            modifierGroupId: gid,
+            itemIds: desired,
+            orgId,
+            previousItemIds: previous,
+          })
+        )
+      );
+
+      const anyFailed = results.some((r) => !r.ok && !r.queued);
+      const anyQueued = results.some((r) => r.queued);
+
+      if (anyFailed) {
+        throw new Error(results.find((r) => !r.ok && !r.queued)?.error || "Failed");
+      }
+
+      if (anyQueued) {
+        // Surface a soft notice without blocking the UX
+        console.log("[AssignModifierDialog] Assignment queued for offline sync");
       }
 
       hapticSuccess();

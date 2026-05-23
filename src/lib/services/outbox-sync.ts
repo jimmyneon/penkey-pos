@@ -7,7 +7,7 @@ import { getDB } from "@/lib/idb/db";
 
 export interface OutboxItem {
   id?: number;
-  type: 'receipt' | 'inventory_adjustment' | 'item_update' | 'category_update';
+  type: 'receipt' | 'inventory_adjustment' | 'item_update' | 'category_update' | 'modifier_assignment';
   status: 'pending' | 'syncing' | 'synced' | 'failed';
   data: any;
   created_at: number;
@@ -167,6 +167,9 @@ export class OutboxSyncService {
           break;
         case 'category_update':
           success = await this.syncCategoryUpdate(item.data);
+          break;
+        case 'modifier_assignment':
+          success = await this.syncModifierAssignment(item.data, item.org_id);
           break;
         default:
           console.error(`[Outbox] Unknown item type: ${item.type}`);
@@ -364,6 +367,49 @@ export class OutboxSyncService {
       return true;
     } catch (error) {
       console.error('[Outbox] Category update sync failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync modifier assignment (set-based reconcile)
+   */
+  private static async syncModifierAssignment(data: any, orgId: string): Promise<boolean> {
+    try {
+      const csrfToken = this.getCsrfToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
+
+      console.log('[Outbox] Syncing modifier assignment:', data.modifier_group_id);
+      const response = await fetch(`/api/items/modifiers/assign`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `Failed to sync modifier assignment: ${response.status}`);
+      }
+
+      const body = await response.json().catch(() => ({}));
+      const affected: string[] = body.affected_item_ids || data.item_ids || [];
+
+      // Refresh local cache for affected items so the sell page reflects the change
+      try {
+        const { refreshLocalItemModifierGroups } = await import('@/lib/services/modifier-assignment');
+        await refreshLocalItemModifierGroups(affected, orgId);
+      } catch (err) {
+        console.warn('[Outbox] Failed to refresh local item_modifier_groups cache after sync:', err);
+      }
+
+      console.log('[Outbox] Modifier assignment synced successfully');
+      return true;
+    } catch (error) {
+      console.error('[Outbox] Modifier assignment sync failed:', error);
       throw error;
     }
   }

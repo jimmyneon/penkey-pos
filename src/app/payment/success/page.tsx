@@ -4,9 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { CheckCircle, Printer, Home, StopCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Printer, Home, StopCircle, Loader2, Star } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
+import { QRCodeModal } from "@/components/qr-code-modal";
 import { useCartStore } from "@/lib/store/cart-store";
 import { dataCache } from "@/lib/services/data-cache";
 import { registerSettings } from "@/lib/services/register-settings";
@@ -26,6 +27,8 @@ function PaymentSuccessContent() {
   const change = parseFloat(searchParams.get("change") || "0");
   const [printing, setPrinting] = useState(false);
   const [printQueued, setPrintQueued] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   
   console.log(`[PaymentSuccessContent] Initial render values - receiptId: ${receiptId}, change: ${change}, countdown: ${countdown}, mounted: ${mounted}`);
   
@@ -84,6 +87,42 @@ function PaymentSuccessContent() {
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, receiptId]);
+
+  // Load QR code URL on mount
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const loadQRCode = async () => {
+      try {
+        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        if (!sessionData) return;
+        
+        const session = JSON.parse(sessionData);
+        const orgId = session.org_id;
+        
+        // Fetch Google Review QR code for this org
+        const response = await fetch(`/api/qr-codes?org_id=${orgId}`);
+        const data = await response.json();
+        
+        if (data.qr_codes && data.qr_codes.length > 0) {
+          // Find the first active Google Review QR code
+          const googleReviewQR = data.qr_codes.find(
+            (qr: any) => qr.code_type === 'google_review' && qr.is_active
+          );
+          
+          if (googleReviewQR) {
+            // Build tracking URL
+            const baseUrl = window.location.origin;
+            setQrCodeUrl(`${baseUrl}/qr/${googleReviewQR.unique_code}`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load QR code:', error);
+      }
+    };
+    
+    loadQRCode();
+  }, [mounted]);
 
   const redirect = useCallback(() => {
     console.log("[PaymentSuccess] REDIRECTING to /sell");
@@ -275,6 +314,16 @@ function PaymentSuccessContent() {
               {printing ? "Sending..." : printQueued ? "Sent ✓" : "Print Receipt"}
             </span>
           </Button>
+          {qrCodeUrl && (
+            <Button
+              size="lg"
+              className="flex flex-col items-center justify-center h-32 w-32 bg-yellow-500 hover:bg-yellow-600 text-white p-2 aspect-square transition-colors"
+              onClick={() => setQrModalOpen(true)}
+            >
+              <Star className="h-8 w-8 mb-2" />
+              <span className="text-sm text-center">Leave a Review</span>
+            </Button>
+          )}
         </div>
 
         {/* Auto-redirect countdown */}
@@ -303,6 +352,14 @@ function PaymentSuccessContent() {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
+      {/* QR Code Modal */}
+      <QRCodeModal
+        open={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        qrCodeUrl={qrCodeUrl}
+        receiptId={receiptId || undefined}
+      />
     </div>
   );
 }

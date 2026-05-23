@@ -125,18 +125,17 @@ export class UnifiedSyncService {
       dataCache.clear(orgId, "modifiers");
       dataCache.clear(orgId, "item_modifier_groups");
       
-      // Clear IndexedDB item_modifier_groups cache
+      // Force re-fetch of item modifier groups by clearing ONLY the freshness
+      // timestamp. We deliberately do NOT clear the store itself: prefetchOrgData
+      // will overwrite each item's row on a successful fetch, and preserve the
+      // existing row if the fetch fails. This avoids the previous bug where a
+      // manual sync would temporarily wipe modifier links on any flaky request.
       try {
-        const { getDB, setMeta, deleteMeta } = await import('@/lib/idb/db');
-        const db = await getDB();
-        const tx = db.transaction('item_modifier_groups', 'readwrite');
-        await tx.store.clear();
-        await tx.done;
-        // Clear TTL metadata to force re-fetch
+        const { deleteMeta } = await import('@/lib/idb/db');
         await deleteMeta(`item_modifiers_${orgId}_ts`);
-        console.log('[UnifiedSync] Cleared IndexedDB item_modifier_groups cache and TTL');
+        console.log('[UnifiedSync] Cleared item_modifier_groups TTL (non-destructive)');
       } catch (err) {
-        console.error('[UnifiedSync] Error clearing item_modifier_groups:', err);
+        console.error('[UnifiedSync] Error clearing item_modifier_groups TTL:', err);
       }
       
       // Invalidate modifier cache service

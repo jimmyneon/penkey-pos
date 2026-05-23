@@ -26,6 +26,19 @@ async function fetchWithTimeout<T>(url: string, timeoutMs: number = 5000): Promi
   }
 }
 
+// Retry helper for critical per-item fetches. Returns null only after all attempts fail.
+async function fetchWithRetry<T>(url: string, timeoutMs: number = 15000, attempts: number = 2): Promise<T | null> {
+  for (let i = 0; i < attempts; i++) {
+    const result = await fetchWithTimeout<T>(url, timeoutMs);
+    if (result !== null) return result;
+    if (i < attempts - 1) {
+      // Small backoff between attempts
+      await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+    }
+  }
+  return null;
+}
+
 function isoDaysAgo(days: number) {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -100,31 +113,73 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
         return;
       }
 
-      const fullGroups: any[] = [];
+      const now = Date.now();
+      const idb = await import('@/lib/idb/db');
+
+      // ---- Strategy 1: try the batch endpoint first (one HTTP call) ----
+      console.log(`[Prefetch] Fetching modifier groups for ${items.length} items (batch first)`);
+      const batch = await fetchWithTimeout<{ items: Array<{ item_id: string; groups: any[] }> }>(
+        `/api/items/modifiers/batch?org_id=${orgId}`,
+        20000
+      );
+
+      if (batch && Array.isArray(batch.items)) {
+        // Map keyed by item_id for fast merge
+        const byId = new Map<string, any[]>();
+        for (const row of batch.items) byId.set(row.item_id, row.groups || []);
+
+        const fullGroups = items.map((it) => ({
+          item_id: it.id,
+          groups: byId.get(it.id) || [],
+          org_id: orgId,
+          ts: now,
+        }));
+
+        const withModifiers = fullGroups.filter((g) => g.groups.length > 0).length;
+        await putMany("item_modifier_groups", fullGroups);
+        await idb.setMeta(`item_modifiers_${orgId}_ts`, now);
+        console.log(
+          `[Prefetch] ✓ Modifier groups cached via batch: ${withModifiers} with, ${fullGroups.length - withModifiers} without`
+        );
+        return;
+      }
+
+      // ---- Strategy 2: fallback to per-item fetches with retry + NON-DESTRUCTIVE merge ----
+      console.log('[Prefetch] Batch endpoint unavailable, falling back to per-item fetch');
       let withModifiers = 0;
       let withoutModifiers = 0;
-      const now = Date.now();
+      let failed = 0;
+      const successfulRows: any[] = [];
 
-      // Fetch all items' modifiers in parallel (no sequential batching)
-      console.log(`[Prefetch] Fetching modifier groups for ${items.length} items in parallel`);
       await Promise.all(
         items.map(async (it) => {
-          try {
-            const groups = await fetchWithTimeout<any[]>(`/api/items/${it.id}/modifiers/full`, 4000);
-            fullGroups.push({ item_id: it.id, groups: groups || [], org_id: orgId, ts: now });
-            if (groups && groups.length > 0) withModifiers++; else withoutModifiers++;
-          } catch {
-            fullGroups.push({ item_id: it.id, groups: [], org_id: orgId, ts: now });
-            withoutModifiers++;
+          // 15s timeout, 2 attempts
+          const groups = await fetchWithRetry<any[]>(`/api/items/${it.id}/modifiers/full`, 15000, 2);
+          if (groups === null) {
+            // CRITICAL: do NOT overwrite existing local cache on failure.
+            // The previous implementation wrote `{ groups: [] }` here, silently wiping
+            // modifier links for items whose request timed out.
+            failed++;
+            return;
           }
+          successfulRows.push({ item_id: it.id, groups, org_id: orgId, ts: now });
+          if (groups.length > 0) withModifiers++;
+          else withoutModifiers++;
         })
       );
 
-      if (fullGroups.length) {
-        await putMany("item_modifier_groups", fullGroups);
-        console.log(`[Prefetch] ✓ Modifier groups cached: ${withModifiers} with, ${withoutModifiers} without`);
+      if (successfulRows.length) {
+        await putMany("item_modifier_groups", successfulRows);
       }
-      await import('@/lib/idb/db').then(m => m.setMeta(`item_modifiers_${orgId}_ts`, now));
+      console.log(
+        `[Prefetch] ✓ Modifier groups cached: ${withModifiers} with, ${withoutModifiers} without, ${failed} preserved (request failed)`
+      );
+
+      // Only update the freshness timestamp if EVERY item succeeded, otherwise we
+      // want the next sync to retry the failed ones.
+      if (failed === 0) {
+        await idb.setMeta(`item_modifiers_${orgId}_ts`, now);
+      }
     }).catch((err) => {
       console.error('[Prefetch] Failed to cache modifier groups:', err);
     })
