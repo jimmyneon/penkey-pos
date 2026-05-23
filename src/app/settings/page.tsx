@@ -73,6 +73,8 @@ export default function SettingsPage() {
   const [trackingUrl, setTrackingUrl] = useState("");
   const [totalScans, setTotalScans] = useState(0);
   const [loadingQr, setLoadingQr] = useState(false);
+  const [creatingQr, setCreatingQr] = useState(false);
+  const [newGoogleReviewUrl, setNewGoogleReviewUrl] = useState("");
 
   const checkPrinterStatus = async () => {
     setPrinterStatus("checking");
@@ -185,6 +187,47 @@ export default function SettingsPage() {
       loadQRCodes(); // Reload to update tracking URL
     } catch (error) {
       showToast("Failed to update URL", "error");
+    }
+  };
+
+  const createGoogleReviewQR = async () => {
+    if (!newGoogleReviewUrl) {
+      showToast("Please enter a Google Review URL", "error");
+      return;
+    }
+
+    setCreatingQr(true);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      if (!sessionData) {
+        showToast("Session expired", "error");
+        return;
+      }
+      
+      const session = JSON.parse(sessionData);
+      const orgId = session.org_id;
+      
+      const response = await fetch('/api/qr-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: orgId,
+          code_type: 'google_review',
+          name: 'Google Reviews',
+          target_url: newGoogleReviewUrl,
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to create QR code');
+      
+      showToast("Google Review QR code created", "success");
+      hapticSuccess();
+      setNewGoogleReviewUrl("");
+      loadQRCodes(); // Reload to show the new QR code
+    } catch (error) {
+      showToast("Failed to create QR code", "error");
+    } finally {
+      setCreatingQr(false);
     }
   };
 
@@ -1289,14 +1332,44 @@ export default function SettingsPage() {
                 </SettingRow>
               </>
             ) : (
-              <SettingRow
-                label="No QR Code"
-                description="Run the seed script to create a Google Review QR code"
-              >
-                <div className="text-gray-400 text-sm">
-                  Run: node scripts/seed-google-review-qr.js
+              <>
+                <SettingRow
+                  label="Create Google Review QR Code"
+                  description="Enter your Google Business Profile review link"
+                >
+                  <div className="flex gap-2 flex-col sm:flex-row w-full">
+                    <input
+                      type="text"
+                      value={newGoogleReviewUrl}
+                      onChange={(e) => setNewGoogleReviewUrl(e.target.value)}
+                      placeholder="https://g.page/r/YOUR_BUSINESS_ID/review"
+                      className="flex-1 bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={createGoogleReviewQR}
+                      disabled={creatingQr || !newGoogleReviewUrl}
+                      className="min-h-[44px] min-w-[100px] bg-penkey-orange hover:bg-orange-600"
+                    >
+                      {creatingQr ? (
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      ) : (
+                        "Create"
+                      )}
+                    </Button>
+                  </div>
+                </SettingRow>
+
+                <div className="mt-4 p-4 bg-[#2d2d2d] rounded-lg border border-gray-600">
+                  <h4 className="font-semibold text-white mb-2">How to get your Google Review link:</h4>
+                  <ol className="text-gray-300 text-sm space-y-1 list-decimal list-inside">
+                    <li>Go to your <a href="https://business.google.com" target="_blank" className="text-penkey-orange hover:underline">Google Business Profile</a></li>
+                    <li>Click "Ask for reviews"</li>
+                    <li>Copy the review link</li>
+                    <li>Paste it above and click Create</li>
+                  </ol>
                 </div>
-              </SettingRow>
+              </>
             )}
           </SettingsSection>
 
