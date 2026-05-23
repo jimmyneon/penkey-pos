@@ -103,21 +103,87 @@ export class UpsellEngine {
     categoriesInCart: Set<string | undefined>,
     itemsInCart: Set<string>
   ): Item[] {
-    // Define complementary category pairs (customize for your business)
-    const complementaryMap: Record<string, string[]> = {
-      // Add your category relationships here
-      // Example: 'food': ['drinks', 'desserts']
+    // Define complementary category pairs by category NAME (not ID)
+    // This works across different category IDs as long as names match
+    const complementaryCategories: Record<string, string[]> = {
+      // Coffee/Hot Drinks → Pastries, Cakes, Desserts
+      'coffee': ['pastries', 'cakes', 'desserts', 'breakfast'],
+      'hot drinks': ['pastries', 'cakes', 'desserts', 'breakfast'],
+      'coffee drinks': ['pastries', 'cakes', 'desserts', 'breakfast'],
+      
+      // Food/Sandwiches → Coffee, Drinks
+      'sandwiches': ['coffee', 'hot drinks', 'cold drinks'],
+      'food': ['coffee', 'hot drinks', 'cold drinks'],
+      'hot food': ['coffee', 'hot drinks', 'cold drinks'],
+      'breakfast': ['coffee', 'hot drinks'],
+      
+      // Pastries/Cakes → Coffee, Tea
+      'pastries': ['coffee', 'hot drinks', 'tea'],
+      'cakes': ['coffee', 'hot drinks', 'tea'],
+      'desserts': ['coffee', 'hot drinks', 'tea'],
+      
+      // Cold Drinks → Food, Snacks
+      'cold drinks': ['food', 'sandwiches', 'snacks'],
+      'soft drinks': ['food', 'sandwiches', 'snacks'],
+      
+      // Tea → Cakes, Pastries
+      'tea': ['cakes', 'pastries', 'desserts'],
     };
     
     if (!triggerItem.category_id) return [];
     
-    const complementaryCategories = complementaryMap[triggerItem.category_id] || [];
+    // Get the category name for the trigger item
+    const triggerCategory = this.items.find(i => i.id === triggerItem.id);
+    if (!triggerCategory?.category_id) return [];
+    
+    // Find items in the same category to get the category name
+    const categoryItems = this.categoryMap.get(triggerCategory.category_id);
+    if (!categoryItems || categoryItems.length === 0) return [];
+    
+    // Use the first item to get category info (we'd need category table for proper lookup)
+    // For now, we'll use a simple matching strategy based on item names
+    const triggerItemName = triggerItem.name.toLowerCase();
+    
+    // Determine complementary categories based on item name patterns
+    let complementaryCategoryNames: string[] = [];
+    
+    if (triggerItemName.includes('coffee') || triggerItemName.includes('cappuccino') || 
+        triggerItemName.includes('latte') || triggerItemName.includes('americano') ||
+        triggerItemName.includes('espresso') || triggerItemName.includes('flat white')) {
+      complementaryCategoryNames = ['pastries', 'cakes', 'desserts', 'brownie', 'cookie', 'muffin', 'slice'];
+    } else if (triggerItemName.includes('sandwich') || triggerItemName.includes('panini') ||
+               triggerItemName.includes('baguette') || triggerItemName.includes('toast')) {
+      complementaryCategoryNames = ['coffee', 'latte', 'cappuccino', 'drink'];
+    } else if (triggerItemName.includes('cake') || triggerItemName.includes('brownie') ||
+               triggerItemName.includes('muffin') || triggerItemName.includes('cookie') ||
+               triggerItemName.includes('pastry') || triggerItemName.includes('slice')) {
+      complementaryCategoryNames = ['coffee', 'latte', 'cappuccino', 'tea', 'americano'];
+    } else if (triggerItemName.includes('tea')) {
+      complementaryCategoryNames = ['cake', 'brownie', 'cookie', 'muffin', 'pastry'];
+    }
+    
     const suggestions: Item[] = [];
     
-    complementaryCategories.forEach(categoryId => {
-      const categoryItems = this.categoryMap.get(categoryId) || [];
-      const available = categoryItems.filter(item => !itemsInCart.has(item.id));
-      suggestions.push(...available.slice(0, 2)); // 2 per category
+    // Find items matching complementary category name patterns
+    this.items.forEach(item => {
+      if (itemsInCart.has(item.id) || item.id === triggerItem.id) return;
+      
+      const itemName = item.name.toLowerCase();
+      
+      // Check if item matches any complementary category pattern
+      const isComplementary = complementaryCategoryNames.some(pattern => 
+        itemName.includes(pattern)
+      );
+      
+      // Exclude gifts and retail items
+      const isGiftOrRetail = itemName.includes('gift') || 
+                           itemName.includes('retail') ||
+                           itemName.includes('card') ||
+                           itemName.includes('merchandise');
+      
+      if (isComplementary && !isGiftOrRetail && suggestions.length < 4) {
+        suggestions.push(item);
+      }
     });
     
     return suggestions;
@@ -149,6 +215,14 @@ export class UpsellEngine {
     return this.items
       .filter(item => {
         if (itemsInCart.has(item.id)) return false;
+        
+        // Exclude gifts and retail items
+        const itemName = item.name.toLowerCase();
+        const isGiftOrRetail = itemName.includes('gift') || 
+                             itemName.includes('retail') ||
+                             itemName.includes('card') ||
+                             itemName.includes('merchandise');
+        if (isGiftOrRetail) return false;
         
         const price = item.has_variants
           ? Math.max(...(item.item_variants?.map(v => v.price) || [0]))

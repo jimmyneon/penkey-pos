@@ -30,6 +30,8 @@ interface UpsellPanelProps {
   triggerItem?: { id: string; name: string };
   orgId?: string;
   memberId?: string;
+  gridSize?: 2 | 3 | 4 | 5 | 6;
+  font_size?: "very_small" | "small" | "medium" | "large";
 }
 
 export function UpsellPanel({
@@ -41,6 +43,8 @@ export function UpsellPanel({
   triggerItem,
   orgId,
   memberId,
+  gridSize = 3,
+  font_size = "medium",
 }: UpsellPanelProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [countdown, setCountdown] = useState(autoDismissSeconds);
@@ -231,7 +235,7 @@ export function UpsellPanel({
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity duration-300 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}
         onClick={() => handleClose(false)}
@@ -239,9 +243,9 @@ export function UpsellPanel({
 
       {/* Panel */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#3d3d3d] rounded-t-2xl shadow-2xl transition-transform ease-out ${
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl shadow-2xl transition-transform ease-out ${
           isVisible ? "translate-y-0" : "translate-y-full"
-        } ${isExpanded ? 'max-h-[80vh]' : 'max-h-[50vh]'}`}
+        } ${isExpanded ? 'max-h-[85vh]' : 'max-h-[50vh]'}`}
         style={{
           transform: `translateY(${dragOffset}px)`,
           transitionDuration: dragOffset !== 0 ? '0ms' : '200ms'
@@ -279,11 +283,17 @@ export function UpsellPanel({
 
         {/* Suggestions Grid */}
         <div 
-          className={`p-3 sm:p-4 overflow-y-auto ${isExpanded ? 'max-h-[calc(80vh-120px)]' : 'max-h-[calc(50vh-120px)]'}`}
+          className={`p-3 sm:p-4 overflow-y-auto ${isExpanded ? 'max-h-[calc(85vh-120px)]' : 'max-h-[calc(50vh-120px)]'}`}
           onScroll={handleScroll}
         >
           {suggestions.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className={`grid gap-2 sm:gap-3 ${
+              gridSize === 2 ? 'grid-cols-2' :
+              gridSize === 3 ? 'grid-cols-3' :
+              gridSize === 4 ? 'grid-cols-4' :
+              gridSize === 5 ? 'grid-cols-5' :
+              'grid-cols-6'
+            }`}>
               {suggestions.map((item) => {
                 const price = item.has_variants
                   ? item.item_variants?.[0]?.price || 0
@@ -294,7 +304,7 @@ export function UpsellPanel({
                   <button
                     key={item.id}
                     onClick={(e) => handleSelectItem(item, e)}
-                    className="relative rounded-lg overflow-hidden transition-all aspect-square bg-[#5d5d5d] active:bg-penkey-orange"
+                    className="relative rounded-lg overflow-hidden transition-all aspect-square bg-[#5d5d5d] active:bg-penkey-orange active:scale-95"
                   >
                     {/* Image Background */}
                     {hasImage && (
@@ -306,11 +316,25 @@ export function UpsellPanel({
                     )}
                     
                     {/* Content Overlay */}
-                    <div className={`absolute inset-0 flex flex-col items-center justify-center p-2 ${hasImage ? 'bg-black/40' : ''}`}>
-                      <h3 className="font-medium text-center text-xs sm:text-sm leading-tight text-white drop-shadow-lg mb-1">
+                    <div className={`absolute inset-0 flex flex-col items-center justify-center ${
+                      gridSize >= 5 ? 'p-1 sm:p-1.5' :
+                      gridSize === 4 ? 'p-1.5 sm:p-2' :
+                      'p-2 sm:p-3'
+                    } ${hasImage ? 'bg-black/40' : ''}`}>
+                      <h3 className={`font-medium text-center leading-tight text-white drop-shadow-lg mb-1 ${
+                        font_size === "very_small" ? "text-[10px] sm:text-xs" :
+                        font_size === "small" ? "text-xs sm:text-sm" :
+                        font_size === "medium" ? "text-sm sm:text-base" :
+                        "text-lg sm:text-xl"
+                      }`}>
                         {item.name}
                       </h3>
-                      <p className="text-penkey-orange font-bold text-sm sm:text-base drop-shadow-lg">
+                      <p className={`text-penkey-orange font-bold drop-shadow-lg ${
+                        font_size === "very_small" ? "text-xs sm:text-sm" :
+                        font_size === "small" ? "text-sm sm:text-base" :
+                        font_size === "medium" ? "text-sm sm:text-base" :
+                        "text-base sm:text-lg"
+                      }`}>
                         {formatCurrency(price)}
                       </p>
                     </div>

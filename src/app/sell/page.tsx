@@ -1713,6 +1713,8 @@ export default function SellPage() {
           onViewStats={() => router.push("/reports")}
           orgId={session?.org_id}
           memberId={session?.employee.id}
+          gridSize={registerSettingsData.grid_size}
+          font_size={registerSettingsData.font_size}
         />
       )}
 

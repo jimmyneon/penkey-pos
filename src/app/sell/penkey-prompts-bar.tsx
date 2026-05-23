@@ -69,6 +69,10 @@ interface PenkeyPromptsBarProps {
   // Session info
   orgId?: string;
   memberId?: string;
+  
+  // Grid settings (to match main till page)
+  gridSize?: 2 | 3 | 4 | 5 | 6;
+  font_size?: "very_small" | "small" | "medium" | "large";
 }
 
 const MOTIVATIONAL_QUOTES = [
@@ -96,6 +100,8 @@ export function PenkeyPromptsBar({
   onViewStats,
   orgId,
   memberId,
+  gridSize = 3,
+  font_size = "medium",
 }: PenkeyPromptsBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCollapsing, setIsCollapsing] = useState(false);
@@ -716,7 +722,13 @@ export function PenkeyPromptsBar({
           }}
         >
           <div 
-            className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[50vh] overflow-y-auto"
+            className={`p-3 grid gap-2 max-h-[50vh] overflow-y-auto ${
+              gridSize === 2 ? 'grid-cols-2' :
+              gridSize === 3 ? 'grid-cols-3' :
+              gridSize === 4 ? 'grid-cols-4' :
+              gridSize === 5 ? 'grid-cols-5' :
+              'grid-cols-6'
+            }`}
             style={{
               transition: 'all 0.3s ease-out',
             }}
@@ -795,11 +807,25 @@ export function PenkeyPromptsBar({
                   )}
                   
                   {/* Content Overlay */}
-                  <div className={`absolute inset-0 flex flex-col items-center justify-center p-2 ${hasImage ? 'bg-black/40' : ''}`}>
-                    <h3 className="font-medium text-center text-xs leading-tight text-white drop-shadow-lg mb-1">
+                  <div className={`absolute inset-0 flex flex-col items-center justify-center ${
+                    gridSize >= 5 ? 'p-1 sm:p-1.5' :
+                    gridSize === 4 ? 'p-1.5 sm:p-2' :
+                    'p-2 sm:p-3'
+                  } ${hasImage ? 'bg-black/40' : ''}`}>
+                    <h3 className={`font-medium text-center leading-tight text-white drop-shadow-lg mb-1 ${
+                      font_size === "very_small" ? "text-[10px] sm:text-xs" :
+                      font_size === "small" ? "text-xs sm:text-sm" :
+                      font_size === "medium" ? "text-sm sm:text-base" :
+                      "text-lg sm:text-xl"
+                    }`}>
                       {item.name}
                     </h3>
-                    <p className="text-penkey-orange font-bold text-sm drop-shadow-lg">
+                    <p className={`text-penkey-orange font-bold drop-shadow-lg ${
+                      font_size === "very_small" ? "text-xs sm:text-sm" :
+                      font_size === "small" ? "text-sm sm:text-base" :
+                      font_size === "medium" ? "text-sm sm:text-base" :
+                      "text-base sm:text-lg"
+                    }`}>
                       {formatCurrency(price)}
                     </p>
                   </div>
