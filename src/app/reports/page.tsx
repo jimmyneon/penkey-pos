@@ -18,6 +18,7 @@ export default function ReportsPage() {
   const [customDays, setCustomDays] = useState(30);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [selectingEndDate, setSelectingEndDate] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showAllItems, setShowAllItems] = useState(false);
   const [showWorstSelling, setShowWorstSelling] = useState(false);
@@ -253,15 +254,80 @@ export default function ReportsPage() {
           <ArrowLeft className="h-6 w-6" />
         </Button>
         <h1 className="font-semibold text-xl">Reports</h1>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={refetch}
-          disabled={loading}
-          className="text-white hover:bg-white/10 min-w-[44px] min-h-[44px] -mr-2"
-        >
-          <RefreshCw className={`h-6 w-6 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const exportData = () => {
+                const csvRows = [];
+                csvRows.push(['PenkeyPOS Sales Report']);
+                csvRows.push(['Generated:', new Date().toLocaleString('en-GB')]);
+                csvRows.push(['Period:', selectedPeriod === "today" ? "Today"
+                  : selectedPeriod === "yesterday" ? "Yesterday"
+                  : selectedPeriod === "last7days" ? "Last 7 Days"
+                  : selectedPeriod === "month" ? "Last 30 Days"
+                  : selectedPeriod === "year" ? "Last 365 Days"
+                  : selectedPeriod === "alltime" ? "All Time"
+                  : customStartDate && customEndDate 
+                    ? `${new Date(customStartDate).toLocaleDateString('en-GB')} - ${new Date(customEndDate).toLocaleDateString('en-GB')}`
+                    : `Last ${customDays} Days`]);
+                csvRows.push([]);
+                csvRows.push(['Summary']);
+                csvRows.push(['Gross Sales', `£${periodMetrics.grossSales.toFixed(2)}`]);
+                csvRows.push(['Total Receipts', periodMetrics.receiptCount]);
+                csvRows.push(['Average Order', `£${periodMetrics.avgOrder.toFixed(2)}`]);
+                if (data?.salesData?.refunds > 0) csvRows.push(['Refunds', `£${data.salesData.refunds.toFixed(2)}`]);
+                if (data?.salesData?.discounts > 0) csvRows.push(['Discounts', `£${data.salesData.discounts.toFixed(2)}`]);
+                if (data?.salesData?.netSales) csvRows.push(['Net Sales', `£${data.salesData.netSales.toFixed(2)}`]);
+                csvRows.push([]);
+                if (itemsData?.items?.length) {
+                  csvRows.push(['Top Selling Items']);
+                  csvRows.push(['Item Name', 'Quantity Sold', 'Revenue']);
+                  itemsData.items.forEach(item => {
+                    csvRows.push([item.name, item.quantity_sold, `£${item.total_revenue.toFixed(2)}`]);
+                  });
+                  csvRows.push([]);
+                }
+                if (employeeData?.employees?.length) {
+                  csvRows.push(['Sales by Employee']);
+                  csvRows.push(['Employee', 'Transactions', 'Total Sales']);
+                  employeeData.employees.forEach(emp => {
+                    csvRows.push([emp.employee_name, emp.transaction_count, `£${emp.total_sales.toFixed(2)}`]);
+                  });
+                  csvRows.push([]);
+                }
+                if (transactionTypeData?.transaction_types?.length) {
+                  csvRows.push(['Sales by Payment Type']);
+                  csvRows.push(['Payment Method', 'Transactions', 'Total Amount']);
+                  transactionTypeData.transaction_types.forEach(type => {
+                    csvRows.push([type.method, type.transaction_count, `£${type.total_amount.toFixed(2)}`]);
+                  });
+                }
+                const csv = csvRows.map(row => row.join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `penkey-report-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+              };
+              exportData();
+            }}
+            className="text-white hover:bg-white/10 min-w-[44px] min-h-[44px] rounded-lg"
+            title="Export Report"
+          >
+            <Download className="h-5 w-5" />
+          </button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={refetch}
+            disabled={loading}
+            className="text-white hover:bg-white/10 min-w-[44px] min-h-[44px] -mr-2"
+          >
+            <RefreshCw className={`h-6 w-6 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </header>
 
       {/* Content */}
@@ -302,71 +368,6 @@ export default function ReportsPage() {
                 {data?.salesData.receipts.length || 0} receipt{data?.salesData.receipts.length !== 1 ? 's' : ''}
               </p>
             </div>
-
-            {/* Export Button */}
-            <button
-              onClick={() => {
-                const exportData = () => {
-                  const csvRows = [];
-                  csvRows.push(['PenkeyPOS Sales Report']);
-                  csvRows.push(['Generated:', new Date().toLocaleString('en-GB')]);
-                  csvRows.push(['Period:', selectedPeriod === "today" ? "Today"
-                    : selectedPeriod === "yesterday" ? "Yesterday"
-                    : selectedPeriod === "last7days" ? "Last 7 Days"
-                    : selectedPeriod === "month" ? "Last 30 Days"
-                    : selectedPeriod === "year" ? "Last 365 Days"
-                    : selectedPeriod === "alltime" ? "All Time"
-                    : customStartDate && customEndDate 
-                      ? `${new Date(customStartDate).toLocaleDateString('en-GB')} - ${new Date(customEndDate).toLocaleDateString('en-GB')}`
-                      : `Last ${customDays} Days`]);
-                  csvRows.push([]);
-                  csvRows.push(['Summary']);
-                  csvRows.push(['Gross Sales', `£${periodMetrics.grossSales.toFixed(2)}`]);
-                  csvRows.push(['Total Receipts', periodMetrics.receiptCount]);
-                  csvRows.push(['Average Order', `£${periodMetrics.avgOrder.toFixed(2)}`]);
-                  if (data?.salesData?.refunds > 0) csvRows.push(['Refunds', `£${data.salesData.refunds.toFixed(2)}`]);
-                  if (data?.salesData?.discounts > 0) csvRows.push(['Discounts', `£${data.salesData.discounts.toFixed(2)}`]);
-                  if (data?.salesData?.netSales) csvRows.push(['Net Sales', `£${data.salesData.netSales.toFixed(2)}`]);
-                  csvRows.push([]);
-                  if (itemsData?.items?.length) {
-                    csvRows.push(['Top Selling Items']);
-                    csvRows.push(['Item Name', 'Quantity Sold', 'Revenue']);
-                    itemsData.items.forEach(item => {
-                      csvRows.push([item.name, item.quantity_sold, `£${item.total_revenue.toFixed(2)}`]);
-                    });
-                    csvRows.push([]);
-                  }
-                  if (employeeData?.employees?.length) {
-                    csvRows.push(['Sales by Employee']);
-                    csvRows.push(['Employee', 'Transactions', 'Total Sales']);
-                    employeeData.employees.forEach(emp => {
-                      csvRows.push([emp.employee_name, emp.transaction_count, `£${emp.total_sales.toFixed(2)}`]);
-                    });
-                    csvRows.push([]);
-                  }
-                  if (transactionTypeData?.transaction_types?.length) {
-                    csvRows.push(['Sales by Payment Type']);
-                    csvRows.push(['Payment Method', 'Transactions', 'Total Amount']);
-                    transactionTypeData.transaction_types.forEach(type => {
-                      csvRows.push([type.method, type.transaction_count, `£${type.total_amount.toFixed(2)}`]);
-                    });
-                  }
-                  const csv = csvRows.map(row => row.join(',')).join('\n');
-                  const blob = new Blob([csv], { type: 'text/csv' });
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `penkey-report-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`;
-                  a.click();
-                  window.URL.revokeObjectURL(url);
-                };
-                exportData();
-              }}
-              className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl py-4 px-6 font-semibold text-base shadow-lg hover:from-green-700 hover:to-green-600 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <Download className="h-5 w-5" />
-              Export Report
-            </button>
 
             {/* Period Selector - Mobile Optimized */}
             <div className="space-y-3">
@@ -441,6 +442,7 @@ export default function ReportsPage() {
               <button
                 onClick={() => {
                   setSelectedPeriod("custom");
+                  setSelectingEndDate(false);
                   setShowCustomDate(true);
                 }}
                 className={`w-full py-4 px-4 rounded-xl font-semibold text-base transition-all min-h-[56px] flex items-center justify-center gap-2 active:scale-95 ${
@@ -1396,24 +1398,30 @@ export default function ReportsPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-400 mb-2 block">Start Date</label>
+                <label className="text-sm text-gray-400 mb-2 block">
+                  {selectingEndDate ? "Select End Date" : "Select Start Date"}
+                </label>
                 <input
                   type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  value={selectingEndDate ? customEndDate : customStartDate}
+                  onChange={(e) => {
+                    if (!selectingEndDate) {
+                      setCustomStartDate(e.target.value);
+                      setSelectingEndDate(true);
+                    } else {
+                      setCustomEndDate(e.target.value);
+                    }
+                  }}
                   className="w-full bg-[#2d2d2d] text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-penkey-orange focus:outline-none"
                 />
               </div>
               
-              <div>
-                <label className="text-sm text-gray-400 mb-2 block">End Date</label>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="w-full bg-[#2d2d2d] text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-penkey-orange focus:outline-none"
-                />
-              </div>
+              {customStartDate && (
+                <div className="text-sm text-gray-400">
+                  {customStartDate && <span>Start: {new Date(customStartDate).toLocaleDateString('en-GB')}</span>}
+                  {customStartDate && customEndDate && <span> • End: {new Date(customEndDate).toLocaleDateString('en-GB')}</span>}
+                </div>
+              )}
               
               <div className="flex gap-2">
                 <button
@@ -1423,6 +1431,7 @@ export default function ReportsPage() {
                     start.setDate(start.getDate() - 7);
                     setCustomStartDate(start.toISOString().split('T')[0]);
                     setCustomEndDate(end.toISOString().split('T')[0]);
+                    setSelectingEndDate(false);
                   }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
@@ -1435,6 +1444,7 @@ export default function ReportsPage() {
                     start.setDate(start.getDate() - 30);
                     setCustomStartDate(start.toISOString().split('T')[0]);
                     setCustomEndDate(end.toISOString().split('T')[0]);
+                    setSelectingEndDate(false);
                   }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
@@ -1447,6 +1457,7 @@ export default function ReportsPage() {
                     start.setDate(start.getDate() - 90);
                     setCustomStartDate(start.toISOString().split('T')[0]);
                     setCustomEndDate(end.toISOString().split('T')[0]);
+                    setSelectingEndDate(false);
                   }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
