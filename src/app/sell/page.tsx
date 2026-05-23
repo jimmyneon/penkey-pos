@@ -746,14 +746,14 @@ export default function SellPage() {
             clearTimeout(upsellResetTimer);
           }
           
-          // Set auto-reset timer: clear upsells after 15 seconds of inactivity
-          const resetTimer = setTimeout(() => {
-            console.log('[Upsell] Auto-reset: Clearing suggestions after 15s inactivity');
-            setUpsellSuggestions([]);
-            setUpsellTriggerItem(null);
-          }, 15000); // 15 seconds
+          // DISABLED: Auto-reset timer for manual control
+          // const resetTimer = setTimeout(() => {
+          //   console.log('[Upsell] Auto-reset: Clearing suggestions after 15s inactivity');
+          //   setUpsellSuggestions([]);
+          //   setUpsellTriggerItem(null);
+          // }, 15000);
           
-          setUpsellResetTimer(resetTimer);
+          // setUpsellResetTimer(resetTimer);
         } else {
           console.log("[Upsell] No relevant suggestions");
           setUpsellSuggestions([]);
@@ -845,18 +845,18 @@ export default function SellPage() {
         console.log(`[Upsell] Updated suggestions after adding ${item.name}:`, uniqueSuggestions.map(s => s.name).join(', '));
         setUpsellSuggestions(uniqueSuggestions);
         
-        // Reset the 15-second timer since user is actively interacting
-        if (upsellResetTimer) {
-          clearTimeout(upsellResetTimer);
-        }
+        // DISABLED: Reset timer for manual control
+        // if (upsellResetTimer) {
+        //   clearTimeout(upsellResetTimer);
+        // }
         
-        const resetTimer = setTimeout(() => {
-          console.log('[Upsell] Auto-reset: Clearing suggestions after 15s inactivity');
-          setUpsellSuggestions([]);
-          setUpsellTriggerItem(null);
-        }, 15000);
+        // const resetTimer = setTimeout(() => {
+        //   console.log('[Upsell] Auto-reset: Clearing suggestions after 15s inactivity');
+        //   setUpsellSuggestions([]);
+        //   setUpsellTriggerItem(null);
+        // }, 15000);
         
-        setUpsellResetTimer(resetTimer);
+        // setUpsellResetTimer(resetTimer);
       }
     }
   };
