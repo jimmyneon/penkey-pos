@@ -34,12 +34,25 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const startDate = new Date();
-    // For days=1 (today), we want 0 days back. For days=7, we want 6 days back, etc.
-    startDate.setDate(startDate.getDate() - (days - 1));
-    startDate.setHours(0, 0, 0, 0);
-
-    console.log(`[Hourly Sales] Fetching for last ${days} days, from ${startDate.toISOString()}`);
+    const customStartDate = searchParams.get("start_date");
+    const customEndDate = searchParams.get("end_date");
+    
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (customStartDate && customEndDate) {
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+      endDate.setHours(23, 59, 59, 999);
+      console.log(`[Hourly Sales] Fetching from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    } else {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - (days - 1));
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+      console.log(`[Hourly Sales] Fetching for last ${days} days, from ${startDate.toISOString()}`);
+    }
 
     // Fetch receipts (excluding refunded/voided)
     const { data: receipts, error: receiptsError } = await supabase
@@ -47,6 +60,7 @@ export async function GET(request: NextRequest) {
       .select("id, total, created_at")
       .eq("org_id", orgId)
       .gte("created_at", startDate.toISOString())
+      .lte("created_at", endDate.toISOString())
       .neq("status", "fully_refunded")
       .neq("status", "voided");
 

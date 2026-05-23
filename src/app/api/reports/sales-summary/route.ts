@@ -50,13 +50,27 @@ export async function GET(request: NextRequest) {
 
     // Get date range from query params (default to last 30 days)
     const daysBack = parseInt(searchParams.get("days") || "30");
+    const customStartDate = searchParams.get("start_date");
+    const customEndDate = searchParams.get("end_date");
     
-    const startDate = new Date();
-    // For days=1 (today), we want 0 days back. For days=7, we want 6 days back, etc.
-    startDate.setDate(startDate.getDate() - (daysBack - 1));
-    startDate.setHours(0, 0, 0, 0);
-
-    console.log(`[Sales Summary] Fetching receipts for last ${daysBack} days, from ${startDate.toISOString()}`);
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (customStartDate && customEndDate) {
+      // Use custom date range
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+      endDate.setHours(23, 59, 59, 999);
+      console.log(`[Sales Summary] Fetching receipts from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    } else {
+      // Use days-based range
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - (daysBack - 1));
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+      console.log(`[Sales Summary] Fetching receipts for last ${daysBack} days, from ${startDate.toISOString()}`);
+    }
 
     // Fetch receipts with pagination (Supabase free tier has 1000 row limit)
     let allReceipts: any[] = [];
@@ -70,6 +84,7 @@ export async function GET(request: NextRequest) {
         .select("id, total, subtotal, tax_total, discount_total, member_id, created_at")
         .eq("org_id", orgId)
         .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
         .neq("status", "fully_refunded")  // Exclude refunded receipts
         .neq("status", "voided")  // Exclude voided receipts
         .order("created_at", { ascending: false })
@@ -106,7 +121,8 @@ export async function GET(request: NextRequest) {
       .from("refunds")
       .select("id, amount, created_at")
       .eq("org_id", orgId)
-      .gte("created_at", startDate.toISOString());
+      .gte("created_at", startDate.toISOString())
+      .lte("created_at", endDate.toISOString());
 
     // Get employees for the org
     const { data: employees } = await supabase

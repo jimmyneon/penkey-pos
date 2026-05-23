@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon } from "lucide-react";
+import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon, Download } from "lucide-react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useSalesSummary } from "@/lib/hooks/use-sales-summary";
 import { useSalesByItems } from "@/lib/hooks/use-sales-by-items";
@@ -13,9 +13,11 @@ import { useHourlySales } from "@/lib/hooks/use-hourly-sales";
 
 export default function ReportsPage() {
   const router = useRouter();
-  const [selectedPeriod, setSelectedPeriod] = useState<"today" | "week" | "month" | "year" | "alltime" | "custom">("today");
+  const [selectedPeriod, setSelectedPeriod] = useState<"today" | "yesterday" | "last7days" | "month" | "year" | "alltime" | "custom">("today");
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [customDays, setCustomDays] = useState(30);
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showAllItems, setShowAllItems] = useState(false);
   const [showWorstSelling, setShowWorstSelling] = useState(false);
@@ -34,20 +36,43 @@ export default function ReportsPage() {
   const getDaysForPeriod = () => {
     switch (selectedPeriod) {
       case "today": return 1;
-      case "week": return 7;
+      case "yesterday": return 1;
+      case "last7days": return 7;
       case "month": return 30;
       case "year": return 365;
-      case "alltime": return 9999; // Large number to fetch all historical data
+      case "alltime": return 9999;
       case "custom": return customDays;
       default: return 1;
     }
   };
+
+  const getDateRangeParams = () => {
+    if (selectedPeriod === "custom" && customStartDate && customEndDate) {
+      return {
+        startDate: customStartDate,
+        endDate: customEndDate,
+      };
+    }
+    if (selectedPeriod === "yesterday") {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const endOfYesterday = new Date(yesterday);
+      endOfYesterday.setHours(23, 59, 59, 999);
+      return {
+        startDate: yesterday.toISOString(),
+        endDate: endOfYesterday.toISOString(),
+      };
+    }
+    return null;
+  };
   
-  const { data, loading, error, refetch } = useSalesSummary(getDaysForPeriod());
-  const { data: itemsData, loading: itemsLoading } = useSalesByItems(getDaysForPeriod());
-  const { data: transactionTypeData, loading: transactionTypeLoading } = useSalesByTransactionType(getDaysForPeriod());
-  const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(getDaysForPeriod());
-  const { data: hourlyData, loading: hourlyLoading } = useHourlySales(getDaysForPeriod());
+  const dateRangeParams = getDateRangeParams();
+  const { data, loading, error, refetch } = useSalesSummary(getDaysForPeriod(), dateRangeParams);
+  const { data: itemsData, loading: itemsLoading } = useSalesByItems(getDaysForPeriod(), dateRangeParams);
+  const { data: transactionTypeData, loading: transactionTypeLoading } = useSalesByTransactionType(getDaysForPeriod(), dateRangeParams);
+  const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(getDaysForPeriod(), dateRangeParams);
+  const { data: hourlyData, loading: hourlyLoading } = useHourlySales(getDaysForPeriod(), dateRangeParams);
 
   // Use all receipts from the selected period (already filtered by API)
   const periodReceipts = useMemo(() => {
@@ -121,14 +146,17 @@ export default function ReportsPage() {
     const messages: string[] = [];
     
     const periodLabel = selectedPeriod === "today" ? "today" 
-      : selectedPeriod === "week" ? "this week"
+      : selectedPeriod === "yesterday" ? "yesterday"
+      : selectedPeriod === "last7days" ? "in the last 7 days"
       : selectedPeriod === "month" ? "this month"
       : selectedPeriod === "year" ? "this year"
       : selectedPeriod === "alltime" ? "all time"
+      : customStartDate && customEndDate ? `from ${new Date(customStartDate).toLocaleDateString('en-GB')} to ${new Date(customEndDate).toLocaleDateString('en-GB')}`
       : `in the last ${customDays} days`;
     
     const comparisonLabel = selectedPeriod === "today" ? "yesterday"
-      : selectedPeriod === "week" ? "last week"
+      : selectedPeriod === "yesterday" ? "the day before"
+      : selectedPeriod === "last7days" ? "the previous 7 days"
       : selectedPeriod === "month" ? "last month" 
       : selectedPeriod === "year" ? "last year"
       : selectedPeriod === "alltime" ? "the previous period"
@@ -196,13 +224,13 @@ export default function ReportsPage() {
     
     switch (selectedPeriod) {
       case "today": return getDailyTarget();
-      case "week": return 1000; // £1,000/week target
-      case "month": return 4300; // ~£1,000/week * 4.3 weeks
-      case "year": return 52000; // £1,000/week * 52 weeks
-      case "alltime": return 50000; // £50,000 all-time target
+      case "yesterday": return getDailyTarget();
+      case "last7days": return 1000;
+      case "month": return 4300;
+      case "year": return 52000;
+      case "alltime": return 50000;
       case "custom": {
-        // Calculate based on mix of weekdays/weekends in period
-        const avgDaily = 185; // Weighted average: (3*150 + 2*200 + 2*250) / 7 ≈ 185
+        const avgDaily = 185;
         return customDays * avgDaily;
       }
       default: return getDailyTarget();
@@ -262,15 +290,83 @@ export default function ReportsPage() {
               </div>
               <p className="text-white/90 text-base">
                 {selectedPeriod === "today" && "Today's sales"}
-                {selectedPeriod === "week" && "Last 7 days"}
+                {selectedPeriod === "yesterday" && "Yesterday's sales"}
+                {selectedPeriod === "last7days" && "Last 7 days"}
                 {selectedPeriod === "month" && "Last 30 days"}
                 {selectedPeriod === "year" && "Last 365 days"}
                 {selectedPeriod === "alltime" && "All time"}
-                {selectedPeriod === "custom" && `Last ${customDays} days`}
+                {selectedPeriod === "custom" && (customStartDate && customEndDate 
+                  ? `${new Date(customStartDate).toLocaleDateString('en-GB')} - ${new Date(customEndDate).toLocaleDateString('en-GB')}`
+                  : `Last ${customDays} days`)}
                 {" • "}
                 {data?.salesData.receipts.length || 0} receipt{data?.salesData.receipts.length !== 1 ? 's' : ''}
               </p>
             </div>
+
+            {/* Export Button */}
+            <button
+              onClick={() => {
+                const exportData = () => {
+                  const csvRows = [];
+                  csvRows.push(['PenkeyPOS Sales Report']);
+                  csvRows.push(['Generated:', new Date().toLocaleString('en-GB')]);
+                  csvRows.push(['Period:', selectedPeriod === "today" ? "Today"
+                    : selectedPeriod === "yesterday" ? "Yesterday"
+                    : selectedPeriod === "last7days" ? "Last 7 Days"
+                    : selectedPeriod === "month" ? "Last 30 Days"
+                    : selectedPeriod === "year" ? "Last 365 Days"
+                    : selectedPeriod === "alltime" ? "All Time"
+                    : customStartDate && customEndDate 
+                      ? `${new Date(customStartDate).toLocaleDateString('en-GB')} - ${new Date(customEndDate).toLocaleDateString('en-GB')}`
+                      : `Last ${customDays} Days`]);
+                  csvRows.push([]);
+                  csvRows.push(['Summary']);
+                  csvRows.push(['Gross Sales', `£${periodMetrics.grossSales.toFixed(2)}`]);
+                  csvRows.push(['Total Receipts', periodMetrics.receiptCount]);
+                  csvRows.push(['Average Order', `£${periodMetrics.avgOrder.toFixed(2)}`]);
+                  if (data?.salesData?.refunds > 0) csvRows.push(['Refunds', `£${data.salesData.refunds.toFixed(2)}`]);
+                  if (data?.salesData?.discounts > 0) csvRows.push(['Discounts', `£${data.salesData.discounts.toFixed(2)}`]);
+                  if (data?.salesData?.netSales) csvRows.push(['Net Sales', `£${data.salesData.netSales.toFixed(2)}`]);
+                  csvRows.push([]);
+                  if (itemsData?.items?.length) {
+                    csvRows.push(['Top Selling Items']);
+                    csvRows.push(['Item Name', 'Quantity Sold', 'Revenue']);
+                    itemsData.items.forEach(item => {
+                      csvRows.push([item.name, item.quantity_sold, `£${item.total_revenue.toFixed(2)}`]);
+                    });
+                    csvRows.push([]);
+                  }
+                  if (employeeData?.employees?.length) {
+                    csvRows.push(['Sales by Employee']);
+                    csvRows.push(['Employee', 'Transactions', 'Total Sales']);
+                    employeeData.employees.forEach(emp => {
+                      csvRows.push([emp.employee_name, emp.transaction_count, `£${emp.total_sales.toFixed(2)}`]);
+                    });
+                    csvRows.push([]);
+                  }
+                  if (transactionTypeData?.transaction_types?.length) {
+                    csvRows.push(['Sales by Payment Type']);
+                    csvRows.push(['Payment Method', 'Transactions', 'Total Amount']);
+                    transactionTypeData.transaction_types.forEach(type => {
+                      csvRows.push([type.method, type.transaction_count, `£${type.total_amount.toFixed(2)}`]);
+                    });
+                  }
+                  const csv = csvRows.map(row => row.join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `penkey-report-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                };
+                exportData();
+              }}
+              className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl py-4 px-6 font-semibold text-base shadow-lg hover:from-green-700 hover:to-green-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Download className="h-5 w-5" />
+              Export Report
+            </button>
 
             {/* Period Selector - Mobile Optimized */}
             <div className="space-y-3">
@@ -287,14 +383,24 @@ export default function ReportsPage() {
                   Today
                 </button>
                 <button
-                  onClick={() => setSelectedPeriod("week")}
+                  onClick={() => setSelectedPeriod("yesterday")}
                   className={`py-4 px-4 rounded-xl font-semibold text-base transition-all min-h-[56px] active:scale-95 ${
-                    selectedPeriod === "week"
+                    selectedPeriod === "yesterday"
                       ? "bg-penkey-orange text-white shadow-lg shadow-penkey-orange/30"
                       : "bg-[#3d3d3d] text-gray-300 hover:bg-[#4d4d4d]"
                   }`}
                 >
-                  Week
+                  Yesterday
+                </button>
+                <button
+                  onClick={() => setSelectedPeriod("last7days")}
+                  className={`py-4 px-4 rounded-xl font-semibold text-base transition-all min-h-[56px] active:scale-95 ${
+                    selectedPeriod === "last7days"
+                      ? "bg-penkey-orange text-white shadow-lg shadow-penkey-orange/30"
+                      : "bg-[#3d3d3d] text-gray-300 hover:bg-[#4d4d4d]"
+                  }`}
+                >
+                  Last 7 Days
                 </button>
                 <button
                   onClick={() => setSelectedPeriod("month")}
@@ -365,7 +471,8 @@ export default function ReportsPage() {
                   <h3 className="text-lg font-semibold text-white">
                     {comparison.diff > 0 
                       ? (selectedPeriod === "today" ? "Great Day!" 
-                        : selectedPeriod === "week" ? "Great Week!"
+                        : selectedPeriod === "yesterday" ? "Great Day!"
+                        : selectedPeriod === "last7days" ? "Great Week!"
                         : selectedPeriod === "month" ? "Great Month!"
                         : selectedPeriod === "year" ? "Amazing Year!"
                         : selectedPeriod === "alltime" ? "Incredible Performance!"
@@ -380,11 +487,14 @@ export default function ReportsPage() {
                   {periodMetrics.receiptCount > 0 ? (
                     <>You served {periodMetrics.receiptCount} ticket{periodMetrics.receiptCount !== 1 ? 's' : ''} 
                     {selectedPeriod === "today" ? "today" 
-                      : selectedPeriod === "week" ? "this week"
+                      : selectedPeriod === "yesterday" ? "yesterday"
+                      : selectedPeriod === "last7days" ? "in the last 7 days"
                       : selectedPeriod === "month" ? "this month"
                       : selectedPeriod === "year" ? "this year"
                       : selectedPeriod === "alltime" ? "all time"
-                      : `in ${customDays} days`}
+                      : customStartDate && customEndDate
+                        ? `from ${new Date(customStartDate).toLocaleDateString('en-GB')} to ${new Date(customEndDate).toLocaleDateString('en-GB')}`
+                        : `in ${customDays} days`}
                     </>
                   ) : (
                     <>No sales in this period yet - time to get started!</>
@@ -402,7 +512,8 @@ export default function ReportsPage() {
                     )}
                     £{Math.abs(comparison.diff).toFixed(2)} {comparison.diff >= 0 ? 'more' : 'less'} than 
                     {selectedPeriod === "today" ? "yesterday"
-                      : selectedPeriod === "week" ? "last week"
+                      : selectedPeriod === "yesterday" ? "the day before"
+                      : selectedPeriod === "last7days" ? "the previous 7 days"
                       : selectedPeriod === "month" ? "last month"
                       : selectedPeriod === "year" ? "last year"
                       : selectedPeriod === "alltime" ? "the beginning"
@@ -456,11 +567,14 @@ export default function ReportsPage() {
                 <p className="text-3xl font-bold text-white">{periodMetrics.receiptCount}</p>
                 <p className="text-xs text-gray-400 mt-1">
                   {selectedPeriod === "today" ? "people today"
-                    : selectedPeriod === "week" ? "this week"
+                    : selectedPeriod === "yesterday" ? "yesterday"
+                    : selectedPeriod === "last7days" ? "last 7 days"
                     : selectedPeriod === "month" ? "this month"
                     : selectedPeriod === "year" ? "this year"
                     : selectedPeriod === "alltime" ? "all time"
-                    : `in ${customDays} days`}
+                    : customStartDate && customEndDate
+                      ? "in period"
+                      : `in ${customDays} days`}
                 </p>
               </button>
 
@@ -539,7 +653,8 @@ export default function ReportsPage() {
               <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
                 <MessageSquare className="h-5 w-5 text-penkey-orange" />
                 {selectedPeriod === "today" ? "Today's Story"
-                  : selectedPeriod === "week" ? "This Week's Story"
+                  : selectedPeriod === "yesterday" ? "Yesterday's Story"
+                  : selectedPeriod === "last7days" ? "Last 7 Days Story"
                   : selectedPeriod === "month" ? "This Month's Story"
                   : selectedPeriod === "year" ? "This Year's Story"
                   : selectedPeriod === "alltime" ? "Your Complete Story"
@@ -556,7 +671,8 @@ export default function ReportsPage() {
               <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
                 <Trophy className="h-5 w-5 text-penkey-orange" />
                 {selectedPeriod === "today" ? "Today's Goals"
-                  : selectedPeriod === "week" ? "This Week's Goals"
+                  : selectedPeriod === "yesterday" ? "Yesterday's Goals"
+                  : selectedPeriod === "last7days" ? "Last 7 Days Goals"
                   : selectedPeriod === "month" ? "This Month's Goals"
                   : selectedPeriod === "year" ? "This Year's Goals"
                   : selectedPeriod === "alltime" ? "All-Time Goals"
@@ -764,7 +880,8 @@ export default function ReportsPage() {
               <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                 <MessageSquare className="h-6 w-6 text-penkey-orange" />
                 {selectedPeriod === "today" ? "Today's Story"
-                  : selectedPeriod === "week" ? "This Week's Story"
+                  : selectedPeriod === "yesterday" ? "Yesterday's Story"
+                  : selectedPeriod === "last7days" ? "Last 7 Days Story"
                   : selectedPeriod === "month" ? "This Month's Story"
                   : selectedPeriod === "year" ? "This Year's Story"
                   : selectedPeriod === "alltime" ? "Your Complete Story"
@@ -812,7 +929,8 @@ export default function ReportsPage() {
               <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                 <Trophy className="h-6 w-6 text-penkey-orange" />
                 {selectedPeriod === "today" ? "Today's Goals"
-                  : selectedPeriod === "week" ? "This Week's Goals"
+                  : selectedPeriod === "yesterday" ? "Yesterday's Goals"
+                  : selectedPeriod === "last7days" ? "Last 7 Days Goals"
                   : selectedPeriod === "month" ? "This Month's Goals"
                   : selectedPeriod === "year" ? "This Year's Goals"
                   : selectedPeriod === "alltime" ? "All-Time Goals"
@@ -830,9 +948,10 @@ export default function ReportsPage() {
               {/* Goal 1: Serve tickets based on period */}
               {(() => {
                 const ticketGoal = selectedPeriod === "today" ? 20
-                  : selectedPeriod === "week" ? 140  // 20/day * 7
-                  : selectedPeriod === "month" ? 600  // 20/day * 30
-                  : selectedPeriod === "year" ? 7300  // 20/day * 365
+                  : selectedPeriod === "yesterday" ? 20
+                  : selectedPeriod === "last7days" ? 140
+                  : selectedPeriod === "month" ? 600
+                  : selectedPeriod === "year" ? 7300
                   : selectedPeriod === "alltime" ? 10000
                   : customDays * 20;
                 
@@ -883,7 +1002,8 @@ export default function ReportsPage() {
                       comparison.diff > 0 ? 'text-white' : 'text-gray-400'
                     }`}>
                       Beat {selectedPeriod === "today" ? "yesterday's"
-                        : selectedPeriod === "week" ? "last week's"
+                        : selectedPeriod === "yesterday" ? "the day before's"
+                        : selectedPeriod === "last7days" ? "the previous 7 days'"
                         : selectedPeriod === "month" ? "last month's"
                         : selectedPeriod === "year" ? "last year's"
                         : selectedPeriod === "alltime" ? "all previous"
@@ -1276,35 +1396,61 @@ export default function ReportsPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-400 mb-2 block">Number of days</label>
+                <label className="text-sm text-gray-400 mb-2 block">Start Date</label>
                 <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={customDays}
-                  onChange={(e) => setCustomDays(parseInt(e.target.value) || 1)}
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="w-full bg-[#2d2d2d] text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-penkey-orange focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">End Date</label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
                   className="w-full bg-[#2d2d2d] text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-penkey-orange focus:outline-none"
                 />
               </div>
               
               <div className="flex gap-2">
                 <button
-                  onClick={() => setCustomDays(7)}
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(start.getDate() - 7);
+                    setCustomStartDate(start.toISOString().split('T')[0]);
+                    setCustomEndDate(end.toISOString().split('T')[0]);
+                  }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
-                  7 days
+                  Last 7 Days
                 </button>
                 <button
-                  onClick={() => setCustomDays(14)}
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(start.getDate() - 30);
+                    setCustomStartDate(start.toISOString().split('T')[0]);
+                    setCustomEndDate(end.toISOString().split('T')[0]);
+                  }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
-                  14 days
+                  Last 30 Days
                 </button>
                 <button
-                  onClick={() => setCustomDays(90)}
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(start.getDate() - 90);
+                    setCustomStartDate(start.toISOString().split('T')[0]);
+                    setCustomEndDate(end.toISOString().split('T')[0]);
+                  }}
                   className="flex-1 py-2 px-3 bg-[#2d2d2d] text-gray-300 rounded-lg text-sm hover:bg-[#4d4d4d]"
                 >
-                  90 days
+                  Last 90 Days
                 </button>
               </div>
               

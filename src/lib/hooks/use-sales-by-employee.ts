@@ -23,14 +23,19 @@ interface SalesByEmployeeData {
   summary: SummaryData;
 }
 
-export function useSalesByEmployee(days: number = 30) {
+interface DateRangeParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useSalesByEmployee(days: number = 30, dateRange?: DateRangeParams | null) {
   const [data, setData] = useState<SalesByEmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSalesByEmployee();
-  }, [days]);
+  }, [days, dateRange?.startDate, dateRange?.endDate]);
 
   const fetchSalesByEmployee = async () => {
     try {
@@ -56,9 +61,12 @@ export function useSalesByEmployee(days: number = 30) {
 
       if (!orgId) throw new Error("No organization ID found");
 
-      const response = await fetch(
-        `/api/reports/sales-by-employee?days=${days}&org_id=${orgId}&member_id=${memberId || ""}`
-      );
+      let url = `/api/reports/sales-by-employee?days=${days}&org_id=${orgId}&member_id=${memberId || ""}`;
+      if (dateRange?.startDate && dateRange?.endDate) {
+        url += `&start_date=${dateRange.startDate}&end_date=${dateRange.endDate}`;
+      }
+      
+      const response = await fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json();

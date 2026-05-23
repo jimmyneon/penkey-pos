@@ -28,14 +28,19 @@ interface SalesByItemsData {
   summary: SummaryData;
 }
 
-export function useSalesByItems(days: number = 30) {
+interface DateRangeParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useSalesByItems(days: number = 30, dateRange?: DateRangeParams | null) {
   const [data, setData] = useState<SalesByItemsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSalesByItems();
-  }, [days]);
+  }, [days, dateRange?.startDate, dateRange?.endDate]);
 
   const fetchSalesByItems = async () => {
     try {
@@ -61,9 +66,12 @@ export function useSalesByItems(days: number = 30) {
 
       if (!orgId) throw new Error("No organization ID found");
 
-      const response = await fetch(
-        `/api/reports/sales-by-items?days=${days}&org_id=${orgId}&member_id=${memberId || ""}`
-      );
+      let url = `/api/reports/sales-by-items?days=${days}&org_id=${orgId}&member_id=${memberId || ""}`;
+      if (dateRange?.startDate && dateRange?.endDate) {
+        url += `&start_date=${dateRange.startDate}&end_date=${dateRange.endDate}`;
+      }
+      
+      const response = await fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json();

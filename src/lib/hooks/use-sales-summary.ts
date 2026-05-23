@@ -23,14 +23,19 @@ interface SalesSummaryData {
   employees: Employee[];
 }
 
-export function useSalesSummary(days: number = 30) {
+interface DateRangeParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useSalesSummary(days: number = 30, dateRange?: DateRangeParams | null) {
   const [data, setData] = useState<SalesSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSalesSummary();
-  }, [days]);
+  }, [days, dateRange?.startDate, dateRange?.endDate]);
 
   const fetchSalesSummary = async () => {
     try {
@@ -74,9 +79,12 @@ export function useSalesSummary(days: number = 30) {
         }
       } catch {}
 
-      const response = await fetch(
-        `/api/reports/sales-summary?days=${days}&org_id=${orgId}&member_id=${memberId || ""}`
-      );
+      let url = `/api/reports/sales-summary?days=${days}&org_id=${orgId}&member_id=${memberId || ""}`;
+      if (dateRange?.startDate && dateRange?.endDate) {
+        url += `&start_date=${dateRange.startDate}&end_date=${dateRange.endDate}`;
+      }
+      
+      const response = await fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json();
