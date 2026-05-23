@@ -164,7 +164,7 @@ export default function ReportsPage() {
     }
 
     if (periodMetrics.receiptCount > 0) {
-      messages.push(`You've served ${periodMetrics.receiptCount} ticket${periodMetrics.receiptCount !== 1 ? 's' : ''} ${periodLabel}!`);
+      messages.push(`${periodMetrics.receiptCount} ticket${periodMetrics.receiptCount !== 1 ? 's' : ''} ${periodLabel}!`);
     }
     
     // Add upsell insights if available
@@ -471,7 +471,7 @@ export default function ReportsPage() {
 
                 <p className="text-gray-300 text-base">
                   {periodMetrics.receiptCount > 0 ? (
-                    <>You served {periodMetrics.receiptCount} ticket{periodMetrics.receiptCount !== 1 ? 's' : ''}{" "}
+                    <>{periodMetrics.receiptCount} ticket{periodMetrics.receiptCount !== 1 ? 's' : ''}{" "}
                     {selectedPeriod === "today" ? "today"
                       : selectedPeriod === "yesterday" ? "yesterday"
                       : selectedPeriod === "last7days" ? "in the last 7 days"
@@ -496,7 +496,7 @@ export default function ReportsPage() {
                     ) : (
                       <TrendingDown className="h-4 w-4" />
                     )}
-                    £{Math.abs(comparison.diff).toFixed(2)} {comparison.diff >= 0 ? 'more' : 'less'} than 
+                    £{Math.abs(comparison.diff).toFixed(2)} {comparison.diff >= 0 ? 'more' : 'less'} than{" "}
                     {selectedPeriod === "today" ? "yesterday"
                       : selectedPeriod === "yesterday" ? "the day before"
                       : selectedPeriod === "last7days" ? "the previous 7 days"
@@ -552,15 +552,15 @@ export default function ReportsPage() {
                 </div>
                 <p className="text-3xl font-bold text-white">{periodMetrics.receiptCount}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {selectedPeriod === "today" ? "people today"
-                    : selectedPeriod === "yesterday" ? "yesterday"
-                    : selectedPeriod === "last7days" ? "last 7 days"
-                    : selectedPeriod === "month" ? "this month"
-                    : selectedPeriod === "year" ? "this year"
-                    : selectedPeriod === "alltime" ? "all time"
+                  {selectedPeriod === "today" ? "tickets today"
+                    : selectedPeriod === "yesterday" ? "tickets yesterday"
+                    : selectedPeriod === "last7days" ? "tickets last 7 days"
+                    : selectedPeriod === "month" ? "tickets this month"
+                    : selectedPeriod === "year" ? "tickets this year"
+                    : selectedPeriod === "alltime" ? "tickets all time"
                     : customStartDate && customEndDate
-                      ? "in period"
-                      : `in ${customDays} days`}
+                      ? "tickets in period"
+                      : `tickets in ${customDays} days`}
                 </p>
               </button>
 

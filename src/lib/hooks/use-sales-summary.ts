@@ -72,7 +72,7 @@ export function useSalesSummary(days: number = 30, dateRange?: DateRangeParams |
 
       console.log("Fetching sales summary with org_id:", orgId, "member_id:", memberId);
 
-      // IDB-first: try reports_cache
+      // IDB-first: try reports_cache but don't set loading false yet to avoid flicker
       const cacheKey = `sales_summary_${days}_${orgId}`;
       try {
         let cached: any = await getByKey('reports_cache', cacheKey as any);
@@ -81,7 +81,7 @@ export function useSalesSummary(days: number = 30, dateRange?: DateRangeParams |
         }
         if (cached?.data) {
           setData(cached.data as SalesSummaryData);
-          setLoading(false);
+          // Don't set loading false here - wait for fresh data to avoid flicker
         }
       } catch {}
 
