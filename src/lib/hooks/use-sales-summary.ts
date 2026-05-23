@@ -10,6 +10,11 @@ interface SalesData {
   refundsList: any[];
 }
 
+interface PreviousPeriod {
+  grossSales: number;
+  receiptCount: number;
+}
+
 interface Employee {
   id: string;
   first_name: string;
@@ -20,6 +25,7 @@ interface Employee {
 interface SalesSummaryData {
   userName: string;
   salesData: SalesData;
+  previousPeriod?: PreviousPeriod;
   employees: Employee[];
 }
 

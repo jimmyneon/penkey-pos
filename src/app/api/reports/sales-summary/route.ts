@@ -136,6 +136,71 @@ export async function GET(request: NextRequest) {
     const refundsTotal = refunds?.reduce((sum: number, r: any) => sum + parseFloat(r.amount || "0"), 0) || 0;
     const discountsTotal = receipts?.reduce((sum: number, r: any) => sum + parseFloat(r.discount_total || "0"), 0) || 0;
 
+    // Calculate previous period metrics for comparison
+    let previousGrossSales = 0;
+    let previousReceiptCount = 0;
+
+    if (!customStartDate && !customEndDate) {
+      // Only calculate previous period for standard day-based ranges
+      let prevStartDate: Date;
+      let prevEndDate: Date;
+
+      if (daysBack === 1) {
+        // Today: compare to yesterday
+        prevStartDate = new Date();
+        prevStartDate.setDate(prevStartDate.getDate() - 1);
+        prevStartDate.setHours(0, 0, 0, 0);
+        prevEndDate = new Date();
+        prevEndDate.setDate(prevEndDate.getDate() - 1);
+        prevEndDate.setHours(23, 59, 59, 999);
+      } else if (daysBack === 7) {
+        // Last 7 days: compare to previous 7 days
+        prevStartDate = new Date();
+        prevStartDate.setDate(prevStartDate.getDate() - 14);
+        prevStartDate.setHours(0, 0, 0, 0);
+        prevEndDate = new Date();
+        prevEndDate.setDate(prevEndDate.getDate() - 8);
+        prevEndDate.setHours(23, 59, 59, 999);
+      } else if (daysBack === 30) {
+        // Last 30 days: compare to previous 30 days
+        prevStartDate = new Date();
+        prevStartDate.setDate(prevStartDate.getDate() - 60);
+        prevStartDate.setHours(0, 0, 0, 0);
+        prevEndDate = new Date();
+        prevEndDate.setDate(prevEndDate.getDate() - 31);
+        prevEndDate.setHours(23, 59, 59, 999);
+      } else if (daysBack === 365) {
+        // Last 365 days: compare to previous 365 days
+        prevStartDate = new Date();
+        prevStartDate.setDate(prevStartDate.getDate() - 730);
+        prevStartDate.setHours(0, 0, 0, 0);
+        prevEndDate = new Date();
+        prevEndDate.setDate(prevEndDate.getDate() - 366);
+        prevEndDate.setHours(23, 59, 59, 999);
+      } else {
+        // For custom days, compare to same length period before
+        prevStartDate = new Date();
+        prevStartDate.setDate(prevStartDate.getDate() - (daysBack * 2));
+        prevStartDate.setHours(0, 0, 0, 0);
+        prevEndDate = new Date();
+        prevEndDate.setDate(prevEndDate.getDate() - (daysBack + 1));
+        prevEndDate.setHours(23, 59, 59, 999);
+      }
+
+      // Fetch previous period receipts
+      const { data: prevReceipts } = await supabase
+        .from("receipts")
+        .select("id, total")
+        .eq("org_id", orgId)
+        .gte("created_at", prevStartDate.toISOString())
+        .lte("created_at", prevEndDate.toISOString())
+        .neq("status", "fully_refunded")
+        .neq("status", "voided");
+
+      previousGrossSales = prevReceipts?.reduce((sum: number, r: any) => sum + parseFloat(r.total || "0"), 0) || 0;
+      previousReceiptCount = prevReceipts?.length || 0;
+    }
+
     return NextResponse.json({
       userName,
       salesData: {
@@ -145,6 +210,10 @@ export async function GET(request: NextRequest) {
         netSales: grossSales - refundsTotal - discountsTotal,
         receipts: receipts || [],
         refundsList: refunds || [],
+      },
+      previousPeriod: {
+        grossSales: previousGrossSales,
+        receiptCount: previousReceiptCount,
       },
       employees: employees || [],
     });

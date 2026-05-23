@@ -95,37 +95,16 @@ export default function ReportsPage() {
     };
   }, [periodReceipts]);
 
-  // Calculate previous period metrics for comparison
-  const previousPeriodMetrics = useMemo(() => {
-    if (!periodReceipts.length) return { grossSales: 0, receiptCount: 0 };
-    
-    // Split receipts into two halves for comparison
-    const halfPoint = Math.floor(periodReceipts.length / 2);
-    const sortedReceipts = [...periodReceipts].sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    
-    const olderHalf = sortedReceipts.slice(0, halfPoint);
-    const newerHalf = sortedReceipts.slice(halfPoint);
-    
-    const olderSales = olderHalf.reduce((sum: number, r: any) => sum + parseFloat(r.total || "0"), 0);
-    const newerSales = newerHalf.reduce((sum: number, r: any) => sum + parseFloat(r.total || "0"), 0);
-    
-    return { 
-      grossSales: olderSales,
-      newerSales,
-      diff: newerSales - olderSales
-    };
-  }, [periodReceipts]);
-
-  // Calculate comparison
+  // Calculate comparison using API-provided previous period data
   const comparison = useMemo(() => {
-    const diff = previousPeriodMetrics.diff || 0;
-    const percentChange = previousPeriodMetrics.grossSales > 0
-      ? ((diff / previousPeriodMetrics.grossSales) * 100).toFixed(0)
+    const previousGrossSales = data?.previousPeriod?.grossSales || 0;
+    const currentGrossSales = periodMetrics.grossSales;
+    const diff = currentGrossSales - previousGrossSales;
+    const percentChange = previousGrossSales > 0
+      ? ((diff / previousGrossSales) * 100).toFixed(0)
       : 0;
     return { diff, percentChange };
-  }, [previousPeriodMetrics]);
+  }, [data, periodMetrics]);
 
   // Find busiest time
   const busiestTime = useMemo(() => {
@@ -492,8 +471,8 @@ export default function ReportsPage() {
 
                 <p className="text-gray-300 text-base">
                   {periodMetrics.receiptCount > 0 ? (
-                    <>You served {periodMetrics.receiptCount} ticket{periodMetrics.receiptCount !== 1 ? 's' : ''} 
-                    {selectedPeriod === "today" ? "today" 
+                    <>You served {periodMetrics.receiptCount} ticket{periodMetrics.receiptCount !== 1 ? 's' : ''}{" "}
+                    {selectedPeriod === "today" ? "today"
                       : selectedPeriod === "yesterday" ? "yesterday"
                       : selectedPeriod === "last7days" ? "in the last 7 days"
                       : selectedPeriod === "month" ? "this month"
