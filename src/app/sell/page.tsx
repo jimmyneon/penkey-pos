@@ -263,7 +263,7 @@ export default function SellPage() {
       // Recalculate to filter out items now in cart
       const triggerItem = items.find(i => i.id === upsellTriggerItem.id);
       if (triggerItem) {
-        const updatedSuggestions = upsellLearningEngine.getSuggestions(triggerItem, lines, 4);
+        const updatedSuggestions = upsellLearningEngine.getSuggestions(triggerItem, lines, 9);
         if (updatedSuggestions.length !== upsellSuggestions.length) {
           setUpsellSuggestions(updatedSuggestions);
         }
@@ -720,7 +720,7 @@ export default function SellPage() {
         const triggerItem = item;
         setUpsellTriggerItem({ id: triggerItem.id, name: triggerItem.name });
 
-        const suggestions = upsellLearningEngine.getSuggestions(triggerItem, lines, 8);
+        const suggestions = upsellLearningEngine.getSuggestions(triggerItem, lines, 9);
     
         // Debug: Log what we got from learning engine
         console.log('[Upsell] Raw suggestions from engine:', suggestions.map(s => `${s.name} (${s.id})`));
@@ -834,7 +834,7 @@ export default function SellPage() {
         const updatedSuggestions = upsellLearningEngine.getSuggestions(
           triggerItemFull, 
           lines, // Now includes the item we just added
-          8
+          9
         );
         
         // Remove duplicates by name
