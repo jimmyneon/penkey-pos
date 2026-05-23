@@ -27,7 +27,10 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
-  WifiOff
+  WifiOff,
+  QrCode,
+  Copy,
+  Star
 } from "lucide-react";
 import { registerSettings, RegisterSettings, DEFAULT_SETTINGS } from "@/lib/services/register-settings";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
@@ -64,6 +67,13 @@ export default function SettingsPage() {
   const [printers, setPrinters] = useState<any[]>([]);
   const [sendingCommand, setSendingCommand] = useState(false);
 
+  // QR code settings
+  const [qrCodes, setQrCodes] = useState<any[]>([]);
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("");
+  const [trackingUrl, setTrackingUrl] = useState("");
+  const [totalScans, setTotalScans] = useState(0);
+  const [loadingQr, setLoadingQr] = useState(false);
+
   const checkPrinterStatus = async () => {
     setPrinterStatus("checking");
     try {
@@ -98,13 +108,86 @@ export default function SettingsPage() {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Failed to send command");
-      showToast(data.message, "success");
-    } catch (e: any) {
-      showToast(e.message || "Failed to send command", "error");
+      showToast("Command sent successfully", "success");
+      hapticSuccess();
+    } catch (error: any) {
+      showToast(error.message || "Failed to send command", "error");
     } finally {
       setSendingCommand(false);
     }
   };
+
+  const loadQRCodes = async () => {
+    setLoadingQr(true);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      if (!sessionData) return;
+      
+      const session = JSON.parse(sessionData);
+      const orgId = session.org_id;
+      
+      const response = await fetch(`/api/qr-codes?org_id=${orgId}`);
+      const data = await response.json();
+      
+      if (data.qr_codes) {
+        setQrCodes(data.qr_codes);
+        
+        // Find Google Review QR code
+        const googleQR = data.qr_codes.find((qr: any) => qr.code_type === 'google_review');
+        if (googleQR) {
+          setGoogleReviewUrl(googleQR.target_url);
+          const baseUrl = window.location.origin;
+          setTrackingUrl(`${baseUrl}/qr/${googleQR.unique_code}`);
+          
+          // Load stats
+          const statsResponse = await fetch(`/api/qr-codes/${googleQR.id}/stats`);
+          const statsData = await statsResponse.json();
+          if (statsData.stats) {
+            setTotalScans(statsData.stats.total_scans || 0);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load QR codes:', error);
+    } finally {
+      setLoadingQr(false);
+    }
+  };
+
+  const copyTrackingUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(trackingUrl);
+      showToast("Tracking URL copied to clipboard", "success");
+      hapticSuccess();
+    } catch (error) {
+      showToast("Failed to copy URL", "error");
+    }
+  };
+
+  const updateGoogleReviewUrl = async () => {
+    try {
+      const googleQR = qrCodes.find((qr: any) => qr.code_type === 'google_review');
+      if (!googleQR) {
+        showToast("Google Review QR code not found", "error");
+        return;
+      }
+      
+      const response = await fetch(`/api/qr-codes/${googleQR.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_url: googleReviewUrl }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to update URL');
+      
+      showToast("Google Review URL updated", "success");
+      hapticSuccess();
+      loadQRCodes(); // Reload to update tracking URL
+    } catch (error) {
+      showToast("Failed to update URL", "error");
+    }
+  };
+
   const [showSumUpForm, setShowSumUpForm] = useState(false);
   const [sumUpApiKey, setSumUpApiKey] = useState("");
   const [sumUpMerchantCodeInput, setSumUpMerchantCodeInput] = useState("");
@@ -113,6 +196,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings();
+    loadQRCodes();
   }, []);
 
   const loadSettings = async () => {
@@ -1140,6 +1224,80 @@ export default function SettingsPage() {
                 onChange={(checked) => updateSetting("haptic_enabled", checked)}
               />
             </SettingRow>
+          </SettingsSection>
+
+          {/* QR Code Settings */}
+          <SettingsSection title="QR Codes" icon={QrCode}>
+            {loadingQr ? (
+              <SettingRow
+                label="Loading..."
+                description="Loading QR code settings"
+              >
+                <div className="animate-spin w-4 h-4 border-2 border-penkey-orange border-t-transparent rounded-full"></div>
+              </SettingRow>
+            ) : trackingUrl ? (
+              <>
+                <SettingRow
+                  label="Tracking URL"
+                  description="Copy this URL to use in QR codes"
+                >
+                  <div className="flex gap-2 items-center">
+                    <div className="bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 min-h-[44px] text-sm sm:text-base max-w-[300px] truncate">
+                      {trackingUrl}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={copyTrackingUrl}
+                      className="min-h-[44px] min-w-[80px] border-gray-600 text-black"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </SettingRow>
+
+                <SettingRow
+                  label="Google Review URL"
+                  description="Where customers are redirected after scanning"
+                >
+                  <div className="flex gap-2 flex-col sm:flex-row">
+                    <input
+                      type="text"
+                      value={googleReviewUrl}
+                      onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                      placeholder="https://g.page/r/..."
+                      className="flex-1 bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={updateGoogleReviewUrl}
+                      className="min-h-[44px] min-w-[100px] bg-penkey-orange hover:bg-orange-600"
+                    >
+                      Update
+                    </Button>
+                  </div>
+                </SettingRow>
+
+                <SettingRow
+                  label="Total Scans"
+                  description="Number of times QR code has been scanned"
+                >
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-yellow-400" />
+                    <span className="text-white text-lg font-semibold">{totalScans}</span>
+                  </div>
+                </SettingRow>
+              </>
+            ) : (
+              <SettingRow
+                label="No QR Code"
+                description="Run the seed script to create a Google Review QR code"
+              >
+                <div className="text-gray-400 text-sm">
+                  Run: node scripts/seed-google-review-qr.js
+                </div>
+              </SettingRow>
+            )}
           </SettingsSection>
 
           {/* Action Buttons */}
