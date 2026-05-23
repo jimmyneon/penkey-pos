@@ -20,7 +20,7 @@ function PaymentSuccessContent() {
   const { toasts, showToast, dismissToast} = useToast();
   const { clearCart } = useCartStore();
   const [mounted, setMounted] = useState(false);
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(60);
   const [countdownActive, setCountdownActive] = useState(true);
 
   const receiptId = searchParams.get("receipt_id");
@@ -130,9 +130,9 @@ function PaymentSuccessContent() {
   }, [router]);
 
   useEffect(() => {
-    console.log(`[PaymentSuccess] Countdown effect triggered - mounted: ${mounted}, active: ${countdownActive}`);
-    if (!mounted || !countdownActive) {
-      console.log("[PaymentSuccess] Countdown effect skipped (not mounted or not active).");
+    console.log(`[PaymentSuccess] Countdown effect triggered - mounted: ${mounted}, active: ${countdownActive}, qrModalOpen: ${qrModalOpen}`);
+    if (!mounted || !countdownActive || qrModalOpen) {
+      console.log("[PaymentSuccess] Countdown effect skipped (not mounted, not active, or QR modal open).");
       return;
     }
 
@@ -153,7 +153,7 @@ function PaymentSuccessContent() {
       console.log("[PaymentSuccess] Countdown effect cleanup: Clearing interval.");
       clearInterval(timer);
     };
-  }, [mounted, countdownActive, redirect]);
+  }, [mounted, countdownActive, qrModalOpen, redirect]);
 
   const handlePrintReceipt = useCallback(async (silent = false) => {
     if (!receiptId) return;
@@ -286,18 +286,18 @@ function PaymentSuccessContent() {
         )}
 
         {/* Actions */}
-        <div className="flex justify-center items-center gap-4 mb-8">
-          <Button
+        <div className="flex justify-center items-center gap-3 mb-8 flex-wrap">
+          <Button 
             size="lg"
-            className="flex flex-col items-center justify-center h-32 w-32 bg-penkey-orange hover:bg-orange-600 text-white p-2 aspect-square"
+            className="flex flex-col items-center justify-center h-28 w-28 sm:h-32 sm:w-32 bg-penkey-orange hover:bg-orange-600 text-white p-2 aspect-square"
             onClick={handleNewSale}
           >
-            <Home className="h-8 w-8 mb-2" />
-            <span className="text-sm text-center">New Sale</span>
+            <Home className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
+            <span className="text-xs sm:text-sm text-center leading-tight">New Sale</span>
           </Button>
           <Button
             size="lg"
-            className={`flex flex-col items-center justify-center h-32 w-32 text-white border-0 p-2 aspect-square transition-colors ${
+            className={`flex flex-col items-center justify-center h-28 w-28 sm:h-32 sm:w-32 text-white border-0 p-2 aspect-square transition-colors ${
               printQueued
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-[#5d5d5d] hover:bg-[#6d6d6d]"
@@ -306,22 +306,22 @@ function PaymentSuccessContent() {
             disabled={printing}
           >
             {printing ? (
-              <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+              <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2 animate-spin" />
             ) : (
-              <Printer className="h-8 w-8 mb-2" />
+              <Printer className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
             )}
-            <span className="text-sm text-center">
+            <span className="text-xs sm:text-sm text-center leading-tight">
               {printing ? "Sending..." : printQueued ? "Sent ✓" : "Print Receipt"}
             </span>
           </Button>
           {qrCodeUrl && (
             <Button
               size="lg"
-              className="flex flex-col items-center justify-center h-32 w-32 bg-yellow-500 hover:bg-yellow-600 text-white p-2 aspect-square transition-colors"
+              className="flex flex-col items-center justify-center h-28 w-28 sm:h-32 sm:w-32 bg-yellow-500 hover:bg-yellow-600 text-white p-2 aspect-square transition-colors"
               onClick={() => setQrModalOpen(true)}
             >
-              <Star className="h-8 w-8 mb-2" />
-              <span className="text-sm text-center">Leave a Review</span>
+              <Star className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
+              <span className="text-xs sm:text-sm text-center leading-tight">Leave a Review</span>
             </Button>
           )}
         </div>
