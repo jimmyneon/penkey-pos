@@ -123,31 +123,31 @@ export function PenkeyPromptsBar({
   const isCollapsingRef = useRef(false);
   const isExpandedRef = useRef(false);
   const collapsingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const maxDragHeight = 450; // Max height for expanded section - enough space for all buttons
+  const maxDragHeight = window.innerHeight - 100; // Full screen minus bar height
 
   // Keep ref in sync with state
   useEffect(() => {
     isExpandedRef.current = isExpanded;
   }, [isExpanded]);
 
-  // Listen for auto-collapse event
-  useEffect(() => {
-    const handleCollapse = () => {
-      if (isExpanded) {
-        console.log('[PromptsBar] Auto-collapsing before prompt change');
-        isCollapsingRef.current = true;
-        setIsCollapsing(true);
-        setIsExpanded(false);
-        // Keep collapsing flag for 500ms during collapse animation
-        setTimeout(() => {
-          isCollapsingRef.current = false;
-          setIsCollapsing(false);
-        }, 500);
-      }
-    };
-    window.addEventListener('penkey-prompts-collapse', handleCollapse);
-    return () => window.removeEventListener('penkey-prompts-collapse', handleCollapse);
-  }, [isExpanded]);
+  // Listen for auto-collapse event - DISABLED for manual control
+  // useEffect(() => {
+  //   const handleCollapse = () => {
+  //     if (isExpanded) {
+  //       console.log('[PromptsBar] Auto-collapsing before prompt change');
+  //       isCollapsingRef.current = true;
+  //       setIsCollapsing(true);
+  //       setIsExpanded(false);
+  //       // Keep collapsing flag for 500ms during collapse animation
+  //       setTimeout(() => {
+  //         isCollapsingRef.current = false;
+  //         setIsCollapsing(false);
+  //       }, 500);
+  //     }
+  //   };
+  //   window.addEventListener('penkey-prompts-collapse', handleCollapse);
+  //   return () => window.removeEventListener('penkey-prompts-collapse', handleCollapse);
+  // }, [isExpanded]);
 
   // Generate prompts based on available data
   const generatePrompts = (): PromptData[] => {
@@ -596,14 +596,90 @@ export function PenkeyPromptsBar({
         />
       )}
       
+      {/* Combined container - bar + expansion as one unit */}
       <div 
         ref={barRef}
         className="fixed left-0 right-0 z-30"
         style={{
-          bottom: `${expansionHeight}px`,
+          bottom: 0,
           transition: isDragging ? 'none' : 'bottom 0.3s ease-out',
         }}
       >
+        {/* Expandable Upsell Items Section - Above the bar */}
+        {expansionHeight > 0 && currentPrompt.expandable && upsellSuggestions.length > 0 && (
+          <div 
+            className="bg-[#3d3d3d] overflow-hidden rounded-t-3xl sm:rounded-xl"
+            style={{
+              height: `${expansionHeight}px`,
+              borderLeft: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
+              borderRight: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
+              borderBottom: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
+              borderTop: 'none',
+              transitionProperty: 'height, border-left-color, border-right-color, border-bottom-color',
+              transitionDuration: isDragging ? '0s' : '0.3s, 0.5s, 0.5s, 0.5s',
+            }}
+          >
+            <div 
+              className={`p-3 grid gap-2 max-h-[50vh] overflow-y-auto ${
+                gridSize === 2 ? 'grid-cols-2' :
+                gridSize === 3 ? 'grid-cols-3' :
+                gridSize === 4 ? 'grid-cols-4' :
+                gridSize === 5 ? 'grid-cols-5' :
+                'grid-cols-6'
+              }`}
+              style={{
+                transition: 'all 0.3s ease-out',
+              }}
+              onTouchStart={() => {
+                console.log('[PromptsBar] User touching grid');
+              }}
+              onScroll={() => {
+                console.log('[PromptsBar] User scrolling grid');
+              }}
+            >
+              {upsellSuggestions.map((item) => {
+                const price = item.has_variants
+                  ? item.item_variants?.[0]?.price || 0
+                  : item.base_price || 0;
+                const hasImage = item.image_url;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={(e) => handleUpsellItemClick(item, e)}
+                    className="relative rounded-lg overflow-hidden transition-all duration-300 ease-out aspect-square bg-[#5d5d5d] active:bg-penkey-orange active:scale-95"
+                    style={{
+                      opacity: isAnimating ? 0.5 : 1,
+                      pointerEvents: isAnimating ? 'none' : 'auto',
+                    }}
+                  >
+                    {/* Image Background */}
+                    {hasImage && (
+                      <img 
+                        src={item.image_url!} 
+                        alt={item.name}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    )}
+                    
+                    {/* Text Overlay */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2 bg-black/40">
+                      <p className="text-white text-xs font-medium text-center leading-tight line-clamp-2">
+                        {item.name}
+                      </p>
+                      {price > 0 && (
+                        <p className="text-white text-xs mt-1 font-semibold">
+                          {formatCurrency(price)}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Fixed Prompt Bar - 10px thicker (74px) */}
         <div
           onTouchStart={handleTouchStart}
@@ -637,103 +713,14 @@ export function PenkeyPromptsBar({
         {currentPrompt.expandable && (
           <div className="flex-shrink-0 ml-2">
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5" />
-            ) : (
               <ChevronDown className="h-5 w-5" />
+            ) : (
+              <ChevronUp className="h-5 w-5" />
             )}
           </div>
         )}
       </div>
-
-      {/* Expandable Upsell Items Section - Seamlessly connected to bar */}
-      {expansionHeight > 0 && currentPrompt.expandable && upsellSuggestions.length > 0 && (
-        <div 
-          className="fixed left-0 right-0 bottom-0 bg-[#3d3d3d] z-20 overflow-hidden rounded-t-3xl sm:rounded-xl"
-          style={{
-            height: `${expansionHeight}px`,
-            borderLeft: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
-            borderRight: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
-            borderBottom: showBorder ? '2px solid rgb(249, 115, 22)' : '2px solid transparent',
-            borderTop: 'none',
-            transitionProperty: 'height, border-left-color, border-right-color, border-bottom-color',
-            transitionDuration: isDragging ? '0s' : '0.3s, 0.5s, 0.5s, 0.5s',
-          }}
-        >
-          <div 
-            className={`p-3 grid gap-2 max-h-[50vh] overflow-y-auto ${
-              gridSize === 2 ? 'grid-cols-2' :
-              gridSize === 3 ? 'grid-cols-3' :
-              gridSize === 4 ? 'grid-cols-4' :
-              gridSize === 5 ? 'grid-cols-5' :
-              'grid-cols-6'
-            }`}
-            style={{
-              transition: 'all 0.3s ease-out',
-            }}
-            onTouchStart={() => {
-              // No auto-collapse - user controls manually
-              console.log('[PromptsBar] User touching grid');
-            }}
-            onScroll={() => {
-              // No auto-collapse - user controls manually
-              console.log('[PromptsBar] User scrolling grid');
-            }}
-          >
-            {upsellSuggestions.map((item) => {
-              const price = item.has_variants
-                ? item.item_variants?.[0]?.price || 0
-                : item.base_price || 0;
-              const hasImage = item.image_url;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={(e) => handleUpsellItemClick(item, e)}
-                  className="relative rounded-lg overflow-hidden transition-all duration-300 ease-out aspect-square bg-[#5d5d5d] active:bg-penkey-orange active:scale-95"
-                  style={{
-                    opacity: isAnimating ? 0.5 : 1,
-                    pointerEvents: isAnimating ? 'none' : 'auto',
-                  }}
-                >
-                  {/* Image Background */}
-                  {hasImage && (
-                    <img 
-                      src={item.image_url!} 
-                      alt={item.name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  )}
-                  
-                  {/* Content Overlay */}
-                  <div className={`absolute inset-0 flex flex-col items-center justify-center ${
-                    gridSize >= 5 ? 'p-1 sm:p-1.5' :
-                    gridSize === 4 ? 'p-1.5 sm:p-2' :
-                    'p-2 sm:p-3'
-                  } ${hasImage ? 'bg-black/40' : ''}`}>
-                    <h3 className={`font-medium text-center leading-tight text-white drop-shadow-lg mb-1 ${
-                      font_size === "very_small" ? "text-[10px] sm:text-xs" :
-                      font_size === "small" ? "text-xs sm:text-sm" :
-                      font_size === "medium" ? "text-sm sm:text-base" :
-                      "text-lg sm:text-xl"
-                    }`}>
-                      {item.name}
-                    </h3>
-                    <p className={`text-penkey-orange font-bold drop-shadow-lg ${
-                      font_size === "very_small" ? "text-xs sm:text-sm" :
-                      font_size === "small" ? "text-sm sm:text-base" :
-                      font_size === "medium" ? "text-sm sm:text-base" :
-                      "text-base sm:text-lg"
-                    }`}>
-                      {formatCurrency(price)}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
     </>
   );
 }
