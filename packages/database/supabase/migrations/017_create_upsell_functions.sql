@@ -4,6 +4,7 @@
 
 -- Function: calculate_item_associations
 -- Analyzes historical sales data to find item co-occurrence patterns
+DROP FUNCTION IF EXISTS calculate_item_associations(uuid,integer,integer,numeric);
 CREATE OR REPLACE FUNCTION calculate_item_associations(
   p_org_id UUID,
   p_days_back INTEGER DEFAULT 90,
@@ -97,6 +98,7 @@ $$;
 
 -- Function: get_frequently_bought_together
 -- Returns items frequently bought together with a specific item
+DROP FUNCTION IF EXISTS get_frequently_bought_together(uuid,uuid,integer,integer);
 CREATE OR REPLACE FUNCTION get_frequently_bought_together(
   p_org_id UUID,
   p_item_id UUID,
