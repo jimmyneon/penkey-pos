@@ -25,17 +25,24 @@ export interface SavedTicket {
 
 export class TicketSyncService {
   /**
-   * Load all saved tickets for an org
+   * Load all saved tickets for an org and employee (user-scoped)
    */
-  static async loadTickets(orgId: string): Promise<SavedTicket[]> {
+  static async loadTickets(orgId: string, employeeId?: string): Promise<SavedTicket[]> {
     try {
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('saved_tickets')
         .select('*')
-        .eq('org_id', orgId)
-        .order('created_at', { ascending: false });
+        .eq('org_id', orgId);
+      
+      // If employeeId is provided, filter by it (user-scoped)
+      if (employeeId) {
+        query = query.eq('employee_id', employeeId) as any;
+      }
+      
+      const { data, error } = await query
+        .order('created_at', { ascending: false }) as any;
 
       if (error) throw error;
 

@@ -37,12 +37,13 @@ export class CartSyncService {
     try {
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Try to find existing cart for this register
+      // Try to find existing cart for this register AND employee (user-scoped)
       const { data: existingCart } = await supabase
         .from('active_carts')
         .select('*')
         .eq('org_id', orgId)
         .eq('register_id', registerId)
+        .eq('employee_id', employeeId)
         .order('last_activity_at', { ascending: false })
         .limit(1)
         .maybeSingle();

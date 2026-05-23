@@ -53,22 +53,29 @@ export class TicketsService {
   private cache: { tickets: Ticket[]; timestamp: number } | null = null;
 
   /**
-   * Get all parked tickets for a register
+   * Get all parked tickets for a register and employee (user-scoped)
    */
-  async getTickets(registerId: string): Promise<Ticket[]> {
+  async getTickets(registerId: string, employeeId?: string): Promise<Ticket[]> {
     // Check cache first
     if (this.cache && Date.now() - this.cache.timestamp < CACHE_DURATION) {
       return this.cache.tickets;
     }
 
     try {
-      // Get tickets with their lines
-      const { data: tickets, error: ticketsError } = await this.supabase
+      // Get tickets with their lines - filter by register_id AND employee_id (user-scoped)
+      let query = this.supabase
         .from("tickets")
         .select("*")
         .eq("register_id", registerId)
-        .eq("status", "parked")
-        .order("created_at", { ascending: false });
+        .eq("status", "parked");
+      
+      // If employeeId is provided, filter by it (user-scoped)
+      if (employeeId) {
+        query = query.eq("member_id", employeeId) as any;
+      }
+      
+      const { data: tickets, error: ticketsError } = await query
+        .order("created_at", { ascending: false }) as any;
 
       if (ticketsError) throw ticketsError;
 

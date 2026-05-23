@@ -150,8 +150,8 @@ export default function SellPage() {
           console.log(`[Tickets] Migrated ${migrated} tickets from localStorage`);
         }
 
-        // Load all tickets from database
-        const tickets = await TicketSyncService.loadTickets(session.org_id);
+        // Load all tickets from database (user-scoped)
+        const tickets = await TicketSyncService.loadTickets(session.org_id, session.employee.id);
         setSavedTickets(tickets);
       } catch (error) {
         console.error('[Tickets] Failed to load:', error);

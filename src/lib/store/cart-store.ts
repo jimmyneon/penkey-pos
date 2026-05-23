@@ -1,6 +1,18 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+// Get user-scoped storage key to prevent cross-account cart sharing
+function getStorageKey() {
+  try {
+    const session = sessionStorage.getItem("pos_session");
+    if (session) {
+      const parsed = JSON.parse(session);
+      return `pos-cart-storage-${parsed.user_id || 'default'}`;
+    }
+  } catch {}
+  return 'pos-cart-storage';
+}
+
 export interface CartModifier {
   id: string;
   name: string;
@@ -142,7 +154,7 @@ export const useCartStore = create<CartStore>()(
   },
     }),
     {
-      name: 'pos-cart-storage', // localStorage key
+      name: getStorageKey(), // localStorage key (user-scoped)
       storage: createJSONStorage(() => localStorage),
     }
   )
