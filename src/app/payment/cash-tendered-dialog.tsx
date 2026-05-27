@@ -29,14 +29,16 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashT
     }
   }, [open]);
 
-  const tenderedAmount = parseFloat(cashTendered) || 0;
+  const tenderedAmount = (parseFloat(cashTendered) || 0) / 100;
   const change = tenderedAmount - totalDue;
   const canComplete = tenderedAmount >= totalDue;
 
   const handleNumberClick = (num: string) => {
-    if (num === "." && cashTendered.includes(".")) return;
-    if (cashTendered.split(".")[1]?.length >= 2) return; // Max 2 decimal places
-    setCashTendered(cashTendered + num);
+    if (num === "00") {
+      setCashTendered(cashTendered + "00");
+    } else {
+      setCashTendered(cashTendered + num);
+    }
   };
 
   const handleClear = () => {
@@ -44,9 +46,8 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashT
   };
 
   const handleQuickCash = (amount: number) => {
-    const currentAmount = parseFloat(cashTendered) || 0;
-    const newAmount = currentAmount + amount;
-    setCashTendered(newAmount.toFixed(2));
+    const newAmount = amount * 100; // Convert to pence
+    setCashTendered(newAmount.toString());
   };
 
   const handleConfirm = () => {
@@ -77,7 +78,7 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashT
           <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3">
             <div className="text-xs text-gray-400 mb-1">CASH TENDERED</div>
             <div className="text-3xl sm:text-4xl font-bold text-penkey-orange">
-              £{cashTendered || "0.00"}
+              {formatCurrency(tenderedAmount)}
             </div>
           </div>
 
@@ -130,10 +131,10 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashT
               0
             </button>
             <button
-              onClick={() => handleNumberClick(".")}
+              onClick={() => handleNumberClick("00")}
               className="h-12 sm:h-14 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-xl sm:text-2xl font-semibold transition-colors"
             >
-              .
+              00
             </button>
           </div>
 
