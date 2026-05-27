@@ -7,7 +7,7 @@ import { formatCurrency } from "@penkey/ui";
 import { CheckCircle, Printer, Home, StopCircle, Loader2, Star } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
-import { QRCodeModal } from "@/components/qr-code-modal";
+import { QRCodeSVG } from 'qrcode.react';
 import { useCartStore } from "@/lib/store/cart-store";
 import { dataCache } from "@/lib/services/data-cache";
 import { registerSettings } from "@/lib/services/register-settings";
@@ -27,7 +27,6 @@ function PaymentSuccessContent() {
   const change = parseFloat(searchParams.get("change") || "0");
   const [printing, setPrinting] = useState(false);
   const [printQueued, setPrintQueued] = useState(false);
-  const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   
   console.log(`[PaymentSuccessContent] Initial render values - receiptId: ${receiptId}, change: ${change}, countdown: ${countdown}, mounted: ${mounted}`);
@@ -130,9 +129,9 @@ function PaymentSuccessContent() {
   }, [router]);
 
   useEffect(() => {
-    console.log(`[PaymentSuccess] Countdown effect triggered - mounted: ${mounted}, active: ${countdownActive}, qrModalOpen: ${qrModalOpen}`);
-    if (!mounted || !countdownActive || qrModalOpen) {
-      console.log("[PaymentSuccess] Countdown effect skipped (not mounted, not active, or QR modal open).");
+    console.log(`[PaymentSuccess] Countdown effect triggered - mounted: ${mounted}, active: ${countdownActive}`);
+    if (!mounted || !countdownActive) {
+      console.log("[PaymentSuccess] Countdown effect skipped (not mounted or not active).");
       return;
     }
 
@@ -153,7 +152,7 @@ function PaymentSuccessContent() {
       console.log("[PaymentSuccess] Countdown effect cleanup: Clearing interval.");
       clearInterval(timer);
     };
-  }, [mounted, countdownActive, qrModalOpen, redirect]);
+  }, [mounted, countdownActive, redirect]);
 
   const handlePrintReceipt = useCallback(async (silent = false) => {
     if (!receiptId) return;
@@ -314,17 +313,35 @@ function PaymentSuccessContent() {
               {printing ? "Sending..." : printQueued ? "Sent ✓" : "Print Receipt"}
             </span>
           </Button>
-          {qrCodeUrl && (
-            <Button
-              size="lg"
-              className="flex flex-col items-center justify-center h-28 w-28 sm:h-32 sm:w-32 bg-yellow-500 hover:bg-yellow-600 text-white p-2 aspect-square transition-colors"
-              onClick={() => setQrModalOpen(true)}
-            >
-              <Star className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
-              <span className="text-xs sm:text-sm text-center leading-tight">Leave a Review</span>
-            </Button>
-          )}
         </div>
+
+        {/* QR Code Section */}
+        {qrCodeUrl && (
+          <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-6 mb-8">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Star className="h-5 w-5 text-yellow-400" />
+              <h3 className="text-lg font-bold text-white">Leave a Review</h3>
+            </div>
+            <p className="text-gray-300 text-sm mb-4 text-center">
+              We hope you had a lovely time at Penkey! If you wouldn't mind giving us a 5-star review, please scan this QR code. Alternatively, you can take a receipt slip and review us later at your convenience.
+            </p>
+            <div className="flex justify-center mb-4">
+              <div className="bg-white p-4 rounded-lg">
+                <QRCodeSVG
+                  value={receiptId ? `${qrCodeUrl}?receipt_id=${receiptId}` : qrCodeUrl}
+                  size={180}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+            </div>
+            <div className="text-center text-xs text-gray-400 space-y-1">
+              <p>1. Open your phone's camera app</p>
+              <p>2. Point at the QR code</p>
+              <p>3. Tap the link that appears</p>
+            </div>
+          </div>
+        )}
 
         {/* Auto-redirect countdown */}
         {countdownActive ? (
@@ -352,14 +369,6 @@ function PaymentSuccessContent() {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      
-      {/* QR Code Modal */}
-      <QRCodeModal
-        open={qrModalOpen}
-        onClose={() => setQrModalOpen(false)}
-        qrCodeUrl={qrCodeUrl}
-        receiptId={receiptId || undefined}
-      />
     </div>
   );
 }
