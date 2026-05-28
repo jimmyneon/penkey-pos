@@ -61,26 +61,24 @@ export default function LockPage() {
         const userId: string = authData.user_id;
         setCachedOrgId(orgId);
         setCachedUserId(userId);
-        setAuthChecking(false);
 
         // Clear any existing POS session
         sessionStorage.removeItem("pos_session");
 
         // ⚡ PERFORMANCE: Pre-warm PIN cache in background (non-blocking)
-        // This runs after UI is shown, doesn't block keypad render
         if (orgId) {
           warmPinCacheInBackground(orgId);
         }
 
-        // Check biometric availability and auto-trigger if enrolled
+        // Resolve biometric state BEFORE revealing the UI so the correct
+        // screen (biometric vs PIN) is shown on the very first render.
         const available = await checkPlatformAuthenticator();
+        const enabled = available && userId ? isBiometricEnabled(userId) : false;
         setBiometricAvailable(available);
-        if (available && userId) {
-          const enabled = isBiometricEnabled(userId);
-          setBiometricEnabled(enabled);
-          // Don't auto-trigger here — let the useEffect below handle it
-          // so state is settled first
-        }
+        setBiometricEnabled(enabled);
+
+        // Now reveal the UI — biometric state is already known
+        setAuthChecking(false);
       } catch (error: any) {
         if (error.name === 'AbortError') {
           console.error("[Lock] Auth check timed out");

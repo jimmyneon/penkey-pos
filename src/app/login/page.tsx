@@ -15,25 +15,24 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingUser, setOnboardingUser] = useState<{ id: string; email: string } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   useEffect(() => {
-    // ✅ SECURITY: Check if user is already authenticated via httpOnly cookie
-    // Note: We cannot directly check httpOnly cookies from client-side JavaScript
-    // Instead, we check if we have a session by attempting to fetch a protected endpoint
     const checkAuth = async () => {
       try {
         const response = await fetch("/api/auth/check", {
           method: "GET",
-          credentials: "include", // Include cookies
+          credentials: "include",
         });
         
         if (response.ok) {
-          // User is authenticated, redirect to lock screen
           router.push("/lock");
+          return; // stay in checking state — we're navigating away
         }
-      } catch (error) {
-        // Not authenticated, stay on login page
+      } catch {
+        // Not authenticated, fall through to show the form
       }
+      setAuthChecking(false);
     };
     
     checkAuth();
@@ -87,6 +86,10 @@ export default function LoginPage() {
     // Redirect to lock screen after onboarding
     router.push("/lock");
   };
+
+  if (authChecking) {
+    return <div className="min-h-screen bg-[#2d2d2d]" />;
+  }
 
   return (
     <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center p-4">
