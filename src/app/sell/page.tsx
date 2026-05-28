@@ -13,6 +13,7 @@ import { SyncManager } from "@/lib/services/sync-manager";
 import { useModifierPreload } from "@/lib/hooks/use-modifier-preload";
 import { useUpsellPreload } from "@/lib/hooks/use-upsell-preload";
 import { useSessionManager } from "@/lib/hooks/use-session-manager";
+import { LockOverlay } from "@/components/LockOverlay";
 import { formatCurrency } from "@penkey/ui";
 import { VariantDialog } from "./variant-dialog";
 import { ModifierDialog } from "./modifier-dialog";
@@ -230,7 +231,22 @@ export default function SellPage() {
   }, [session?.org_id]);
   
   // Session management - handles inactivity timeout and page visibility
-  useSessionManager();
+  const [showLockOverlay, setShowLockOverlay] = useState(false);
+  useSessionManager(() => setShowLockOverlay(true));
+
+  const handleOverlayUnlock = () => {
+    // Restore session to sessionStorage and dismiss overlay
+    if (session) sessionStorage.setItem("pos_session", JSON.stringify(session));
+    setShowLockOverlay(false);
+  };
+
+  const handleOverlaySignOut = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch { /* ignore */ }
+    sessionStorage.clear();
+    router.replace("/login");
+  };
 
   // Determine which items to show based on selected category and popular filter
   // When Popular is ON: show ALL items (from category if selected), sorted by popularity
@@ -1544,6 +1560,15 @@ export default function SellPage() {
 
   return (
     <div className="min-h-screen bg-[#2d2d2d] flex flex-col">
+      {/* Inline lock overlay — no page redirect needed */}
+      {showLockOverlay && session && (
+        <LockOverlay
+          userId={session.user_id || ""}
+          orgId={session.org_id}
+          onUnlock={handleOverlayUnlock}
+          onSignOut={handleOverlaySignOut}
+        />
+      )}
       <SellHeader
         linesCount={totalItemCount}
         savedTicketsCount={savedTickets.length}

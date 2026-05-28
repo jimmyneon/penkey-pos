@@ -1,31 +1,52 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+const BACKGROUND_LOCK_THRESHOLD = 5 * 60 * 1000; // 5 minutes background = re-lock
 
-export function useSessionManager() {
+export function useSessionManager(onLock?: () => void) {
   const router = useRouter();
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastVisibilityTimeRef = useRef<number>(Date.now());
   const isHiddenRef = useRef(false);
+  // Keep latest onLock ref so timer callbacks always use current value
+  const onLockRef = useRef(onLock);
+  useEffect(() => { onLockRef.current = onLock; }, [onLock]);
+
+  const triggerLock = useCallback(() => {
+    console.log("[SessionManager] Triggering lock");
+    sessionStorage.removeItem("pos_session");
+    if (onLockRef.current) {
+      onLockRef.current();
+    } else {
+      router.replace("/lock");
+    }
+  }, [router]);
 
   // Check if session is valid
   const checkSession = useCallback(() => {
     const sessionData = sessionStorage.getItem("pos_session");
     if (!sessionData) {
-      console.log("[SessionManager] No session found, redirecting to lock");
-      router.replace("/lock");
+      console.log("[SessionManager] No session found, locking");
+      if (onLockRef.current) {
+        onLockRef.current();
+      } else {
+        router.replace("/lock");
+      }
       return false;
     }
     
     try {
-      const session = JSON.parse(sessionData);
-      // Check if session is too old (optional: add timestamp check)
+      JSON.parse(sessionData);
       return true;
     } catch (err) {
-      console.error("[SessionManager] Invalid session data, redirecting to lock");
+      console.error("[SessionManager] Invalid session data, locking");
       sessionStorage.removeItem("pos_session");
-      router.replace("/lock");
+      if (onLockRef.current) {
+        onLockRef.current();
+      } else {
+        router.replace("/lock");
+      }
       return false;
     }
   }, [router]);
@@ -37,11 +58,10 @@ export function useSessionManager() {
     }
 
     inactivityTimerRef.current = setTimeout(() => {
-      console.log("[SessionManager] Inactivity timeout, redirecting to lock");
-      sessionStorage.removeItem("pos_session");
-      router.replace("/lock");
+      console.log("[SessionManager] Inactivity timeout, locking");
+      triggerLock();
     }, INACTIVITY_TIMEOUT);
-  }, [router]);
+  }, [triggerLock]);
 
   // Handle user activity
   const handleActivity = useCallback(() => {
@@ -51,27 +71,22 @@ export function useSessionManager() {
   // Handle page visibility change
   const handleVisibilityChange = useCallback(() => {
     if (document.hidden) {
-      // Page is being hidden (phone locked, tab switched, etc.)
       isHiddenRef.current = true;
       lastVisibilityTimeRef.current = Date.now();
       console.log("[SessionManager] Page hidden");
     } else {
-      // Page is becoming visible again
       const hiddenDuration = Date.now() - lastVisibilityTimeRef.current;
       isHiddenRef.current = false;
       console.log("[SessionManager] Page visible again, hidden for:", hiddenDuration, "ms");
 
-      // If page was hidden for more than 30 seconds, require PIN re-entry
-      if (hiddenDuration > 30000) {
-        console.log("[SessionManager] Page hidden for too long, requiring PIN");
-        sessionStorage.removeItem("pos_session");
-        router.replace("/lock");
+      if (hiddenDuration > BACKGROUND_LOCK_THRESHOLD) {
+        console.log("[SessionManager] Background too long, locking");
+        triggerLock();
       } else {
-        // Otherwise, just reset the inactivity timer
         resetInactivityTimer();
       }
     }
-  }, [router, resetInactivityTimer]);
+  }, [triggerLock, resetInactivityTimer]);
 
   useEffect(() => {
     // Check session on mount

@@ -136,6 +136,7 @@ export default function LockPage() {
         const allPins = await import("@/lib/idb/db").then(m => m.getAll("cached_pins")) as any[];
         const myPin = allPins.find((p: any) => p.user_id === cachedUserId && p.org_id === cachedOrgId);
         const data = {
+          user_id: cachedUserId,
           employee: {
             id: myPin?.member_id || cachedUserId,
             name: myPin?.employee_name || cachedEmployeeName || "Employee",
@@ -220,6 +221,7 @@ export default function LockPage() {
           console.log('[Lock] ⚡ PIN verified locally — zero network calls');
           const register = await getCachedRegister(cachedOrgId);
           data = {
+            user_id: cachedUserId,
             employee: {
               id: localResult.member_id,
               name: localResult.employee_name,
