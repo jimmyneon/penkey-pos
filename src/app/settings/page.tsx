@@ -76,6 +76,12 @@ export default function SettingsPage() {
   const [creatingQr, setCreatingQr] = useState(false);
   const [newGoogleReviewUrl, setNewGoogleReviewUrl] = useState("");
 
+  // Perks settings
+  const [perksDomain, setPerksDomain] = useState("");
+  const [perksApiKey, setPerksApiKey] = useState("");
+  const [savingPerks, setSavingPerks] = useState(false);
+  const [showPerksApiKey, setShowPerksApiKey] = useState(false);
+
   const checkPrinterStatus = async () => {
     setPrinterStatus("checking");
     try {
@@ -240,7 +246,49 @@ export default function SettingsPage() {
   useEffect(() => {
     loadSettings();
     loadQRCodes();
+    loadPerksSettings();
   }, []);
+
+  const loadPerksSettings = async () => {
+    try {
+      const response = await fetch("/api/settings/perks");
+      if (response.ok) {
+        const data = await response.json();
+        setPerksDomain(data.domain || "");
+        setPerksApiKey(data.apiKey || "");
+      }
+    } catch (error) {
+      console.error("Failed to load Perks settings:", error);
+    }
+  };
+
+  const savePerksSettings = async () => {
+    setSavingPerks(true);
+    hapticButtonPress();
+    try {
+      const response = await fetch("/api/settings/perks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: perksDomain,
+          apiKey: perksApiKey,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save Perks settings");
+      }
+
+      showToast("Perks settings saved successfully!", "success");
+      hapticSuccess();
+    } catch (error) {
+      console.error("Failed to save Perks settings:", error);
+      showToast("Failed to save Perks settings: " + (error as Error).message, "error");
+    } finally {
+      setSavingPerks(false);
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -1156,6 +1204,69 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
+          </SettingsSection>
+
+          {/* Perks Settings */}
+          <SettingsSection title="Perks App Integration" icon={Star}>
+            <SettingRow
+              label="Perks Domain"
+              description="Base URL of the Perks app (e.g., https://perks.penkey.co.uk)"
+            >
+              <input
+                type="text"
+                value={perksDomain}
+                onChange={(e) => setPerksDomain(e.target.value)}
+                placeholder="https://perks.penkey.co.uk"
+                className="w-full bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+              />
+            </SettingRow>
+
+            <SettingRow
+              label="Perks API Key"
+              description="API key for Perks app authentication"
+            >
+              <div className="flex gap-2">
+                <input
+                  type={showPerksApiKey ? "text" : "password"}
+                  value={perksApiKey}
+                  onChange={(e) => setPerksApiKey(e.target.value)}
+                  placeholder="Enter API key"
+                  className="flex-1 bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowPerksApiKey(!showPerksApiKey)}
+                  className="min-h-[44px] min-w-[80px] border-gray-600 text-black"
+                >
+                  {showPerksApiKey ? "Hide" : "Show"}
+                </Button>
+              </div>
+            </SettingRow>
+
+            <div className="flex gap-2 mt-4">
+              <Button
+                onClick={savePerksSettings}
+                disabled={savingPerks}
+                className="flex-1 min-h-[44px] bg-penkey-orange hover:bg-orange-600"
+              >
+                {savingPerks ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                ) : (
+                  "Save Perks Settings"
+                )}
+              </Button>
+            </div>
+
+            <div className="mt-4 p-4 bg-[#2d2d2d] rounded-lg border border-gray-600">
+              <h4 className="font-semibold text-white mb-2">About Perks Integration:</h4>
+              <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
+                <li>Scan customer QR codes from the Perks app</li>
+                <li>View customer bean balance and active vouchers</li>
+                <li>Award beans based on customer behavior</li>
+                <li>Redeem customer vouchers</li>
+              </ul>
+            </div>
           </SettingsSection>
 
           {/* Operational Settings */}
