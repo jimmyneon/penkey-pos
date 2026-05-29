@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, UserPlus, RefreshCw } from "lucide-react";
+import { Menu, UserPlus, RefreshCw, Scan } from "lucide-react";
 import { Button } from "@penkey/ui";
 import { Badge } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
@@ -18,6 +18,7 @@ interface SellHeaderProps {
   onOpenTicketsClick: () => void;
   onChargeClick: () => void;
   onSyncClick?: () => void;
+  onQRScanClick?: () => void;
 }
 
 export function SellHeader({
@@ -32,6 +33,7 @@ export function SellHeader({
   onOpenTicketsClick,
   onChargeClick,
   onSyncClick,
+  onQRScanClick,
 }: SellHeaderProps) {
   return (
     <>
@@ -61,6 +63,18 @@ export function SellHeader({
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Minimal sync status indicator */}
           <SyncStatusIndicator />
+          
+          {onQRScanClick && (
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 p-2 sm:px-3"
+              onClick={onQRScanClick}
+            >
+              <Scan className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline text-xs sm:text-sm">Scan</span>
+            </Button>
+          )}
           
           <Button 
             size="sm" 

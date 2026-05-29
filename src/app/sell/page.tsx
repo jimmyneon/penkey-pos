@@ -14,6 +14,9 @@ import { useModifierPreload } from "@/lib/hooks/use-modifier-preload";
 import { useUpsellPreload } from "@/lib/hooks/use-upsell-preload";
 import { useSessionManager } from "@/lib/hooks/use-session-manager";
 import { LockOverlay } from "@/components/LockOverlay";
+import { QRScanner } from "@/components/QRScanner";
+import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
+import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
 import { formatCurrency } from "@penkey/ui";
 import { VariantDialog } from "./variant-dialog";
 import { ModifierDialog } from "./modifier-dialog";
@@ -94,6 +97,9 @@ export default function SellPage() {
   const [mergeTicketsOpen, setMergeTicketsOpen] = useState(false);
   const [splitTicketOpen, setSplitTicketOpen] = useState(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; name: string; customer?: any } | null>(null);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [perksCustomer, setPerksCustomer] = useState<any>(null);
+  const [scanningQR, setScanningQR] = useState(false);
   const [currentTicketName, setCurrentTicketName] = useState<string>("");
   const [currentTicketComment, setCurrentTicketComment] = useState<string>("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -246,6 +252,73 @@ export default function SellPage() {
     } catch { /* ignore */ }
     sessionStorage.clear();
     router.replace("/login");
+  };
+
+  const handleQRScan = async (qrData: string) => {
+    if (!session?.org_id) return;
+    
+    setScanningQR(true);
+    try {
+      const customer = await scanQRCode(session.org_id, qrData);
+      setPerksCustomer(customer);
+      setQrScannerOpen(false);
+    } catch (error: any) {
+      console.error("QR scan error:", error);
+      showToast(error.message || "Failed to scan QR code", "error");
+      setQrScannerOpen(false);
+    } finally {
+      setScanningQR(false);
+    }
+  };
+
+  const handleAwardBean = async (rules: BeanRules) => {
+    if (!session?.org_id || !perksCustomer) return;
+
+    try {
+      const result = await recordVisit(session.org_id, {
+        userId: perksCustomer.id,
+        beanRules: rules,
+        menuItems: lines.map(line => ({ name: line.item_name, price: line.unit_price })),
+        staffId: session.employee.id,
+        locationId: session.register.store_id,
+      });
+
+      if (result) {
+        showToast(`Awarded ${result.beansAwarded} bean(s)! New balance: ${result.newBalance}`, "success");
+        // Update customer data
+        setPerksCustomer({
+          ...perksCustomer,
+          beanBalance: result.newBalance,
+          canAwardBeanToday: false,
+        });
+      }
+    } catch (error: any) {
+      console.error("Award bean error:", error);
+      showToast(error.message || "Failed to award beans", "error");
+    }
+  };
+
+  const handleRedeemVoucher = async (voucherId: string) => {
+    if (!session?.org_id) return;
+
+    try {
+      const result = await redeemVoucher(session.org_id, {
+        voucher_id: voucherId,
+        staff_id: session.employee.id,
+      });
+
+      if (result) {
+        showToast("Voucher redeemed successfully!", "success");
+        // Remove redeemed voucher from list
+        setPerksCustomer({
+          ...perksCustomer,
+          activeVouchers: perksCustomer.activeVouchers.filter((v: any) => v.id !== voucherId),
+        });
+      }
+    } catch (error: any) {
+      console.error("Redeem voucher error:", error);
+      showToast(error.message || "Failed to redeem voucher", "error");
+    }
   };
 
   // Determine which items to show based on selected category and popular filter
@@ -1576,6 +1649,7 @@ export default function SellPage() {
         syncing={syncing}
         onMenuClick={() => setSidebarOpen(true)}
         onTicketClick={() => setTicketModalOpen(true)}
+        onQRScanClick={() => setQrScannerOpen(true)}
         onAssignCustomerClick={() => {
           hapticButtonPress();
           playButtonSound();
@@ -1943,6 +2017,27 @@ export default function SellPage() {
         lines={lines}
         onSplit={handleSplitTicket}
       />
+
+      {/* QR Scanner */}
+      {qrScannerOpen && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => setQrScannerOpen(false)}
+        />
+      )}
+
+      {/* Perks Customer Panel */}
+      {perksCustomer && (
+        <PerksCustomerPanel
+          customer={perksCustomer}
+          onClose={() => setPerksCustomer(null)}
+          onAwardBean={handleAwardBean}
+          onRedeemVoucher={handleRedeemVoucher}
+          staffId={session?.employee?.id || ""}
+          locationId={session?.register?.store_id || ""}
+          currentCartItems={lines.map(line => ({ name: line.item_name, price: line.unit_price }))}
+        />
+      )}
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
