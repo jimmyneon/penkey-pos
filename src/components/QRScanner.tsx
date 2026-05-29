@@ -13,11 +13,26 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const [scanning, setScanning] = useState(true);
   const [cameraStarted, setCameraStarted] = useState(false);
   const scannerRef = useRef<any>(null);
+  const isRunningRef = useRef(false);
 
   useEffect(() => {
     const startScanner = async () => {
-      // Wait for DOM to be ready
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for DOM element to exist with proper check
+      const elementExists = () => document.getElementById("qr-reader") !== null;
+      let attempts = 0;
+      const maxAttempts = 20; // 2 seconds max wait
+      
+      while (!elementExists() && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!elementExists()) {
+        console.error("[QR Scanner] DOM element not found after timeout");
+        setError("Camera initialization failed. Please try again.");
+        setScanning(false);
+        return;
+      }
       
       try {
         console.log("[QR Scanner] Starting scanner...");
@@ -40,10 +55,16 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           (decodedText: string) => {
             console.log("[QR Scanner] QR code detected:", decodedText);
             setScanning(false);
+            isRunningRef.current = false;
             onScan(decodedText);
             // Stop scanner after successful scan
             if (scannerRef.current) {
-              scannerRef.current.stop().catch(console.error);
+              scannerRef.current.stop().catch((err: any) => {
+                // Ignore "not running" errors during cleanup
+                if (!err.message?.includes("not running")) {
+                  console.error("[QR Scanner] Stop error:", err);
+                }
+              });
             }
           },
           (errorMessage: string) => {
@@ -55,6 +76,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           }
         );
         
+        isRunningRef.current = true;
         setCameraStarted(true);
         console.log("[QR Scanner] Camera started successfully");
       } catch (err) {
@@ -67,8 +89,9 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     startScanner();
 
     return () => {
-      if (scannerRef.current) {
+      if (scannerRef.current && isRunningRef.current) {
         console.log("[QR Scanner] Stopping scanner...");
+        isRunningRef.current = false;
         scannerRef.current.stop().catch((err: any) => {
           // Ignore "not running" errors during cleanup
           if (!err.message?.includes("not running")) {

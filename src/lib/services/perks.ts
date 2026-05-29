@@ -91,6 +91,13 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
     throw new Error("Perks settings not configured");
   }
 
+  // Validate QR code format - should be valid JSON
+  try {
+    JSON.parse(qrData);
+  } catch (e) {
+    throw new Error("Invalid QR code format: not valid JSON");
+  }
+
   try {
     // Remove trailing slash from domain to avoid double slashes
     const domain = settings.domain.replace(/\/$/, "");
