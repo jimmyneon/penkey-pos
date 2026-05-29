@@ -54,6 +54,8 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           },
           (decodedText: string) => {
             console.log("[QR Scanner] QR code detected:", decodedText);
+            console.log("[QR Scanner] QR code length:", decodedText.length);
+            console.log("[QR Scanner] QR code type:", typeof decodedText);
             setScanning(false);
             isRunningRef.current = false;
             onScan(decodedText);
