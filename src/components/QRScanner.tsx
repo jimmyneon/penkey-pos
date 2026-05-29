@@ -86,12 +86,18 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
       </div>
 
       {/* Scanner View - Full screen camera */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 overflow-hidden">
         <video
           ref={videoRef}
           className="w-full h-full object-cover"
+          style={{ 
+            width: '100vw',
+            height: '100vh',
+            objectFit: 'cover'
+          }}
           muted
           playsInline
+          autoPlay
         />
       </div>
 
