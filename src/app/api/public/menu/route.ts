@@ -5,6 +5,19 @@ import { ratelimit } from "@/lib/ratelimit";
 
 // Penkey organization ID (single-tenant deployment)
 const PENKEY_ORG_ID = "00000000-0000-0000-0000-000000000001";
+// CORS: allow Perks app
+const CORS_ORIGIN = "https://penkey-perks-v2.vercel.app";
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }
+  });
+}
 
 export async function GET(request: NextRequest) {
   // IP-based rate limiting for public endpoint
@@ -40,7 +53,13 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     console.log(`[PUBLIC-API] GET /api/public/menu - Found: ${data?.length || 0}`);
-    return NextResponse.json(data || []);
+    return NextResponse.json(data || [], {
+      headers: {
+        'Access-Control-Allow-Origin': CORS_ORIGIN,
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
   } catch (error: any) {
     console.error("[PUBLIC-API] Failed to fetch menu:", error);
     return NextResponse.json(
