@@ -92,7 +92,9 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
   }
 
   try {
-    const response = await fetch(`${settings.domain}/api/pos/scan`, {
+    // Remove trailing slash from domain to avoid double slashes
+    const domain = settings.domain.replace(/\/$/, "");
+    const response = await fetch(`${domain}/api/pos/scan`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${settings.apiKey}`,
@@ -128,7 +130,8 @@ export async function recordVisit(
   }
 
   try {
-    const response = await fetch(`${settings.domain}/api/pos/record-visit`, {
+    const domain = settings.domain.replace(/\/$/, "");
+    const response = await fetch(`${domain}/api/pos/record-visit`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${settings.apiKey}`,
@@ -164,7 +167,8 @@ export async function redeemVoucher(
   }
 
   try {
-    const response = await fetch(`${settings.domain}/api/pos/redeem-voucher`, {
+    const domain = settings.domain.replace(/\/$/, "");
+    const response = await fetch(`${domain}/api/pos/redeem-voucher`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${settings.apiKey}`,

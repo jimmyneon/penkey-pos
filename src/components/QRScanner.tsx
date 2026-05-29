@@ -16,6 +16,9 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
   useEffect(() => {
     const startScanner = async () => {
+      // Wait for DOM to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       try {
         console.log("[QR Scanner] Starting scanner...");
         // Dynamically import html5-qrcode to avoid SSR issues
