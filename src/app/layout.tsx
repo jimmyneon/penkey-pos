@@ -9,6 +9,7 @@ import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { TestingIntegration } from "@/components/testing-integration";
 import { QueryProvider } from "@/lib/query/provider";
 import { ToastProvider } from "@/components/toast-provider";
+import { WorkboxErrorHandler } from "@/components/workbox-error-handler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -76,6 +77,7 @@ export default function RootLayout({
       <body>
         <QueryProvider>
           <ToastProvider>
+            <WorkboxErrorHandler />
             {children}
             <ServiceWorkerRegister />
             <NetworkStatusIndicator />
