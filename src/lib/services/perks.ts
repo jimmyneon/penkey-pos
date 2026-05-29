@@ -1,5 +1,3 @@
-import { createSupabaseServerClient } from "@/lib/database";
-
 export interface PerksSettings {
   domain: string;
   apiKey: string;
@@ -56,35 +54,27 @@ export interface RedeemVoucherRequest {
 }
 
 /**
- * Get Perks settings from org_settings
+ * Get Perks settings from org_settings via API
  */
 export async function getPerksSettings(orgId: string): Promise<PerksSettings | null> {
   try {
-    const supabase = createSupabaseServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data, error } = await supabase
-      .from("org_settings")
-      .select("settings")
-      .eq("org_id", orgId)
-      .single();
-
-    if (error || !data) {
-      console.error("[Perks] Failed to fetch settings:", error);
+    const response = await fetch("/api/settings/perks");
+    
+    if (!response.ok) {
+      console.error("[Perks] Failed to fetch settings:", response.status);
       return null;
     }
 
-    const settings = (data as any).settings as any;
-    if (!settings.perks || !settings.perks.domain || !settings.perks.apiKey) {
+    const data = await response.json();
+    
+    if (!data.domain || !data.apiKey) {
       console.warn("[Perks] Perks settings not configured");
       return null;
     }
 
     return {
-      domain: settings.perks.domain,
-      apiKey: settings.perks.apiKey,
+      domain: data.domain,
+      apiKey: data.apiKey,
     };
   } catch (error) {
     console.error("[Perks] Error fetching settings:", error);
