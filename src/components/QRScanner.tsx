@@ -24,13 +24,13 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         const scanner = new Html5Qrcode("qr-reader");
         scannerRef.current = scanner;
         
-        // Calculate square scan box based on viewport
-        const scanBoxSize = Math.min(window.innerWidth, window.innerHeight) * 0.6;
+        // Try with a larger scan area and higher FPS for better detection
+        const scanBoxSize = Math.min(window.innerWidth, window.innerHeight) * 0.7;
         
         await scanner.start(
           { facingMode: "environment" },
           {
-            fps: 10,
+            fps: 20, // Higher FPS for better detection
             qrbox: { width: scanBoxSize, height: scanBoxSize },
             aspectRatio: 1.0,
           },
@@ -39,14 +39,14 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
             setScanning(false);
             onScan(decodedText);
             // Stop scanner after successful scan
-            scanner.stop().catch(console.error);
+            if (scannerRef.current) {
+              scannerRef.current.stop().catch(console.error);
+            }
           },
           (errorMessage: string) => {
             // Ignore scan errors (they happen frequently while searching)
-            // Only log for debugging
-            if (errorMessage.includes("No barcode")) {
-              // Normal - no QR in view
-            } else {
+            // Only log non-"No barcode" errors for debugging
+            if (!errorMessage.includes("No barcode") && !errorMessage.includes("No MultiFormat")) {
               console.log("[QR Scanner] Scan error:", errorMessage);
             }
           }
@@ -66,7 +66,12 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     return () => {
       if (scannerRef.current) {
         console.log("[QR Scanner] Stopping scanner...");
-        scannerRef.current.stop().catch(console.error);
+        scannerRef.current.stop().catch((err: any) => {
+          // Ignore "not running" errors during cleanup
+          if (!err.message?.includes("not running")) {
+            console.error("[QR Scanner] Stop error:", err);
+          }
+        });
       }
     };
   }, [onScan]);
