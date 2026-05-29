@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
 import { ratelimit } from "@/lib/ratelimit";
 
+// Penkey organization ID (single-tenant deployment)
+const PENKEY_ORG_ID = "00000000-0000-0000-0000-000000000001";
+
 export async function GET(request: NextRequest) {
   // IP-based rate limiting for public endpoint
   const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
@@ -13,16 +16,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { searchParams } = new URL(request.url);
-    const orgId = searchParams.get("org_id");
-
-    if (!orgId) {
-      return NextResponse.json(
-        { error: "org_id query parameter is required" },
-        { status: 400 }
-      );
-    }
-
     const supabase = createSupabaseServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -40,13 +33,13 @@ export async function GET(request: NextRequest) {
         item_variants(id, name, price, is_default)
       `
       )
-      .eq("org_id", orgId)
+      .eq("org_id", PENKEY_ORG_ID)
       .eq("is_active", true)
       .order("name");
 
     if (error) throw error;
 
-    console.log(`[PUBLIC-API] GET /api/public/menu - Org: ${orgId}, Found: ${data?.length || 0}`);
+    console.log(`[PUBLIC-API] GET /api/public/menu - Found: ${data?.length || 0}`);
     return NextResponse.json(data || []);
   } catch (error: any) {
     console.error("[PUBLIC-API] Failed to fetch menu:", error);
