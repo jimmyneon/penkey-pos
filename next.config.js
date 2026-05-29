@@ -3,7 +3,7 @@ const withPWA = require('next-pwa')({
   dest: 'public',
   register: false, // We handle registration manually in service-worker-register.tsx
   skipWaiting: false, // We handle skipWaiting manually via SKIP_WAITING message
-  disable: process.env.NODE_ENV === 'development',
+  disable: true, // Temporarily disable to bypass service worker caching
   scope: '/',
   sw: 'sw.js',
   runtimeCaching: [
