@@ -106,7 +106,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
+      <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10">
         <h2 className="text-white text-xl font-bold">Scan QR Code</h2>
         <button
           onClick={onClose}
@@ -116,8 +116,8 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         </button>
       </div>
 
-      {/* Scanner View */}
-      <div className="flex-1 flex items-center justify-center relative">
+      {/* Scanner View - Full screen */}
+      <div className="absolute inset-0">
         <div id="qr-reader" className="w-full h-full" />
         
         {/* Square scan guide overlay */}
@@ -139,7 +139,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
       {/* Scanning Indicator */}
       {scanning && cameraStarted && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white px-6 py-3 rounded-full border border-white/20">
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white px-6 py-3 rounded-full border border-white/20 z-10">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
             <span className="font-medium">Scanning...</span>
@@ -149,7 +149,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
       {/* Camera starting indicator */}
       {scanning && !cameraStarted && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white px-6 py-3 rounded-full border border-white/20">
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white px-6 py-3 rounded-full border border-white/20 z-10">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse shadow-lg shadow-yellow-500/50" />
             <span className="font-medium">Starting camera...</span>
@@ -159,7 +159,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
       {/* Error Message */}
       {error && (
-        <div className="absolute bottom-24 left-4 right-4 bg-red-500/95 backdrop-blur-md text-white p-4 rounded-xl border border-red-400/30 shadow-lg">
+        <div className="absolute bottom-24 left-4 right-4 bg-red-500/95 backdrop-blur-md text-white p-4 rounded-xl border border-red-400/30 shadow-lg z-10">
           {error}
         </div>
       )}
