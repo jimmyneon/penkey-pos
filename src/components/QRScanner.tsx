@@ -30,26 +30,64 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           throw new Error("Video element not found");
         }
 
-        // Start decoding from the video device (use 'environment' for back camera)
-        await reader.decodeFromVideoDevice(
-          "environment",
-          videoElement,
-          (result, error) => {
-            if (result) {
-              console.log("[QR Scanner] QR code detected:", result.getText());
-              setScanning(false);
-              isRunningRef.current = false;
-              onScan(result.getText());
-              // Stop scanner after successful scan
-              if (readerRef.current) {
-                readerRef.current.reset();
+        // Try with back camera first, then fallback to any camera
+        let cameraStarted = false;
+        const cameraIds = await reader.listVideoInputDevices();
+        
+        // Try to find back camera
+        const backCamera = cameraIds.find((device: any) => 
+          device.label.toLowerCase().includes('back') || 
+          device.label.toLowerCase().includes('environment')
+        );
+
+        const deviceId = backCamera ? backCamera.deviceId : null;
+
+        try {
+          // Start decoding from the video device
+          await reader.decodeFromVideoDevice(
+            deviceId,
+            videoElement,
+            (result, error) => {
+              if (result) {
+                console.log("[QR Scanner] QR code detected:", result.getText());
+                setScanning(false);
+                isRunningRef.current = false;
+                onScan(result.getText());
+                // Stop scanner after successful scan
+                if (readerRef.current) {
+                  readerRef.current.reset();
+                }
+              }
+              if (error && !(error instanceof NotFoundException)) {
+                console.log("[QR Scanner] Scan error:", error);
               }
             }
-            if (error && !(error instanceof NotFoundException)) {
-              console.log("[QR Scanner] Scan error:", error);
+          );
+          cameraStarted = true;
+        } catch (err) {
+          console.warn("[QR Scanner] Failed with specific camera, trying any camera:", err);
+          // Fallback to any camera
+          await reader.decodeFromVideoDevice(
+            null,
+            videoElement,
+            (result, error) => {
+              if (result) {
+                console.log("[QR Scanner] QR code detected:", result.getText());
+                setScanning(false);
+                isRunningRef.current = false;
+                onScan(result.getText());
+                // Stop scanner after successful scan
+                if (readerRef.current) {
+                  readerRef.current.reset();
+                }
+              }
+              if (error && !(error instanceof NotFoundException)) {
+                console.log("[QR Scanner] Scan error:", error);
+              }
             }
-          }
-        );
+          );
+          cameraStarted = true;
+        }
 
         isRunningRef.current = true;
         setCameraStarted(true);
