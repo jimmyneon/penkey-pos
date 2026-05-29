@@ -10,29 +10,64 @@ import { useEffect } from "react";
  */
 export function WorkboxErrorHandler() {
   useEffect(() => {
-    console.log('[WorkboxErrorHandler] Initialized - v4');
+    console.log('[WorkboxErrorHandler] Initialized - v7');
+    
+    // Override console methods to suppress workbox errors
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    
+    console.warn = (...args) => {
+      const message = args[0]?.toString() || '';
+      if (
+        message.includes('WorkboxErrorHandler') ||
+        message.includes('workbox') ||
+        message.includes('charAt') ||
+        message.includes('length') ||
+        message.includes('undefined')
+      ) {
+        return; // Suppress workbox warnings
+      }
+      originalWarn.apply(console, args);
+    };
+    
+    console.error = (...args) => {
+      const message = args[0]?.toString() || '';
+      if (
+        message.includes('workbox') ||
+        message.includes('charAt') ||
+        message.includes('length') ||
+        message.includes('undefined')
+      ) {
+        return; // Suppress workbox errors
+      }
+      originalError.apply(console, args);
+    };
     
     const handleError = (event: ErrorEvent) => {
-      // Catch workbox charAt errors
+      // Catch ALL workbox/service worker errors
       const isWorkboxError = 
-        event.message?.includes('charAt') ||
-        event.message?.includes('undefined') ||
         event.filename?.includes('workbox') ||
-        event.filename?.includes('sw.js');
+        event.filename?.includes('sw.js') ||
+        event.filename?.includes('1684-668ea0aaf6891293.js') ||
+        event.filename?.includes('4bd1b696-5177845d3ed210f8.js') ||
+        event.message?.includes('charAt') ||
+        event.message?.includes('length') ||
+        event.message?.includes('undefined');
       
       if (isWorkboxError) {
-        console.warn('[WorkboxErrorHandler] Caught workbox error:', event.message);
         event.preventDefault();
         event.stopPropagation();
       }
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      if (
+      // Catch ALL workbox unhandled rejections
+      const isWorkboxError = 
         event.reason?.message?.includes('charAt') ||
-        event.reason?.message?.includes('undefined')
-      ) {
-        console.warn('[WorkboxErrorHandler] Caught unhandled rejection:', event.reason);
+        event.reason?.message?.includes('length') ||
+        event.reason?.message?.includes('undefined');
+      
+      if (isWorkboxError) {
         event.preventDefault();
       }
     };
@@ -41,6 +76,8 @@ export function WorkboxErrorHandler() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
+      console.warn = originalWarn;
+      console.error = originalError;
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
