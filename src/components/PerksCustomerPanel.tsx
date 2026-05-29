@@ -102,11 +102,11 @@ export function PerksCustomerPanel({
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-penkey-orange rounded-full flex items-center justify-center">
                 <span className="text-white text-xl font-bold">
-                  {customer.name.charAt(0).toUpperCase()}
+                  {customer.name ? customer.name.charAt(0).toUpperCase() : '?'}
                 </span>
               </div>
               <div>
-                <h3 className="text-white font-semibold">{customer.name}</h3>
+                <h3 className="text-white font-semibold">{customer.name || 'Customer'}</h3>
                 <p className="text-gray-400 text-sm">{customer.email}</p>
               </div>
             </div>

@@ -150,7 +150,8 @@ export default function ReportsPage() {
     if (comparison.diff > 0) {
       messages.push(`You're doing GREAT! You made £${periodMetrics.grossSales.toFixed(2)} ${periodLabel}, that's £${Math.abs(comparison.diff).toFixed(2)} MORE than ${comparisonLabel}!`);
     } else if (comparison.diff < 0) {
-      messages.push(`${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)} is a bit slower at £${periodMetrics.grossSales.toFixed(2)}, but that's okay! Keep going!`);
+      const capitalizedLabel = periodLabel ? periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1) : periodLabel;
+      messages.push(`${capitalizedLabel} is a bit slower at £${periodMetrics.grossSales.toFixed(2)}, but that's okay! Keep going!`);
     } else {
       messages.push(`Steady performance! You made £${periodMetrics.grossSales.toFixed(2)} ${periodLabel}.`);
     }
