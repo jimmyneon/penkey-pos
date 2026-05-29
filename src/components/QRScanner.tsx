@@ -12,28 +12,16 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(true);
   const [cameraStarted, setCameraStarted] = useState(false);
+  const [elementMounted, setElementMounted] = useState(false);
   const scannerRef = useRef<any>(null);
   const isRunningRef = useRef(false);
+  const elementRef = useRef<HTMLDivElement>(null);
 
+  // Start scanner only after element is mounted
   useEffect(() => {
+    if (!elementMounted) return;
+
     const startScanner = async () => {
-      // Wait for DOM element to exist with proper check
-      const elementExists = () => document.getElementById("qr-reader") !== null;
-      let attempts = 0;
-      const maxAttempts = 20; // 2 seconds max wait
-      
-      while (!elementExists() && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-      
-      if (!elementExists()) {
-        console.error("[QR Scanner] DOM element not found after timeout");
-        setError("Camera initialization failed. Please try again.");
-        setScanning(false);
-        return;
-      }
-      
       try {
         console.log("[QR Scanner] Starting scanner...");
         // Dynamically import html5-qrcode to avoid SSR issues
@@ -102,7 +90,12 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         });
       }
     };
-  }, [onScan]);
+  }, [onScan, elementMounted]);
+
+  // Set element mounted after render
+  useEffect(() => {
+    setElementMounted(true);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
