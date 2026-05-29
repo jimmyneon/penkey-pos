@@ -6,7 +6,7 @@ import { useEffect } from "react";
  * Global error handler to catch and suppress workbox/service worker errors
  * Workbox library has a known bug where it calls charAt on undefined values
  * This component catches those errors and prevents them from crashing the app
- * Updated to trigger Vercel deployment - v2
+ * Updated to trigger Vercel deployment - v5
  */
 export function WorkboxErrorHandler() {
   useEffect(() => {
