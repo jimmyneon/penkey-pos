@@ -265,6 +265,15 @@ export default function SellPage() {
     } catch (error: any) {
       console.error("QR scan error:", error);
       const errorMessage = error.message || "Failed to scan QR code";
+      
+      // Check if it's the charAt error from web worker
+      if (errorMessage.includes('charAt') || errorMessage.includes('undefined')) {
+        console.warn("Caught web worker error, ignoring");
+        // Don't show error toast, just continue
+        setQrScannerOpen(false);
+        return;
+      }
+      
       showToast(errorMessage, "error");
       
       // If it's an invalid QR code format, reopen scanner to try again
