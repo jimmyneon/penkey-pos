@@ -10,16 +10,17 @@ import { useEffect } from "react";
  */
 export function WorkboxErrorHandler() {
   useEffect(() => {
-    console.log('[WorkboxErrorHandler] Initialized - v3');
+    console.log('[WorkboxErrorHandler] Initialized - v4');
     
     const handleError = (event: ErrorEvent) => {
       // Catch workbox charAt errors
-      if (
+      const isWorkboxError = 
         event.message?.includes('charAt') ||
         event.message?.includes('undefined') ||
         event.filename?.includes('workbox') ||
-        event.filename?.includes('sw.js')
-      ) {
+        event.filename?.includes('sw.js');
+      
+      if (isWorkboxError) {
         console.warn('[WorkboxErrorHandler] Caught workbox error:', event.message);
         event.preventDefault();
         event.stopPropagation();
