@@ -93,23 +93,10 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
 
   console.log("[Perks] Attempting to scan QR code:", qrData.substring(0, 100) + "...");
 
-  // Validate QR code format - should be valid JSON
-  let parsed: any;
-  try {
-    parsed = JSON.parse(qrData);
-  } catch (e) {
-    console.error("[Perks] QR code is not valid JSON:", qrData);
-    throw new Error("Invalid QR code format: not valid JSON");
+  // Basic validation - check if it's not empty
+  if (!qrData || qrData.trim().length === 0) {
+    throw new Error("QR code is empty");
   }
-
-  // Check for expected Perks QR code structure
-  // Perks QR codes should have customer_id or similar field
-  if (!parsed.customer_id && !parsed.id && !parsed.email) {
-    console.error("[Perks] QR code missing expected fields:", parsed);
-    throw new Error("Invalid QR code format: missing customer identifier");
-  }
-
-  console.log("[Perks] QR code validated, sending to API...");
 
   try {
     // Remove trailing slash from domain to avoid double slashes

@@ -264,8 +264,17 @@ export default function SellPage() {
       setQrScannerOpen(false);
     } catch (error: any) {
       console.error("QR scan error:", error);
-      showToast(error.message || "Failed to scan QR code", "error");
-      setQrScannerOpen(false);
+      const errorMessage = error.message || "Failed to scan QR code";
+      showToast(errorMessage, "error");
+      
+      // If it's an invalid QR code format, reopen scanner to try again
+      if (errorMessage.includes("Invalid QR code") || errorMessage.includes("400")) {
+        setTimeout(() => {
+          setQrScannerOpen(true);
+        }, 500);
+      } else {
+        setQrScannerOpen(false);
+      }
     } finally {
       setScanningQR(false);
     }
