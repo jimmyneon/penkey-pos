@@ -10,6 +10,8 @@ import { useEffect } from "react";
  */
 export function WorkboxErrorHandler() {
   useEffect(() => {
+    console.log('[WorkboxErrorHandler] Initialized - v3');
+    
     const handleError = (event: ErrorEvent) => {
       // Catch workbox charAt errors
       if (
