@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
+import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 
 interface QRScannerProps {
   onScan: (result: string) => void;
@@ -12,65 +13,44 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(true);
   const [cameraStarted, setCameraStarted] = useState(false);
-  const [elementMounted, setElementMounted] = useState(false);
-  const scannerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const isRunningRef = useRef(false);
-  const elementRef = useRef<HTMLDivElement>(null);
 
-  // Start scanner only after element is mounted
   useEffect(() => {
-    if (!elementMounted) return;
-
     const startScanner = async () => {
       try {
         console.log("[QR Scanner] Starting scanner...");
-        // Dynamically import html5-qrcode to avoid SSR issues
-        const { Html5Qrcode } = await import("html5-qrcode");
-        
-        const scanner = new Html5Qrcode("qr-reader");
-        scannerRef.current = scanner;
-        
-        // Try with a larger scan area and higher FPS for better detection
-        const scanBoxSize = Math.min(window.innerWidth, window.innerHeight) * 0.7;
-        
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 10, // Lower FPS to reduce library errors
-            qrbox: { width: scanBoxSize, height: scanBoxSize },
-          },
-          (decodedText: string) => {
-            // Safety check for undefined/null values
-            if (!decodedText || typeof decodedText !== 'string') {
-              console.warn("[QR Scanner] Invalid scan result:", decodedText);
-              return;
+        const reader = new BrowserMultiFormatReader();
+        readerRef.current = reader;
+
+        // Get the video element
+        const videoElement = videoRef.current;
+        if (!videoElement) {
+          throw new Error("Video element not found");
+        }
+
+        // Start decoding from the video device (use 'environment' for back camera)
+        await reader.decodeFromVideoDevice(
+          "environment",
+          videoElement,
+          (result, error) => {
+            if (result) {
+              console.log("[QR Scanner] QR code detected:", result.getText());
+              setScanning(false);
+              isRunningRef.current = false;
+              onScan(result.getText());
+              // Stop scanner after successful scan
+              if (readerRef.current) {
+                readerRef.current.reset();
+              }
             }
-            
-            console.log("[QR Scanner] QR code detected:", decodedText);
-            console.log("[QR Scanner] QR code length:", decodedText.length);
-            console.log("[QR Scanner] QR code type:", typeof decodedText);
-            setScanning(false);
-            isRunningRef.current = false;
-            onScan(decodedText);
-            // Stop scanner after successful scan
-            if (scannerRef.current) {
-              scannerRef.current.stop().catch((err: any) => {
-                // Ignore "not running" errors during cleanup
-                if (!err.message?.includes("not running")) {
-                  console.error("[QR Scanner] Stop error:", err);
-                }
-              });
-            }
-          },
-          (errorMessage: string) => {
-            // Ignore scan errors (they happen frequently while searching)
-            // Only log non-"No barcode" errors for debugging
-            if (!errorMessage.includes("No barcode") && !errorMessage.includes("No MultiFormat")) {
-              console.log("[QR Scanner] Scan error:", errorMessage);
+            if (error && !(error instanceof NotFoundException)) {
+              console.log("[QR Scanner] Scan error:", error);
             }
           }
         );
-        
+
         isRunningRef.current = true;
         setCameraStarted(true);
         console.log("[QR Scanner] Camera started successfully");
@@ -81,36 +61,16 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
       }
     };
 
-    // Add global error handler for html5-qrcode library errors
-    const errorHandler = (event: ErrorEvent) => {
-      if (event.message?.includes('charAt') || event.message?.includes('undefined')) {
-        console.warn("[QR Scanner] Caught library error:", event.message);
-        event.preventDefault();
-      }
-    };
-    
-    window.addEventListener('error', errorHandler);
     startScanner();
 
     return () => {
-      window.removeEventListener('error', errorHandler);
-      if (scannerRef.current && isRunningRef.current) {
+      if (readerRef.current && isRunningRef.current) {
         console.log("[QR Scanner] Stopping scanner...");
         isRunningRef.current = false;
-        scannerRef.current.stop().catch((err: any) => {
-          // Ignore "not running" errors during cleanup
-          if (!err.message?.includes("not running")) {
-            console.error("[QR Scanner] Stop error:", err);
-          }
-        });
+        readerRef.current.reset();
       }
     };
-  }, [onScan, elementMounted]);
-
-  // Set element mounted after render
-  useEffect(() => {
-    setElementMounted(true);
-  }, []);
+  }, [onScan]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
@@ -125,9 +85,14 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         </button>
       </div>
 
-      {/* Scanner View - Full screen camera only */}
+      {/* Scanner View - Full screen camera */}
       <div className="absolute inset-0">
-        <div id="qr-reader" className="w-full h-full" />
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          muted
+          playsInline
+        />
       </div>
 
       {/* Scanning Indicator */}
