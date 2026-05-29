@@ -28,39 +28,53 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     const startScanner = async () => {
       try {
         console.log("[QR Scanner] Starting scanner...");
+        console.log("[QR Scanner] User agent:", navigator.userAgent);
         
         // Check if BarcodeDetector is supported
         if (!('BarcodeDetector' in window)) {
+          console.error("[QR Scanner] BarcodeDetector NOT supported");
           throw new Error("BarcodeDetector not supported in this browser");
         }
+        console.log("[QR Scanner] BarcodeDetector supported");
 
         const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+        console.log("[QR Scanner] BarcodeDetector created");
 
         // Get the video element
         const videoElement = videoRef.current;
         if (!videoElement) {
+          console.error("[QR Scanner] Video element not found");
           throw new Error("Video element not found");
         }
+        console.log("[QR Scanner] Video element found");
 
         // Request camera access
+        console.log("[QR Scanner] Requesting camera access...");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" }
         });
+        console.log("[QR Scanner] Camera access granted");
         
         streamRef.current = stream;
         videoElement.srcObject = stream;
         
         await videoElement.play();
+        console.log("[QR Scanner] Video playing");
         setCameraStarted(true);
         isRunningRef.current = true;
         console.log("[QR Scanner] Camera started successfully");
 
         // Scan for QR codes periodically
+        let scanCount = 0;
         scanIntervalRef.current = setInterval(async () => {
           if (!isRunningRef.current || !videoElement) return;
 
+          scanCount++;
           try {
+            console.log(`[QR Scanner] Scan attempt #${scanCount}`);
             const barcodes = await barcodeDetector.detect(videoElement);
+            console.log(`[QR Scanner] Detection result: ${barcodes.length} barcodes found`);
+            
             if (barcodes.length > 0) {
               const result = barcodes[0].rawValue;
               console.log("[QR Scanner] QR code detected:", result);
@@ -80,6 +94,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
               }
             }
           } catch (err) {
+            console.error("[QR Scanner] Detection error:", err);
             // Detection errors are normal while scanning
           }
         }, 500); // Scan every 500ms
@@ -94,6 +109,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     startScanner();
 
     return () => {
+      console.log("[QR Scanner] Cleanup");
       isRunningRef.current = false;
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
