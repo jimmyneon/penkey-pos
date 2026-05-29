@@ -36,9 +36,8 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         await scanner.start(
           { facingMode: "environment" },
           {
-            fps: 20, // Higher FPS for better detection
+            fps: 10, // Lower FPS to reduce library errors
             qrbox: { width: scanBoxSize, height: scanBoxSize },
-            aspectRatio: 1.0,
           },
           (decodedText: string) => {
             // Safety check for undefined/null values
@@ -82,9 +81,19 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
       }
     };
 
+    // Add global error handler for html5-qrcode library errors
+    const errorHandler = (event: ErrorEvent) => {
+      if (event.message?.includes('charAt') || event.message?.includes('undefined')) {
+        console.warn("[QR Scanner] Caught library error:", event.message);
+        event.preventDefault();
+      }
+    };
+    
+    window.addEventListener('error', errorHandler);
     startScanner();
 
     return () => {
+      window.removeEventListener('error', errorHandler);
       if (scannerRef.current && isRunningRef.current) {
         console.log("[QR Scanner] Stopping scanner...");
         isRunningRef.current = false;
