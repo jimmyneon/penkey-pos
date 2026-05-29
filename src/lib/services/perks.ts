@@ -101,18 +101,24 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
   try {
     // Remove trailing slash from domain to avoid double slashes
     const domain = settings.domain.replace(/\/$/, "");
+    const requestBody = { qr_data: qrData };
+    
+    console.log("[Perks] Request body:", JSON.stringify(requestBody));
+    console.log("[Perks] Request URL:", `${domain}/api/pos/scan`);
+    
     const response = await fetch(`${domain}/api/pos/scan`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${settings.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ qr_data: qrData }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const error = await response.text();
       console.error(`[Perks] Scan failed (${response.status}):`, error);
+      console.error("[Perks] Request that failed:", JSON.stringify(requestBody));
       throw new Error(`Scan failed: ${error}`);
     }
 
