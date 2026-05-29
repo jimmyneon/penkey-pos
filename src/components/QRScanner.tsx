@@ -2,7 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
-import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
+
+// Type declaration for BarcodeDetector API
+declare global {
+  interface Window {
+    BarcodeDetector?: any;
+  }
+}
 
 interface QRScannerProps {
   onScan: (result: string) => void;
@@ -14,15 +20,21 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const [scanning, setScanning] = useState(true);
   const [cameraStarted, setCameraStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const isRunningRef = useRef(false);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const startScanner = async () => {
       try {
         console.log("[QR Scanner] Starting scanner...");
-        const reader = new BrowserMultiFormatReader();
-        readerRef.current = reader;
+        
+        // Check if BarcodeDetector is supported
+        if (!('BarcodeDetector' in window)) {
+          throw new Error("BarcodeDetector not supported in this browser");
+        }
+
+        const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
 
         // Get the video element
         const videoElement = videoRef.current;
@@ -30,68 +42,48 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           throw new Error("Video element not found");
         }
 
-        // Try with back camera first, then fallback to any camera
-        let cameraStarted = false;
-        const cameraIds = await reader.listVideoInputDevices();
+        // Request camera access
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
         
-        // Try to find back camera
-        const backCamera = cameraIds.find((device: any) => 
-          device.label.toLowerCase().includes('back') || 
-          device.label.toLowerCase().includes('environment')
-        );
-
-        const deviceId = backCamera ? backCamera.deviceId : null;
-
-        try {
-          // Start decoding from the video device
-          await reader.decodeFromVideoDevice(
-            deviceId,
-            videoElement,
-            (result, error) => {
-              if (result) {
-                console.log("[QR Scanner] QR code detected:", result.getText());
-                setScanning(false);
-                isRunningRef.current = false;
-                onScan(result.getText());
-                // Stop scanner after successful scan
-                if (readerRef.current) {
-                  readerRef.current.reset();
-                }
-              }
-              if (error && !(error instanceof NotFoundException)) {
-                console.log("[QR Scanner] Scan error:", error);
-              }
-            }
-          );
-          cameraStarted = true;
-        } catch (err) {
-          console.warn("[QR Scanner] Failed with specific camera, trying any camera:", err);
-          // Fallback to any camera
-          await reader.decodeFromVideoDevice(
-            null,
-            videoElement,
-            (result, error) => {
-              if (result) {
-                console.log("[QR Scanner] QR code detected:", result.getText());
-                setScanning(false);
-                isRunningRef.current = false;
-                onScan(result.getText());
-                // Stop scanner after successful scan
-                if (readerRef.current) {
-                  readerRef.current.reset();
-                }
-              }
-              if (error && !(error instanceof NotFoundException)) {
-                console.log("[QR Scanner] Scan error:", error);
-              }
-            }
-          );
-          cameraStarted = true;
-        }
-
-        isRunningRef.current = true;
+        streamRef.current = stream;
+        videoElement.srcObject = stream;
+        
+        await videoElement.play();
         setCameraStarted(true);
+        isRunningRef.current = true;
         console.log("[QR Scanner] Camera started successfully");
+
+        // Scan for QR codes periodically
+        scanIntervalRef.current = setInterval(async () => {
+          if (!isRunningRef.current || !videoElement) return;
+
+          try {
+            const barcodes = await barcodeDetector.detect(videoElement);
+            if (barcodes.length > 0) {
+              const result = barcodes[0].rawValue;
+              console.log("[QR Scanner] QR code detected:", result);
+              setScanning(false);
+              isRunningRef.current = false;
+              onScan(result);
+              
+              // Stop scanning
+              if (scanIntervalRef.current) {
+                clearInterval(scanIntervalRef.current);
+                scanIntervalRef.current = null;
+              }
+              
+              // Stop camera
+              if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+              }
+            }
+          } catch (err) {
+            // Detection errors are normal while scanning
+          }
+        }, 500); // Scan every 500ms
+
       } catch (err) {
         console.error("[QR Scanner] Error:", err);
         setError("Failed to start camera. Please check permissions.");
@@ -102,10 +94,12 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     startScanner();
 
     return () => {
-      if (readerRef.current && isRunningRef.current) {
-        console.log("[QR Scanner] Stopping scanner...");
-        isRunningRef.current = false;
-        readerRef.current.reset();
+      isRunningRef.current = false;
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
   }, [onScan]);
@@ -135,7 +129,6 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           }}
           muted
           playsInline
-          autoPlay
         />
       </div>
 
