@@ -374,6 +374,43 @@ export default function SettingsPage() {
         console.error("[Settings] API error:", errorData);
         setSettings(DEFAULT_SETTINGS);
       }
+
+      // Load SumUp connection status from DB (persists across devices)
+      try {
+        const credsRes = await fetch('/api/sumup/credentials');
+        if (credsRes.ok) {
+          const credsData = await credsRes.json();
+          console.log("[Settings] SumUp credentials response:", credsData);
+          if (credsData?.configured) {
+            setSumUpConnected(true);
+            setSumUpMerchantCode(String(credsData.merchant_code || ''));
+            setSumUpAffiliateKey(String(credsData.affiliate_key || ''));
+          } else {
+            setSumUpConnected(false);
+          }
+        }
+      } catch (e) {
+        console.error("[Settings] Failed to load SumUp credentials:", e);
+        // Non-fatal - fall back to localStorage mirror
+        const storedCreds = getSumUpCredentials();
+        if (storedCreds?.apiKey && storedCreds?.merchantCode) {
+          setSumUpConnected(true);
+          setSumUpMerchantCode(String(storedCreds.merchantCode || ''));
+        }
+      }
+
+      // Handle OAuth callback from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const callbackSuccess = urlParams.get("sumup_callback");
+      const callbackError = urlParams.get("sumup_error");
+      
+      if (callbackSuccess === "success") {
+        await handleOAuthCallback();
+      } else if (callbackError) {
+        showToast(`SumUp connection failed: ${callbackError}`, "error");
+        // Clean up URL
+        window.history.replaceState({}, "", "/settings");
+      }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.error("[Settings] Settings fetch timed out, using defaults");
@@ -383,48 +420,10 @@ export default function SettingsPage() {
         showToast("Failed to load settings: " + (error as Error).message, "error");
         setSettings(DEFAULT_SETTINGS);
       }
+    } finally {
+      setLoading(false);
     }
-
-    // Load SumUp connection status from DB (persists across devices)
-    try {
-      const credsRes = await fetch('/api/sumup/credentials');
-      if (credsRes.ok) {
-        const credsData = await credsRes.json();
-        console.log("[Settings] SumUp credentials response:", credsData);
-        if (credsData?.configured) {
-          setSumUpConnected(true);
-          setSumUpMerchantCode(String(credsData.merchant_code || ''));
-          setSumUpAffiliateKey(String(credsData.affiliate_key || ''));
-        } else {
-          setSumUpConnected(false);
-        }
-      }
-    } catch (e) {
-      console.error("[Settings] Failed to load SumUp credentials:", e);
-      // Non-fatal - fall back to localStorage mirror
-      const storedCreds = getSumUpCredentials();
-      if (storedCreds?.apiKey && storedCreds?.merchantCode) {
-        setSumUpConnected(true);
-        setSumUpMerchantCode(String(storedCreds.merchantCode || ''));
-      }
-    }
-
-    // Handle OAuth callback from URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    const callbackSuccess = urlParams.get("sumup_callback");
-    const callbackError = urlParams.get("sumup_error");
-    
-    if (callbackSuccess === "success") {
-      await handleOAuthCallback();
-    } else if (callbackError) {
-      showToast(`SumUp connection failed: ${callbackError}`, "error");
-      // Clean up URL
-      window.history.replaceState({}, "", "/settings");
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleOAuthCallback = async () => {
   try {
