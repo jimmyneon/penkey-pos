@@ -4,11 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3 } from "lucide-react";
+import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { CashTenderedDialog } from "./cash-tendered-dialog";
 import { ManualPaymentDialog } from "./manual-payment-dialog";
 import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
+import { QRScanner } from "@/components/QRScanner";
+import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
+import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { OutboxSyncService } from "@/lib/services/outbox-sync";
@@ -51,6 +54,10 @@ export default function PaymentPage() {
   const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const paymentCompletedRef = useRef(false);
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; customer?: any; name: string } | null>(null);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [perksCustomer, setPerksCustomer] = useState<any>(null);
+  const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
+  const [scanningQR, setScanningQR] = useState(false);
   const { lines, getTotal, clearCart } = useCartStore();
   
   // SumUp API key credential check
@@ -160,6 +167,160 @@ export default function PaymentPage() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Load Perks bean rules
+  useEffect(() => {
+    const loadPerksBeanRules = async () => {
+      try {
+        const response = await fetch("/api/settings/perks");
+        if (response.ok) {
+          const data = await response.json();
+          setPerksBeanRules(data.beanRules);
+        }
+      } catch (error) {
+        console.error("Failed to load Perks bean rules:", error);
+      }
+    };
+    loadPerksBeanRules();
+  }, []);
+
+  // Load ticket assignment from sessionStorage
+  useEffect(() => {
+    const savedAssignment = sessionStorage.getItem("ticket_assignment");
+    if (savedAssignment) {
+      setTicketAssignment(JSON.parse(savedAssignment));
+    }
+  }, []);
+
+  const handleQRScan = async (qrData: string) => {
+    console.log("[Payment QR Scan] Starting QR scan process");
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    if (!sessionData) {
+      console.error("[Payment QR Scan] No session data");
+      return;
+    }
+    
+    const session = JSON.parse(sessionData);
+    if (!session?.org_id) {
+      console.error("[Payment QR Scan] No session org_id");
+      return;
+    }
+    
+    setScanningQR(true);
+    
+    try {
+      const apiResponse = await scanQRCode(session.org_id, qrData);
+      
+      if (!apiResponse) {
+        throw new Error("No customer data returned from API");
+      }
+      
+      const customer = {
+        id: apiResponse.customer?.id || '',
+        name: apiResponse.customer?.name || '',
+        email: apiResponse.customer?.email || '',
+        phone: apiResponse.customer?.phone || '',
+        beanBalance: apiResponse.bean_balance?.balance || 0,
+        activeVouchers: apiResponse.vouchers || [],
+        canAwardBeanToday: apiResponse.can_award_bean || false,
+      };
+      
+      setPerksCustomer(customer);
+      setQrScannerOpen(false);
+      
+      // Set ticket assignment for payment processing
+      setTicketAssignment({
+        type: 'customer',
+        name: customer.name,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          beanBalance: customer.beanBalance,
+        }
+      });
+      
+      // Save to sessionStorage for persistence
+      sessionStorage.setItem("ticket_assignment", JSON.stringify({
+        type: 'customer',
+        name: customer.name,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          beanBalance: customer.beanBalance,
+        }
+      }));
+      
+      showToast(`Customer ${customer.name} linked`, 'success');
+    } catch (error: any) {
+      console.error("[Payment QR Scan] Error:", error);
+      showToast(error.message || "Failed to scan QR code", 'error');
+    } finally {
+      setScanningQR(false);
+    }
+  };
+
+  const handleAwardBean = async (rules: BeanRules) => {
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    if (!sessionData) return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+    
+    const session = JSON.parse(sessionData);
+    if (!session?.org_id || !perksCustomer) return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+
+    try {
+      const result = await recordVisit(session.org_id, {
+        userId: perksCustomer.id,
+        beanRules: rules,
+        menuItems: lines.map(line => ({ name: line.item_name, price: line.unit_price })),
+        staffId: session.employee.id,
+        locationId: session.register.store_id,
+      });
+
+      if (result) {
+        showToast(`Awarded ${result.beansAwarded} bean(s)! New balance: ${result.newBalance}`, "success");
+        setPerksCustomer({
+          ...perksCustomer,
+          beanBalance: result.newBalance,
+          canAwardBeanToday: false,
+        });
+        return result;
+      }
+      return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+    } catch (error: any) {
+      console.error("Award bean error:", error);
+      showToast(error.message || "Failed to award beans", "error");
+      return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+    }
+  };
+
+  const handleRedeemVoucher = async (voucherId: string) => {
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    if (!sessionData) return;
+    
+    const session = JSON.parse(sessionData);
+    if (!session?.org_id) return;
+
+    try {
+      const result = await redeemVoucher(session.org_id, {
+        voucher_id: voucherId,
+        staff_id: session.employee.id,
+      });
+
+      if (result) {
+        showToast("Voucher redeemed successfully!", "success");
+        setPerksCustomer({
+          ...perksCustomer,
+          activeVouchers: perksCustomer.activeVouchers.filter((v: any) => v.id !== voucherId),
+        });
+      }
+    } catch (error: any) {
+      console.error("Redeem voucher error:", error);
+      showToast(error.message || "Failed to redeem voucher", "error");
+    }
+  };
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session");
@@ -1475,6 +1636,15 @@ export default function PaymentPage() {
           <UserPlus className="h-5 w-5 mr-2" />
           Assign
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setQrScannerOpen(true)}
+          className="text-white hover:bg-white/10"
+        >
+          <QrCode className="h-5 w-5 mr-2" />
+          Scan
+        </Button>
       </header>
 
       {/* Total Display Bar */}
@@ -1757,6 +1927,28 @@ export default function PaymentPage() {
           showToast(`Assigned to ${assignee.name}`, "success");
         }}
       />
+
+      {/* QR Scanner */}
+      {qrScannerOpen && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => setQrScannerOpen(false)}
+        />
+      )}
+
+      {/* Perks Customer Panel */}
+      {perksCustomer && (
+        <PerksCustomerPanel
+          customer={perksCustomer}
+          onClose={() => setPerksCustomer(null)}
+          onAwardBean={handleAwardBean}
+          onRedeemVoucher={handleRedeemVoucher}
+          staffId={session?.employee?.id || ""}
+          locationId={session?.register?.store_id || ""}
+          currentCartItems={lines.map(line => ({ name: line.item_name, price: line.unit_price }))}
+          beanRules={perksBeanRules}
+        />
+      )}
 
       {/* Processing Overlay */}
       {processing && (
