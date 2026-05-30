@@ -6,6 +6,7 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penke
 import { formatCurrency } from "@penkey/ui";
 import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
+import { TicketModal } from "../sell/ticket-modal";
 import { CashTenderedDialog } from "./cash-tendered-dialog";
 import { ManualPaymentDialog } from "./manual-payment-dialog";
 import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
@@ -58,7 +59,7 @@ export default function PaymentPage() {
   const [perksCustomer, setPerksCustomer] = useState<any>(null);
   const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
   const [scanningQR, setScanningQR] = useState(false);
-  const { lines, getTotal, clearCart } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart } = useCartStore();
   
   // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
@@ -1621,39 +1622,43 @@ export default function PaymentPage() {
           size="sm"
           variant="ghost"
           onClick={() => router.push("/sell")}
-          className="text-white hover:bg-white/10"
+          className="text-white hover:bg-white/10 p-2"
+          title="Back"
         >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          Back
+          <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="font-semibold text-lg">Payment</h1>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setAssignTicketOpen(true)}
-          className="text-white hover:bg-white/10"
-        >
-          <UserPlus className="h-5 w-5 mr-2" />
-          Assign
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setQrScannerOpen(true)}
-          className="text-white hover:bg-white/10"
-        >
-          <QrCode className="h-5 w-5 mr-2" />
-          Scan
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setAssignTicketOpen(true)}
+            className="text-white hover:bg-white/10 p-2"
+            title="Assign"
+          >
+            <UserPlus className="h-5 w-5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setQrScannerOpen(true)}
+            className="text-white hover:bg-white/10 p-2"
+            title="Scan Customer"
+          >
+            <QrCode className="h-5 w-5" />
+          </Button>
+        </div>
       </header>
 
       {/* Total Display Bar */}
       <div className="bg-penkey-orange text-white px-4 py-4">
         <div className="flex items-center">
-          <div className="flex-shrink-0">
+          <button
+            onClick={() => setItemsDialogOpen(true)}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity"
+          >
             <div className="text-xs uppercase tracking-wide opacity-90">Total Amount</div>
             <div className="text-3xl font-bold">{formatCurrency(total)}</div>
-          </div>
+          </button>
           
           <div className="flex-1"></div>
           
@@ -1666,13 +1671,6 @@ export default function PaymentPage() {
               {defaultDiningOption === 'eat-in' ? 'Eat In' : 'Takeaway'}
             </button>
           )}
-          
-          <button 
-            onClick={() => setItemsDialogOpen(true)}
-            className="hover:opacity-80 transition-opacity flex-shrink-0"
-          >
-            <div className="text-sm opacity-90 underline">{lines.length} items</div>
-          </button>
         </div>
       </div>
 
@@ -1841,80 +1839,22 @@ export default function PaymentPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Items Dialog */}
-      <Dialog open={itemsDialogOpen} onOpenChange={setItemsDialogOpen}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto bg-[#3d3d3d] text-white border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Cart Items ({lines.length})
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-2">
-            {lines.map((line) => (
-              <div 
-                key={line.id} 
-                className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3"
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <div className="flex-1">
-                    <div className="font-semibold text-white">{line.item_name}</div>
-                    {line.variant_name && (
-                      <div className="text-xs text-gray-400">{line.variant_name}</div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-penkey-orange">
-                      {formatCurrency(line.unit_price * line.quantity)}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center text-sm text-gray-400">
-                  <div>Qty: {line.quantity}</div>
-                  <div>{formatCurrency(line.unit_price)} each</div>
-                </div>
-
-                {line.modifiers && line.modifiers.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-gray-600">
-                    <div className="text-xs text-gray-400 mb-1">Modifiers:</div>
-                    {line.modifiers.map((mod, idx) => (
-                      <div key={idx} className="text-xs text-gray-300 flex justify-between">
-                        <span>+ {mod.name}</span>
-                        <span>{formatCurrency(mod.price_adjustment)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {line.notes && (
-                  <div className="mt-2 pt-2 border-t border-gray-600">
-                    <div className="text-xs text-gray-400">Note:</div>
-                    <div className="text-xs text-gray-300">{line.notes}</div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="sticky bottom-0 bg-[#3d3d3d] pt-4 border-t border-gray-600 mt-4">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-lg font-bold text-white">Total</span>
-              <span className="text-2xl font-bold text-penkey-orange">
-                {formatCurrency(total)}
-              </span>
-            </div>
-            <Button
-              size="lg"
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white"
-              onClick={() => setItemsDialogOpen(false)}
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Cart Modal */}
+      <TicketModal
+        open={itemsDialogOpen}
+        onClose={() => setItemsDialogOpen(false)}
+        lines={lines}
+        updateQuantity={updateQuantity}
+        removeLine={removeLine}
+        getSubtotal={getSubtotal}
+        getTaxTotal={getTaxTotal}
+        getTotal={getTotal}
+        onCheckout={() => {}}
+        onSave={() => {}}
+        onClearAll={() => {}}
+        onPrint={() => {}}
+        ticketAssignment={ticketAssignment}
+      />
 
       {/* Assign Ticket Dialog */}
       <AssignTicketDialog
