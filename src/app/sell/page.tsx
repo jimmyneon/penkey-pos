@@ -99,6 +99,7 @@ export default function SellPage() {
   const [ticketAssignment, setTicketAssignment] = useState<{ type: 'customer' | 'table'; name: string; customer?: any } | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [perksCustomer, setPerksCustomer] = useState<any>(null);
+  const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
   const [scanningQR, setScanningQR] = useState(false);
   const [currentTicketName, setCurrentTicketName] = useState<string>("");
   const [currentTicketComment, setCurrentTicketComment] = useState<string>("");
@@ -122,6 +123,22 @@ export default function SellPage() {
   useEffect(() => {
     setLayout(registerSettingsData.layout_preference);
   }, [registerSettingsData.layout_preference]);
+
+  // Load Perks bean rules
+  useEffect(() => {
+    const loadPerksBeanRules = async () => {
+      try {
+        const response = await fetch("/api/settings/perks");
+        if (response.ok) {
+          const data = await response.json();
+          setPerksBeanRules(data.beanRules);
+        }
+      } catch (error) {
+        console.error("Failed to load Perks bean rules:", error);
+      }
+    };
+    loadPerksBeanRules();
+  }, []);
 
   // Apply theme and font size to document
   useEffect(() => {
@@ -293,6 +310,20 @@ export default function SellPage() {
       setPerksCustomer(customer);
       console.log("[handleQRScan] perksCustomer state set");
       
+      // Set ticket assignment for payment processing
+      setTicketAssignment({
+        type: 'customer',
+        name: customer.name,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          beanBalance: customer.beanBalance,
+        }
+      });
+      console.log("[handleQRScan] Set ticketAssignment for customer:", customer.name);
+      
       console.log("[handleQRScan] Setting qrScannerOpen to false...");
       setQrScannerOpen(false);
       console.log("[handleQRScan] qrScannerOpen set to false");
@@ -332,7 +363,7 @@ export default function SellPage() {
   };
 
   const handleAwardBean = async (rules: BeanRules) => {
-    if (!session?.org_id || !perksCustomer) return;
+    if (!session?.org_id || !perksCustomer) return { beansAwarded: 0, newBalance: perksCustomer.beanBalance };
 
     try {
       const result = await recordVisit(session.org_id, {
@@ -351,10 +382,13 @@ export default function SellPage() {
           beanBalance: result.newBalance,
           canAwardBeanToday: false,
         });
+        return result;
       }
+      return { beansAwarded: 0, newBalance: perksCustomer.beanBalance };
     } catch (error: any) {
       console.error("Award bean error:", error);
       showToast(error.message || "Failed to award beans", "error");
+      return { beansAwarded: 0, newBalance: perksCustomer.beanBalance };
     }
   };
 
@@ -1107,6 +1141,34 @@ export default function SellPage() {
       // Use assignment from parameter if provided, otherwise use existing ticketAssignment state
       const assignmentToUse = assignment || ticketAssignment;
       
+      // Include Perks customer data if a customer is scanned
+      let finalAssignment = assignmentToUse;
+      if (perksCustomer && !assignmentToUse) {
+        finalAssignment = {
+          type: 'customer' as const,
+          name: perksCustomer.name,
+          customer: {
+            id: perksCustomer.id,
+            name: perksCustomer.name,
+            email: perksCustomer.email,
+            phone: perksCustomer.phone,
+            beanBalance: perksCustomer.beanBalance,
+          }
+        };
+      } else if (perksCustomer && assignmentToUse?.type === 'customer') {
+        // Merge Perks customer data with existing assignment
+        finalAssignment = {
+          ...assignmentToUse,
+          customer: {
+            id: perksCustomer.id,
+            name: perksCustomer.name,
+            email: perksCustomer.email,
+            phone: perksCustomer.phone,
+            beanBalance: perksCustomer.beanBalance,
+          }
+        };
+      }
+      
       // Save to database
       const savedTicket = await TicketSyncService.saveTicket(
         session.org_id,
@@ -1115,7 +1177,7 @@ export default function SellPage() {
         name,
         comment,
         lines,
-        assignmentToUse,
+        finalAssignment,
         getTotal()
       );
 
@@ -2099,6 +2161,7 @@ export default function SellPage() {
           staffId={session?.employee?.id || ""}
           locationId={session?.register?.store_id || ""}
           currentCartItems={lines.map(line => ({ name: line.item_name, price: line.unit_price }))}
+          beanRules={perksBeanRules}
         />
       )}
 

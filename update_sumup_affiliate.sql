@@ -1,7 +1,15 @@
--- Update SumUp credentials with new affiliate key
+-- Update SumUp credentials with secret API key, correct merchant code, and affiliate key
 UPDATE org_settings
 SET settings = jsonb_set(
-  settings,
+  jsonb_set(
+    jsonb_set(
+      settings,
+      '{sumup_credentials,api_key}',
+      '"sup_sk_6jTEbn7SqQZVbfBK9ZSPqcBGyKvP997wC"'
+    ),
+    '{sumup_credentials,merchant_code}',
+    '"MYZEMCTV"'
+  ),
   '{sumup_credentials,affiliate_key}',
   '"sup_afk_SfQcDbZq15H6pTa1Uww5NpHejGC3Hac2"'
 ),

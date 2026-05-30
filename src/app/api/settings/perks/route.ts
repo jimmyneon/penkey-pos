@@ -40,7 +40,20 @@ export async function GET(request: NextRequest) {
     }
 
     const settings = (data as any)?.settings as any || {};
-    const perks = settings.perks || { domain: "", apiKey: "" };
+    const perks = settings.perks || { 
+      domain: "", 
+      apiKey: "",
+      beanRules: {
+        baseBeans: 1,
+        reusableCup: { enabled: false, beans: 1 },
+        foodDrinkCombo: { enabled: false, beans: 1 },
+        penkeyCup: { enabled: false, beans: 1 },
+        before9am: { enabled: false, beans: 1 },
+        after230pm: { enabled: false, beans: 1 },
+        monthlySpecial: { enabled: false, beans: 1 },
+        broughtFriend: { enabled: false, beans: 1 },
+      }
+    };
 
     return NextResponse.json(perks);
   } catch (error: any) {
@@ -69,7 +82,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { domain, apiKey } = body;
+    const { domain, apiKey, beanRules } = body;
 
     if (!domain || !apiKey) {
       return NextResponse.json(
@@ -90,7 +103,20 @@ export async function POST(request: NextRequest) {
         {
           org_id: session.org_id,
           settings: {
-            perks: { domain, apiKey },
+            perks: { 
+              domain, 
+              apiKey,
+              beanRules: beanRules || {
+                baseBeans: 1,
+                reusableCup: { enabled: false, beans: 1 },
+                foodDrinkCombo: { enabled: false, beans: 1 },
+                penkeyCup: { enabled: false, beans: 1 },
+                before9am: { enabled: false, beans: 1 },
+                after230pm: { enabled: false, beans: 1 },
+                monthlySpecial: { enabled: false, beans: 1 },
+                broughtFriend: { enabled: false, beans: 1 },
+              }
+            },
           },
         } as any,
         {
@@ -103,7 +129,7 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
 
     console.log(`[API-AUTH] Successful POST /api/settings/perks - User: ${session.user_id}, Org: ${session.org_id}`);
-    return NextResponse.json({ success: true, perks: { domain, apiKey } });
+    return NextResponse.json({ success: true, perks: { domain, apiKey, beanRules } });
   } catch (error: any) {
     console.error("Failed to save Perks settings:", error);
     return NextResponse.json(

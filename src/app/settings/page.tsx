@@ -81,6 +81,33 @@ export default function SettingsPage() {
   const [perksApiKey, setPerksApiKey] = useState("");
   const [savingPerks, setSavingPerks] = useState(false);
   const [showPerksApiKey, setShowPerksApiKey] = useState(false);
+  
+  interface BeanRule {
+    enabled: boolean;
+    beans: number;
+  }
+  
+  interface PerksBeanRules {
+    baseBeans: number;
+    reusableCup: BeanRule;
+    foodDrinkCombo: BeanRule;
+    penkeyCup: BeanRule;
+    before9am: BeanRule;
+    after230pm: BeanRule;
+    monthlySpecial: BeanRule;
+    broughtFriend: BeanRule;
+  }
+  
+  const [perksBeanRules, setPerksBeanRules] = useState<PerksBeanRules>({
+    baseBeans: 1,
+    reusableCup: { enabled: false, beans: 1 },
+    foodDrinkCombo: { enabled: false, beans: 1 },
+    penkeyCup: { enabled: false, beans: 1 },
+    before9am: { enabled: false, beans: 1 },
+    after230pm: { enabled: false, beans: 1 },
+    monthlySpecial: { enabled: false, beans: 1 },
+    broughtFriend: { enabled: false, beans: 1 },
+  });
 
   const checkPrinterStatus = async () => {
     setPrinterStatus("checking");
@@ -256,6 +283,9 @@ export default function SettingsPage() {
         const data = await response.json();
         setPerksDomain(data.domain || "");
         setPerksApiKey(data.apiKey || "");
+        if (data.beanRules) {
+          setPerksBeanRules(data.beanRules);
+        }
       }
     } catch (error) {
       console.error("Failed to load Perks settings:", error);
@@ -272,6 +302,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           domain: perksDomain,
           apiKey: perksApiKey,
+          beanRules: perksBeanRules,
         }),
       });
 
@@ -1248,6 +1279,84 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </SettingRow>
+
+            {/* Bean Rules Configuration */}
+            <div className="mt-6 space-y-4">
+              <h4 className="text-white font-semibold">Bean Award Rules</h4>
+              
+              <SettingRow
+                label="Base Beans"
+                description="Number of beans awarded for every visit"
+              >
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={perksBeanRules.baseBeans}
+                  onChange={(e) => setPerksBeanRules({ ...perksBeanRules, baseBeans: parseInt(e.target.value) || 0 })}
+                  className="w-20 bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base text-center"
+                />
+              </SettingRow>
+
+              <div className="space-y-3">
+                <h5 className="text-gray-300 text-sm font-medium">Additional Bean Bonuses</h5>
+                
+                {[
+                  { key: 'reusableCup' as const, label: 'Reusable Cup', desc: 'Customer brought their own cup' },
+                  { key: 'foodDrinkCombo' as const, label: 'Food + Drink Combo', desc: 'Customer ordered food and drink' },
+                  { key: 'penkeyCup' as const, label: 'Penkey Cup', desc: 'Customer using Penkey branded cup' },
+                  { key: 'before9am' as const, label: 'Before 9am', desc: 'Early morning visit' },
+                  { key: 'after230pm' as const, label: 'After 2:30pm', desc: 'Afternoon visit' },
+                  { key: 'monthlySpecial' as const, label: 'Monthly Special', desc: 'Ordered monthly special item' },
+                  { key: 'broughtFriend' as const, label: 'Brought a Friend', desc: 'Customer brought someone with them' },
+                ].map((rule) => {
+                  const currentRule = perksBeanRules[rule.key];
+                  return (
+                    <div key={rule.key} className="bg-[#2d2d2d] rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-white font-medium text-sm">{rule.label}</span>
+                          <p className="text-gray-400 text-xs">{rule.desc}</p>
+                        </div>
+                        <ToggleSwitch
+                          checked={currentRule.enabled}
+                          onChange={(checked) => {
+                            setPerksBeanRules({
+                              ...perksBeanRules,
+                              [rule.key]: { 
+                                ...currentRule, 
+                                enabled: checked 
+                              }
+                            });
+                          }}
+                        />
+                      </div>
+                      {currentRule.enabled && (
+                        <div className="flex items-center gap-2 pl-2">
+                          <span className="text-gray-400 text-xs">Bonus beans:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={currentRule.beans}
+                            onChange={(e) => {
+                              setPerksBeanRules({
+                                ...perksBeanRules,
+                                [rule.key]: { 
+                                  ...currentRule, 
+                                  beans: parseInt(e.target.value) || 1 
+                                }
+                              });
+                            }}
+                            className="w-16 bg-[#3d3d3d] text-white px-2 py-1 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[36px] text-xs text-center"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="flex gap-2 mt-4">
               <Button
