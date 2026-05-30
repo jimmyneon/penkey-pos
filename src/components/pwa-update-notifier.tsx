@@ -37,12 +37,8 @@ export function PWAUpdateNotifier() {
           handleControllerChange
         );
 
-        // Check if there's already a waiting service worker on mount
-        if (reg.waiting) {
-          console.log("[PWA Update] Waiting worker found on mount");
-          setWaitingWorker(reg.waiting);
-          setShowUpdate(true);
-        }
+        // Don't show update prompt on mount - only when a NEW update is detected
+        // This prevents false positives when a waiting worker from a previous session is still there
 
         unsubscribe = () => {
           window.removeEventListener("swUpdateAvailable", handleUpdateAvailable);

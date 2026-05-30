@@ -30,11 +30,8 @@ export function ServiceWorkerRegister() {
 
         console.log("[SW] Service worker registered successfully:", registration);
 
-        // Check if there's already a waiting service worker
-        if (registration.waiting) {
-          console.log("[SW] Update already waiting");
-          notifyUpdateAvailable(registration.waiting);
-        }
+        // Don't notify on mount - only notify when a NEW update is found via updatefound
+        // This prevents false positives when a waiting worker from a previous session is still there
 
         // Listen for new service worker installing
         registration.addEventListener("updatefound", () => {
