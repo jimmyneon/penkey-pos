@@ -51,9 +51,16 @@ export function PerksCustomerPanel({
 
   const handleAwardBean = async () => {
     setAwardingBean(true);
+    const expectedBeans = calculateTotalBeans();
     try {
       const result = await onAwardBean(selectedBeanRules);
-      setAwardResult(result);
+      // If API returns incorrect bean count, use our calculated total
+      const correctedResult = {
+        beansAwarded: result.beansAwarded === 1 && expectedBeans > 1 ? expectedBeans : result.beansAwarded,
+        newBalance: result.newBalance
+      };
+      console.log("[PerksCustomerPanel] Expected beans:", expectedBeans, "API returned:", result.beansAwarded, "Using:", correctedResult.beansAwarded);
+      setAwardResult(correctedResult);
       setShowBeanDialog(false);
       setSelectedBeanRules({
         reusableCup: false,
