@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       transaction_id,
       checkout_id,
       created_at,
+      voucher_redemptions, // Array of voucher redemptions
     } = body;
 
     console.log('[Receipt Create] Incoming data:', { id, payment_method, employee_id, register_id, org_id, store_id, linesCount: lines?.length, dining_option });
@@ -300,6 +301,32 @@ export async function POST(request: NextRequest) {
       throw paymentError;
     }
     console.log('[Receipt Create] Payment inserted for method:', payment_method);
+
+    // Insert voucher redemptions if any
+    if (voucher_redemptions && voucher_redemptions.length > 0) {
+      const voucherRedemptionRecords = voucher_redemptions.map((vr: any) => ({
+        org_id,
+        receipt_id: newReceiptId,
+        voucher_id: vr.voucher_id,
+        voucher_name: vr.voucher_name,
+        discount_type: vr.discount_type,
+        discount_value: vr.discount_value,
+        bean_cost: vr.bean_cost,
+        item_type: vr.item_type || null,
+        category: vr.category || null,
+        customer_id: customer_id || null,
+        customer_name: customer_name || null,
+        staff_id: employee_id,
+      }));
+
+      const { error: voucherError } = await supabase.from("voucher_redemptions").insert(voucherRedemptionRecords);
+      if (voucherError) {
+        console.error('[Receipt Create] Voucher redemptions insert failed:', voucherError);
+        // Don't rollback - voucher tracking is non-critical
+      } else {
+        console.log('[Receipt Create] Voucher redemptions inserted:', voucherRedemptionRecords.length);
+      }
+    }
 
     // Batch inventory deduction
     // NOTE: Inventory failures DO NOT roll back the receipt. Sales must always

@@ -578,6 +578,15 @@ export default function PaymentPage() {
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       // Use global default dining option setting (can be overridden by table assignment)
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+      voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
+        voucher_id: line.voucher.id,
+        voucher_name: line.voucher.name,
+        discount_type: line.voucher.discountType,
+        discount_value: line.voucher.discountValue,
+        bean_cost: line.voucher.beanCost || 0,
+        item_type: line.voucher.itemType || null,
+        category: line.voucher.category || null,
+      })),
     };
     
     console.log('[Payment] Creating receipt with customer data:', {
@@ -712,6 +721,15 @@ export default function PaymentPage() {
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+      voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
+        voucher_id: line.voucher.id,
+        voucher_name: line.voucher.name,
+        discount_type: line.voucher.discountType,
+        discount_value: line.voucher.discountValue,
+        bean_cost: line.voucher.beanCost || 0,
+        item_type: line.voucher.itemType || null,
+        category: line.voucher.category || null,
+      })),
     };
     
     console.log('[Payment] Creating manual receipt with method:', method);
@@ -1605,6 +1623,15 @@ export default function PaymentPage() {
         payment_provider: "sumup",
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,
+        voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
+          voucher_id: line.voucher.id,
+          voucher_name: line.voucher.name,
+          discount_type: line.voucher.discountType,
+          discount_value: line.voucher.discountValue,
+          bean_cost: line.voucher.beanCost || 0,
+          item_type: line.voucher.itemType || null,
+          category: line.voucher.category || null,
+        })),
       };
 
       // Add line_total to each line for printing
