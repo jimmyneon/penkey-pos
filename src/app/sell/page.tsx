@@ -1173,7 +1173,7 @@ export default function SellPage() {
     setModifierDialogOpen(false);
   };
 
-  const handleSaveTicket = async (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => {
+  const handleSaveTicket = async (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string; customer?: any }) => {
     if (!session) return;
 
     // If in assign mode (opened from assign button), just set assignment locally without saving
@@ -1206,26 +1206,17 @@ export default function SellPage() {
         finalAssignment = {
           type: 'customer' as const,
           name: perksCustomer.name,
-          customer: {
-            id: perksCustomer.id,
-            name: perksCustomer.name,
-            email: perksCustomer.email,
-            phone: perksCustomer.phone,
-            beanBalance: perksCustomer.beanBalance,
-          }
+          customer: perksCustomer, // Store full customer object
         };
       } else if (perksCustomer && assignmentToUse?.type === 'customer') {
         // Merge Perks customer data with existing assignment
         finalAssignment = {
           ...assignmentToUse,
-          customer: {
-            id: perksCustomer.id,
-            name: perksCustomer.name,
-            email: perksCustomer.email,
-            phone: perksCustomer.phone,
-            beanBalance: perksCustomer.beanBalance,
-          }
+          customer: perksCustomer, // Store full customer object
         };
+      } else if (assignmentToUse?.customer) {
+        // Keep existing customer object if present
+        finalAssignment = assignmentToUse;
       }
       
       // Save to database
@@ -1357,7 +1348,14 @@ export default function SellPage() {
     setCurrentTicketName(ticket.name);
     setCurrentTicketComment(ticket.comment || "");
     // Check both assignment and ticket_assignment fields (database uses ticket_assignment)
-    setTicketAssignment(ticket.ticket_assignment || ticket.assignment || null);
+    const loadedAssignment = ticket.ticket_assignment || ticket.assignment || null;
+    setTicketAssignment(loadedAssignment);
+    console.log("[LoadTicket] Loaded ticket assignment:", loadedAssignment);
+    // If assignment has customer data, also set perksCustomer for PerksCustomerPanel
+    if (loadedAssignment?.customer) {
+      console.log("[LoadTicket] Setting perksCustomer from loaded assignment:", loadedAssignment.customer);
+      setPerksCustomer(loadedAssignment.customer);
+    }
 
     // Remove ticket from saved tickets (database)
     try {
@@ -2064,6 +2062,7 @@ export default function SellPage() {
         onPrint={handlePrintCurrentTicket}
         ticketAssignment={ticketAssignment}
         onCustomerClick={(customer) => {
+          console.log("[TicketModal] Customer clicked:", customer);
           setPerksCustomer(customer);
         }}
       />

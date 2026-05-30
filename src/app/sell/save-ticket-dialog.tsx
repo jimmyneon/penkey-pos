@@ -8,7 +8,7 @@ import { User, Hash } from "lucide-react";
 interface SaveTicketDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => void;
+  onSave: (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string; customer?: any }) => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
   mode?: 'save' | 'assign';
 }
