@@ -317,6 +317,14 @@ export default function SellPage() {
         customer: customer, // Store full customer object for PerksCustomerPanel
       });
       console.log("[handleQRScan] Set ticketAssignment for customer:", customer.name);
+
+      // Persist assignment to sessionStorage for page refresh
+      sessionStorage.setItem("pos_ticket_assignment", JSON.stringify({
+        type: 'customer',
+        name: customer.name,
+        customer: customer,
+      }));
+      console.log("[handleQRScan] Saved assignment to sessionStorage");
       
       console.log("[handleQRScan] Setting qrScannerOpen to false...");
       setQrScannerOpen(false);
@@ -666,8 +674,27 @@ export default function SellPage() {
           loadLines(syncedLines);
           if (syncedAssignment) {
             setTicketAssignment(syncedAssignment);
+            // If assignment has customer data, also set perksCustomer
+            if (syncedAssignment.customer) {
+              setPerksCustomer(syncedAssignment.customer);
+            }
           }
           console.log('[CartSync] Loaded cart from database on mount');
+        } else if (lines.length === 0) {
+          // If no synced data, try to restore from sessionStorage
+          const savedAssignment = sessionStorage.getItem("pos_ticket_assignment");
+          if (savedAssignment) {
+            try {
+              const assignment = JSON.parse(savedAssignment);
+              setTicketAssignment(assignment);
+              if (assignment.customer) {
+                setPerksCustomer(assignment.customer);
+              }
+              console.log('[CartSync] Restored assignment from sessionStorage:', assignment);
+            } catch (error) {
+              console.error('[CartSync] Failed to parse saved assignment:', error);
+            }
+          }
         }
 
         // DO NOT start polling - causes sync loops
@@ -2065,7 +2092,20 @@ export default function SellPage() {
         ticketAssignment={ticketAssignment}
         onCustomerClick={(customer) => {
           console.log("[TicketModal] Customer clicked:", customer);
-          setPerksCustomer(customer);
+          console.log("[TicketModal] Customer has activeVouchers?", customer.activeVouchers);
+          console.log("[TicketModal] Customer has canAwardBeanToday?", customer.canAwardBeanToday);
+          
+          // If customer is missing required fields, set to defaults
+          const customerWithDefaults = {
+            ...customer,
+            activeVouchers: customer.activeVouchers || [],
+            canAwardBeanToday: customer.canAwardBeanToday !== undefined ? customer.canAwardBeanToday : true,
+            lastVisitDate: customer.lastVisitDate || null,
+          };
+          
+          console.log("[TicketModal] Customer with defaults:", customerWithDefaults);
+          setPerksCustomer(customerWithDefaults);
+          console.log("[TicketModal] Set perksCustomer state");
         }}
       />
 
