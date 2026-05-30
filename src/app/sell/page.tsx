@@ -269,8 +269,25 @@ export default function SellPage() {
     
     try {
       console.log("[handleQRScan] Calling scanQRCode API...");
-      const customer = await scanQRCode(session.org_id, qrData);
-      console.log("[handleQRScan] scanQRCode returned customer:", customer);
+      const apiResponse = await scanQRCode(session.org_id, qrData);
+      console.log("[handleQRScan] scanQRCode returned:", apiResponse);
+      
+      if (!apiResponse) {
+        console.error("[handleQRScan] API returned null response");
+        throw new Error("No customer data returned from API");
+      }
+      
+      // Transform API response to match PerksCustomer interface
+      const customer = {
+        id: apiResponse.customer?.id || '',
+        name: apiResponse.customer?.name || '',
+        email: apiResponse.customer?.email || '',
+        phone: apiResponse.customer?.phone || '',
+        beanBalance: apiResponse.bean_balance?.balance || 0,
+        activeVouchers: apiResponse.vouchers || [],
+        canAwardBeanToday: apiResponse.can_award_bean || false,
+      };
+      console.log("[handleQRScan] Transformed customer data:", customer);
       
       console.log("[handleQRScan] Setting perksCustomer state...");
       setPerksCustomer(customer);

@@ -14,6 +14,21 @@ export interface PerksCustomer {
   canAwardBeanToday: boolean;
 }
 
+export interface PerksAPIResponse {
+  type: string;
+  customer: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  bean_balance: {
+    balance: number;
+  };
+  vouchers: PerksVoucher[];
+  can_award_bean: boolean;
+}
+
 export interface PerksVoucher {
   id: string;
   name: string;
@@ -85,7 +100,7 @@ export async function getPerksSettings(orgId: string): Promise<PerksSettings | n
 /**
  * Scan QR code via Perks API
  */
-export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCustomer | null> {
+export async function scanQRCode(orgId: string, qrData: string): Promise<PerksAPIResponse | null> {
   console.log("[Perks] scanQRCode called with orgId:", orgId);
   console.log("[Perks] scanQRCode called with qrData:", qrData);
   
