@@ -753,18 +753,18 @@ export default function SettingsPage() {
               <div className="flex gap-2 flex-wrap">
                 <Button
                   size="sm"
-                  variant={settings.theme === "dark" ? "default" : "outline"}
+                  variant={settings?.theme === "dark" ? "default" : "outline"}
                   onClick={() => updateSetting("theme", "dark")}
-                  className={`min-h-[44px] min-w-[140px] ${settings.theme === "dark" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings?.theme === "dark" ? "bg-penkey-orange" : ""}`}
                 >
                   <Moon className="h-4 w-4 mr-2" />
                   Dark
                 </Button>
                 <Button
                   size="sm"
-                  variant={settings.theme === "light" ? "default" : "outline"}
+                  variant={settings?.theme === "light" ? "default" : "outline"}
                   onClick={() => updateSetting("theme", "light")}
-                  className={`min-h-[44px] min-w-[140px] ${settings.theme === "light" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings?.theme === "light" ? "bg-penkey-orange" : ""}`}
                 >
                   <Sun className="h-4 w-4 mr-2" />
                   Light
@@ -781,12 +781,12 @@ export default function SettingsPage() {
                   <Button
                     key={size}
                     size="sm"
-                    variant={settings.font_size === size ? "default" : "outline"}
+                    variant={settings?.font_size === size ? "default" : "outline"}
                     onClick={() => updateSetting("font_size", size as any)}
-                    className={`min-h-[44px] min-w-[140px] ${settings.font_size === size ? "bg-penkey-orange" : ""}`}
+                    className={`min-h-[44px] min-w-[140px] ${settings?.font_size === size ? "bg-penkey-orange" : ""}`}
                   >
                     <Type className="h-4 w-4 mr-1 sm:mr-2" />
-                    <span className="text-xs sm:text-sm">{size === "very_small" ? "XS" : size.charAt(0).toUpperCase() + size.slice(1)}</span>
+                    <span className="text-xs sm:text-sm">{size === "very_small" ? "XS" : (size?.charAt(0)?.toUpperCase() || "") + (size?.slice(1) || "")}</span>
                   </Button>
                 )))}
               </div>
@@ -800,9 +800,9 @@ export default function SettingsPage() {
                 {/* 2 Columns - Mobile only */}
                 <Button
                   size="sm"
-                  variant={settings.grid_size === 2 ? "default" : "outline"}
+                  variant={settings?.grid_size === 2 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 2)}
-                  className={`min-h-[44px] min-w-[140px] md:hidden ${settings.grid_size === 2 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] md:hidden ${settings?.grid_size === 2 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   2 Columns
@@ -811,9 +811,9 @@ export default function SettingsPage() {
                 {/* 3 Columns - All devices */}
                 <Button
                   size="sm"
-                  variant={settings.grid_size === 3 ? "default" : "outline"}
+                  variant={settings?.grid_size === 3 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 3)}
-                  className={`min-h-[44px] min-w-[140px] ${settings.grid_size === 3 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings?.grid_size === 3 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   3 Columns
@@ -822,9 +822,9 @@ export default function SettingsPage() {
                 {/* 4 Columns - All devices */}
                 <Button
                   size="sm"
-                  variant={settings.grid_size === 4 ? "default" : "outline"}
+                  variant={settings?.grid_size === 4 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 4)}
-                  className={`min-h-[44px] min-w-[140px] ${settings.grid_size === 4 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings?.grid_size === 4 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   4 Columns
@@ -833,9 +833,9 @@ export default function SettingsPage() {
                 {/* 5 Columns - iPad and Desktop */}
                 <Button
                   size="sm"
-                  variant={settings.grid_size === 5 ? "default" : "outline"}
+                  variant={settings?.grid_size === 5 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 5)}
-                  className={`min-h-[44px] min-w-[140px] hidden md:inline-flex ${settings.grid_size === 5 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] hidden md:inline-flex ${settings?.grid_size === 5 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   5 Columns
@@ -844,9 +844,9 @@ export default function SettingsPage() {
                 {/* 6 Columns - Desktop only */}
                 <Button
                   size="sm"
-                  variant={settings.grid_size === 6 ? "default" : "outline"}
+                  variant={settings?.grid_size === 6 ? "default" : "outline"}
                   onClick={() => updateSetting("grid_size", 6)}
-                  className={`min-h-[44px] min-w-[140px] hidden lg:inline-flex ${settings.grid_size === 6 ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] hidden lg:inline-flex ${settings?.grid_size === 6 ? "bg-penkey-orange" : ""}`}
                 >
                   <Grid3x3 className="h-4 w-4 mr-2" />
                   6 Columns
@@ -862,19 +862,19 @@ export default function SettingsPage() {
               description="Show intelligent upsell suggestions"
             >
               <ToggleSwitch
-                checked={settings.penkey_prompts_enabled}
+                checked={settings?.penkey_prompts_enabled}
                 onChange={(checked) => updateSetting("penkey_prompts_enabled", checked)}
               />
             </SettingRow>
 
-            {settings.penkey_prompts_enabled && (
+            {settings?.penkey_prompts_enabled && (
               <>
                 <SettingRow
                   label="Auto-dismiss Time"
                   description="Seconds before prompts auto-dismiss (0 = manual)"
                 >
                   <select
-                    value={settings.penkey_auto_dismiss_seconds}
+                    value={settings?.penkey_auto_dismiss_seconds}
                     onChange={(e) => updateSetting("penkey_auto_dismiss_seconds", parseInt(e.target.value))}
                     className="bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
                   >
@@ -891,7 +891,7 @@ export default function SettingsPage() {
                   description="Display popular items category"
                 >
                   <ToggleSwitch
-                    checked={settings.penkey_show_popular}
+                    checked={settings?.penkey_show_popular}
                     onChange={(checked) => updateSetting("penkey_show_popular", checked)}
                   />
                 </SettingRow>
@@ -910,9 +910,9 @@ export default function SettingsPage() {
                   <Button
                     key={val}
                     size="sm"
-                    variant={settings.print_behaviour === val ? "default" : "outline"}
+                    variant={settings?.print_behaviour === val ? "default" : "outline"}
                     onClick={() => updateSetting("print_behaviour", val)}
-                    className={`min-h-[44px] min-w-[140px] capitalize ${settings.print_behaviour === val ? "bg-penkey-orange" : ""}`}
+                    className={`min-h-[44px] min-w-[140px] capitalize ${settings?.print_behaviour === val ? "bg-penkey-orange" : ""}`}
                   >
                     {val === "always" ? "Always Print" : val === "ask" ? "Always Ask" : "Never Print"}
                   </Button>
@@ -925,7 +925,7 @@ export default function SettingsPage() {
               description="How many receipt copies to print"
             >
               <select
-                value={settings.receipt_copies}
+                value={settings?.receipt_copies}
                 onChange={(e) => updateSetting("receipt_copies", parseInt(e.target.value))}
                 className="bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
               >
@@ -1278,17 +1278,17 @@ export default function SettingsPage() {
               <div className="flex gap-2 flex-wrap">
                 <Button
                   size="sm"
-                  variant={settings.default_dining_option === "eat-in" ? "default" : "outline"}
+                  variant={settings?.default_dining_option === "eat-in" ? "default" : "outline"}
                   onClick={() => updateSetting("default_dining_option", "eat-in")}
-                  className={`min-h-[44px] min-w-[140px] ${settings.default_dining_option === "eat-in" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings?.default_dining_option === "eat-in" ? "bg-penkey-orange" : ""}`}
                 >
                   Eat In
                 </Button>
                 <Button
                   size="sm"
-                  variant={settings.default_dining_option === "takeaway" ? "default" : "outline"}
+                  variant={settings?.default_dining_option === "takeaway" ? "default" : "outline"}
                   onClick={() => updateSetting("default_dining_option", "takeaway")}
-                  className={`min-h-[44px] min-w-[140px] ${settings.default_dining_option === "takeaway" ? "bg-penkey-orange" : ""}`}
+                  className={`min-h-[44px] min-w-[140px] ${settings?.default_dining_option === "takeaway" ? "bg-penkey-orange" : ""}`}
                 >
                   Takeaway
                 </Button>
@@ -1300,7 +1300,7 @@ export default function SettingsPage() {
               description="Always ask for customer name on orders"
             >
               <ToggleSwitch
-                checked={settings.require_customer_name}
+                checked={settings?.require_customer_name}
                 onChange={(checked) => updateSetting("require_customer_name", checked)}
               />
             </SettingRow>
@@ -1313,19 +1313,19 @@ export default function SettingsPage() {
               description="Track shifts, cash in/out, and end-of-day reconciliation"
             >
               <ToggleSwitch
-                checked={settings.shift_management_enabled}
+                checked={settings?.shift_management_enabled}
                 onChange={(checked) => updateSetting("shift_management_enabled", checked)}
               />
             </SettingRow>
 
-            {settings.shift_management_enabled && (
+            {settings?.shift_management_enabled && (
               <>
                 <SettingRow
                   label="Require Opening Cash"
                   description="Require cash amount when opening a shift"
                 >
                   <ToggleSwitch
-                    checked={settings.require_opening_cash}
+                    checked={settings?.require_opening_cash}
                     onChange={(checked) => updateSetting("require_opening_cash", checked)}
                   />
                 </SettingRow>
@@ -1335,19 +1335,19 @@ export default function SettingsPage() {
                   description="Automatically close shift at end of day"
                 >
                   <ToggleSwitch
-                    checked={settings.auto_close_shift}
+                    checked={settings?.auto_close_shift}
                     onChange={(checked) => updateSetting("auto_close_shift", checked)}
                   />
                 </SettingRow>
 
-                {settings.auto_close_shift && (
+                {settings?.auto_close_shift && (
                   <SettingRow
                     label="Auto-close Time"
                     description="Time to automatically close shift (24-hour format)"
                   >
                     <input
                       type="time"
-                      value={settings.auto_close_time}
+                      value={settings?.auto_close_time}
                       onChange={(e) => updateSetting("auto_close_time", e.target.value)}
                       className="bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
                     />
@@ -1364,7 +1364,7 @@ export default function SettingsPage() {
               description="Play sounds for actions"
             >
               <ToggleSwitch
-                checked={settings.sound_enabled}
+                checked={settings?.sound_enabled}
                 onChange={(checked) => updateSetting("sound_enabled", checked)}
               />
             </SettingRow>
@@ -1374,7 +1374,7 @@ export default function SettingsPage() {
               description="Vibrate on button presses (mobile only)"
             >
               <ToggleSwitch
-                checked={settings.haptic_enabled}
+                checked={settings?.haptic_enabled}
                 onChange={(checked) => updateSetting("haptic_enabled", checked)}
               />
             </SettingRow>
