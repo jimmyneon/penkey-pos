@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       console.log(`[Drink/Food Split] Fetching for last ${days} days, from ${startDate.toISOString()}`);
     }
 
-    // Fetch receipt lines with item and category details
+    // Fetch receipt lines with item and category details (including type)
     const { data: receiptLines, error: linesError } = await supabase
       .from("receipt_lines")
       .select(`
@@ -68,7 +68,8 @@ export async function GET(request: NextRequest) {
         items!inner (
           category_id,
           categories!inner (
-            name
+            name,
+            type
           )
         ),
         receipts!inner (
@@ -88,29 +89,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch receipt data" }, { status: 500 });
     }
 
-    // Define drink and food category patterns
-    const drinkPatterns = [
-      'coffee', 'hot drinks', 'tea', 'cold drinks', 'juice', 'smoothies', 
-      'soft drinks', 'latte', 'cappuccino', 'espresso', 'americano', 'flat white',
-      'mocha', 'hot chocolate', 'iced coffee', 'iced tea', 'frappe'
-    ];
-    
-    const foodPatterns = [
-      'sandwich', 'panini', 'baguette', 'toast', 'salad', 'wrap', 'breakfast',
-      'lunch', 'pastries', 'bakery', 'cakes', 'desserts', 'brownie', 'cookie',
-      'muffin', 'pastry', 'slice', 'croissant', 'bagel', 'pancake', 'waffle'
-    ];
-
-    // Helper function to categorize item
-    const categorizeItem = (categoryName: string): 'drink' | 'food' | 'other' => {
-      const lowerName = categoryName.toLowerCase();
-      
-      if (drinkPatterns.some(pattern => lowerName.includes(pattern))) {
-        return 'drink';
-      }
-      if (foodPatterns.some(pattern => lowerName.includes(pattern))) {
-        return 'food';
-      }
+    // Helper function to categorize item based on category type
+    const categorizeItem = (categoryType: string | null): 'drink' | 'food' | 'other' => {
+      if (!categoryType) return 'other';
+      const type = categoryType.toLowerCase();
+      if (type === 'drink') return 'drink';
+      if (type === 'food') return 'food';
       return 'other';
     };
 
@@ -121,8 +105,8 @@ export async function GET(request: NextRequest) {
 
     (receiptLines || []).forEach((line: any) => {
       const receiptId = line.receipt_id;
-      const categoryName = line.items?.categories?.name || '';
-      const category = categorizeItem(categoryName);
+      const categoryType = line.items?.categories?.type || 'other';
+      const category = categorizeItem(categoryType);
       const lineTotal = parseFloat(line.line_total || "0");
 
       if (!receiptMap.has(receiptId)) {

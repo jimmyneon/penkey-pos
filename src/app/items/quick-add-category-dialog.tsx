@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Input, Label } from "@penkey/ui";
 import { hapticSuccess, hapticButtonPress } from "@/lib/utils/haptics";
-import { Loader2, Coffee, Pizza, IceCream, Sandwich, UtensilsCrossed, CupSoda, Beer, Wine, Egg, Fish, Cookie, ChefHat, Drumstick } from "lucide-react";
+import { Loader2, Coffee, Pizza, IceCream, Sandwich, UtensilsCrossed, CupSoda, Beer, Wine, Egg, Fish, Cookie, ChefHat, Drumstick, Tag } from "lucide-react";
 
 interface QuickAddCategoryDialogProps {
   open: boolean;
@@ -25,6 +25,7 @@ export function QuickAddCategoryDialog({
     description: "",
     icon: "UtensilsCrossed",
     icon_color: "#ffffff",
+    type: "other" as "drink" | "food" | "retail" | "other",
   });
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export function QuickAddCategoryDialog({
           sort_order: 0,
           icon: formData.icon,
           icon_color: formData.icon_color,
+          type: formData.type,
         }),
       });
 
@@ -123,6 +125,7 @@ export function QuickAddCategoryDialog({
         description: "",
         icon: "UtensilsCrossed",
         icon_color: "#ffffff",
+        type: "other",
       });
       onSuccess();
     } catch (error: any) {
@@ -154,6 +157,44 @@ export function QuickAddCategoryDialog({
               required
               className="mt-1 bg-[#2d2d2d] text-white border-gray-600"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="type" className="text-sm font-medium text-gray-300">
+              Category Type (for reports)
+            </Label>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {([
+                ["drink", "Drink", Coffee],
+                ["food", "Food", Pizza],
+                ["retail", "Retail", Tag],
+                ["other", "Other", UtensilsCrossed],
+              ] as const).map(([value, label, IconComp]) => {
+                const active = formData.type === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      hapticButtonPress();
+                      setFormData({ ...formData, type: value });
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors ${
+                      active
+                        ? "bg-penkey-orange border-penkey-orange text-white"
+                        : "bg-[#2d2d2d] border-gray-600 text-gray-200 hover:border-gray-500"
+                    }`}
+                    aria-pressed={active}
+                  >
+                    <IconComp className="h-4 w-4" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Used for drink vs food split in reports
+            </p>
           </div>
 
           <div>

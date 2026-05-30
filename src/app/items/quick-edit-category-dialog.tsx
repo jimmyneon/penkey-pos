@@ -28,6 +28,7 @@ export function QuickEditCategoryDialog({
     is_active: true,
     icon: "UtensilsCrossed",
     icon_color: "#ffffff",
+    type: "other" as "drink" | "food" | "retail" | "other",
   });
 
   // Themed colour packs: 8 themes x 10 colours each
@@ -76,6 +77,7 @@ export function QuickEditCategoryDialog({
         is_active: category.is_active ?? true,
         icon: category.icon || "UtensilsCrossed",
         icon_color: category.icon_color || "#ffffff",
+        type: category.type || "other",
       });
     }
   }, [category]);
@@ -114,6 +116,7 @@ export function QuickEditCategoryDialog({
         is_active: formData.is_active,
         icon: formData.icon,
         icon_color: formData.icon_color,
+        type: formData.type,
       };
       
       console.log("[QuickEditCategory] Update data:", updateData);
@@ -215,6 +218,44 @@ export function QuickEditCategoryDialog({
               required
               className="mt-1 bg-[#2d2d2d] text-white border-gray-600"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="type" className="text-sm font-medium text-gray-300">
+              Category Type (for reports)
+            </Label>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {([
+                ["drink", "Drink", Coffee],
+                ["food", "Food", Pizza],
+                ["retail", "Retail", Tag],
+                ["other", "Other", UtensilsCrossed],
+              ] as const).map(([value, label, IconComp]) => {
+                const active = formData.type === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      hapticButtonPress();
+                      setFormData({ ...formData, type: value });
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors ${
+                      active
+                        ? "bg-penkey-orange border-penkey-orange text-white"
+                        : "bg-[#2d2d2d] border-gray-600 text-gray-200 hover:border-gray-500"
+                    }`}
+                    aria-pressed={active}
+                  >
+                    <IconComp className="h-4 w-4" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Used for drink vs food split in reports
+            </p>
           </div>
 
           <div>

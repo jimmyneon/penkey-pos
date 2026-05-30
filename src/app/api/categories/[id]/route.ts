@@ -51,7 +51,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, color, description, is_active } = body;
+    const { name, color, description, is_active, icon, icon_color, type } = body;
 
     // Proceed with update
     const { data, error } = await supabase
@@ -61,6 +61,9 @@ export async function PATCH(
         color,
         description,
         is_active,
+        icon,
+        icon_color,
+        type,
       })
       .eq("id", id)
       .select()

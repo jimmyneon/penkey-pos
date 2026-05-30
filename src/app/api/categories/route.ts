@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, color, description, sort_order } = body;
+    const { name, color, description, sort_order, icon, icon_color, type } = body;
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
         description: description || null,
         is_active: true,
         sort_order: sort_order || 0,
+        icon: icon || "UtensilsCrossed",
+        icon_color: icon_color || "#ffffff",
+        type: type || "other",
       })
       .select()
       .single();
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, color, sort_order")
+      .select("id, name, color, sort_order, description, icon, icon_color, type")
       .eq("org_id", session.org_id) // Use org_id from session
       .eq("is_active", true)
       .order("sort_order")
