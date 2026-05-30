@@ -3,7 +3,7 @@ const withPWA = require('next-pwa')({
   dest: 'public',
   register: false, // We handle registration manually in service-worker-register.tsx
   skipWaiting: false, // We handle skipWaiting manually via SKIP_WAITING message
-  disable: true, // Temporarily disable PWA to fix settings page crash
+  disable: process.env.NODE_ENV === 'development',
   scope: '/',
   sw: 'sw.js',
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic file from precaching
