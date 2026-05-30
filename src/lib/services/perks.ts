@@ -86,8 +86,14 @@ export async function getPerksSettings(orgId: string): Promise<PerksSettings | n
  * Scan QR code via Perks API
  */
 export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCustomer | null> {
+  console.log("[Perks] scanQRCode called with orgId:", orgId);
+  console.log("[Perks] scanQRCode called with qrData:", qrData);
+  
   const settings = await getPerksSettings(orgId);
+  console.log("[Perks] Settings retrieved:", settings);
+  
   if (!settings) {
+    console.error("[Perks] Perks settings not configured");
     throw new Error("Perks settings not configured");
   }
 
@@ -95,6 +101,7 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
 
   // Basic validation - check if it's not empty
   if (!qrData || qrData.trim().length === 0) {
+    console.error("[Perks] QR code is empty");
     throw new Error("QR code is empty");
   }
 
@@ -105,7 +112,9 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
     
     console.log("[Perks] Request body:", JSON.stringify(requestBody));
     console.log("[Perks] Request URL:", `${domain}/api/pos/scan`);
+    console.log("[Perks] Authorization header:", `Bearer ${settings.apiKey.substring(0, 10)}...`);
     
+    console.log("[Perks] Fetching...");
     const response = await fetch(`${domain}/api/pos/scan`, {
       method: "POST",
       headers: {
@@ -114,6 +123,9 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
       },
       body: JSON.stringify(requestBody),
     });
+    
+    console.log("[Perks] Response status:", response.status);
+    console.log("[Perks] Response ok:", response.ok);
 
     if (!response.ok) {
       const error = await response.text();
@@ -122,10 +134,14 @@ export async function scanQRCode(orgId: string, qrData: string): Promise<PerksCu
       throw new Error(`Scan failed: ${error}`);
     }
 
+    console.log("[Perks] Parsing JSON response...");
     const data = await response.json();
+    console.log("[Perks] Response data:", data);
+    console.log("[Perks] Returning customer data");
     return data;
   } catch (error) {
     console.error("[Perks] Scan error:", error);
+    console.error("[Perks] Error stack:", error instanceof Error ? error.stack : 'No stack');
     throw error;
   }
 }

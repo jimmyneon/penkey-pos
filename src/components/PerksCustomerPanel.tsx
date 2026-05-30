@@ -23,6 +23,8 @@ export function PerksCustomerPanel({
   locationId,
   currentCartItems,
 }: PerksCustomerPanelProps) {
+  console.log("[PerksCustomerPanel] Rendering with customer:", customer);
+  
   const [awardingBean, setAwardingBean] = useState(false);
   const [redeemingVoucher, setRedeemingVoucher] = useState<string | null>(null);
   const [beanRules, setBeanRules] = useState<BeanRules>({

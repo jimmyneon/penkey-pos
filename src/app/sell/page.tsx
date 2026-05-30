@@ -255,36 +255,61 @@ export default function SellPage() {
   };
 
   const handleQRScan = async (qrData: string) => {
-    if (!session?.org_id) return;
+    console.log("[handleQRScan] Starting QR scan process");
+    console.log("[handleQRScan] QR data:", qrData);
+    console.log("[handleQRScan] Session org_id:", session?.org_id);
+    
+    if (!session?.org_id) {
+      console.error("[handleQRScan] No session org_id, aborting");
+      return;
+    }
     
     setScanningQR(true);
+    console.log("[handleQRScan] setScanningQR(true)");
+    
     try {
+      console.log("[handleQRScan] Calling scanQRCode API...");
       const customer = await scanQRCode(session.org_id, qrData);
+      console.log("[handleQRScan] scanQRCode returned customer:", customer);
+      
+      console.log("[handleQRScan] Setting perksCustomer state...");
       setPerksCustomer(customer);
+      console.log("[handleQRScan] perksCustomer state set");
+      
+      console.log("[handleQRScan] Setting qrScannerOpen to false...");
       setQrScannerOpen(false);
+      console.log("[handleQRScan] qrScannerOpen set to false");
+      
+      console.log("[handleQRScan] QR scan process completed successfully");
     } catch (error: any) {
-      console.error("QR scan error:", error);
+      console.error("[handleQRScan] QR scan error:", error);
+      console.error("[handleQRScan] Error stack:", error.stack);
       const errorMessage = error.message || "Failed to scan QR code";
+      console.error("[handleQRScan] Error message:", errorMessage);
       
       // Check if it's the charAt error from web worker
       if (errorMessage.includes('charAt') || errorMessage.includes('undefined')) {
-        console.warn("Caught web worker error, ignoring");
+        console.warn("[handleQRScan] Caught web worker error, ignoring");
         // Don't show error toast, just continue
         setQrScannerOpen(false);
         return;
       }
       
+      console.log("[handleQRScan] Showing error toast:", errorMessage);
       showToast(errorMessage, "error");
       
       // If it's an invalid QR code format, reopen scanner to try again
       if (errorMessage.includes("Invalid QR code") || errorMessage.includes("400")) {
+        console.log("[handleQRScan] Invalid QR code, reopening scanner...");
         setTimeout(() => {
           setQrScannerOpen(true);
         }, 500);
       } else {
+        console.log("[handleQRScan] Closing scanner due to error");
         setQrScannerOpen(false);
       }
     } finally {
+      console.log("[handleQRScan] Finally block, setting scanningQR to false");
       setScanningQR(false);
     }
   };
