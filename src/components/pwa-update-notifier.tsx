@@ -73,21 +73,21 @@ export function PWAUpdateNotifier() {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-5">
-      <div className="bg-blue-500 text-white rounded-lg shadow-2xl px-4 py-3 flex items-center gap-3 max-w-md">
-        <RefreshCw className="w-5 h-5 flex-shrink-0" />
+      <div className="bg-[#3d3d3d] text-white rounded-lg shadow-2xl px-4 py-3 flex items-center gap-3 max-w-md border border-orange-500/30">
+        <RefreshCw className="w-5 h-5 flex-shrink-0 text-orange-400" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">Update Available</p>
-          <p className="text-xs opacity-90">A new version is ready to install</p>
+          <p className="text-xs text-gray-400">A new version is ready to install</p>
         </div>
         <button
           onClick={handleUpdate}
-          className="px-3 py-1.5 bg-white text-blue-500 text-xs font-medium rounded-md hover:bg-blue-50 transition-colors flex-shrink-0"
+          className="px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-md hover:bg-orange-600 transition-colors flex-shrink-0"
         >
           Update
         </button>
         <button
           onClick={handleDismiss}
-          className="text-white/80 hover:text-white transition-colors flex-shrink-0"
+          className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>
