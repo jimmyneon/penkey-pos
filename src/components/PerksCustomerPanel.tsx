@@ -27,23 +27,12 @@ export function PerksCustomerPanel({
   
   const [awardingBean, setAwardingBean] = useState(false);
   const [redeemingVoucher, setRedeemingVoucher] = useState<string | null>(null);
-  const [beanRules, setBeanRules] = useState<BeanRules>({
-    reusableCup: false,
-    foodDrinkCombo: false,
-    penkeyCup: false,
-    before9am: false,
-    after230pm: false,
-    monthlySpecial: false,
-    broughtFriend: false,
-  });
-  const [showBeanForm, setShowBeanForm] = useState(false);
 
   const handleAwardBean = async () => {
     setAwardingBean(true);
     try {
-      await onAwardBean(beanRules);
-      setShowBeanForm(false);
-      setBeanRules({
+      // Award 1 bean by default
+      await onAwardBean({
         reusableCup: false,
         foodDrinkCombo: false,
         penkeyCup: false,
@@ -70,18 +59,6 @@ export function PerksCustomerPanel({
     } finally {
       setRedeemingVoucher(null);
     }
-  };
-
-  const calculateBeanCount = () => {
-    let count = 0;
-    if (beanRules.reusableCup) count += 1;
-    if (beanRules.foodDrinkCombo) count += 1;
-    if (beanRules.penkeyCup) count += 1;
-    if (beanRules.before9am) count += 1;
-    if (beanRules.after230pm) count += 1;
-    if (beanRules.monthlySpecial) count += 2;
-    if (beanRules.broughtFriend) count += 2;
-    return count;
   };
 
   return (
@@ -122,59 +99,13 @@ export function PerksCustomerPanel({
           {/* Award Bean Button */}
           {customer.canAwardBeanToday && (
             <button
-              onClick={() => setShowBeanForm(!showBeanForm)}
-              className="w-full bg-penkey-orange text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition flex items-center justify-center gap-2"
+              onClick={handleAwardBean}
+              disabled={awardingBean}
+              className="w-full bg-penkey-orange text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Gift size={20} />
-              Award Bean
+              {awardingBean ? "Awarding..." : "Award Bean"}
             </button>
-          )}
-
-          {/* Bean Award Form */}
-          {showBeanForm && (
-            <div className="bg-[#3d3d3d] rounded-lg p-4 space-y-3">
-              <h4 className="text-white font-semibold">Bean Rules</h4>
-              <p className="text-gray-400 text-sm">Select applicable rules:</p>
-              
-              {[
-                { key: 'reusableCup', label: 'Reusable cup', beans: 1 },
-                { key: 'foodDrinkCombo', label: 'Food + drink combo', beans: 1 },
-                { key: 'penkeyCup', label: 'Penkey cup', beans: 1 },
-                { key: 'before9am', label: 'Before 9am', beans: 1 },
-                { key: 'after230pm', label: 'After 2:30pm', beans: 1 },
-                { key: 'monthlySpecial', label: 'Monthly special', beans: 2 },
-                { key: 'broughtFriend', label: 'Brought friend', beans: 2 },
-              ].map((rule) => (
-                <label key={rule.key} className="flex items-center justify-between text-white">
-                  <span className="text-sm">{rule.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-penkey-orange text-sm">+{rule.beans}</span>
-                    <input
-                      type="checkbox"
-                      checked={beanRules[rule.key as keyof BeanRules]}
-                      onChange={(e) =>
-                        setBeanRules({ ...beanRules, [rule.key]: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded"
-                    />
-                  </div>
-                </label>
-              ))}
-
-              <div className="pt-2 border-t border-gray-600">
-                <p className="text-white font-semibold">
-                  Total beans: {calculateBeanCount()}
-                </p>
-              </div>
-
-              <button
-                onClick={handleAwardBean}
-                disabled={awardingBean || calculateBeanCount() === 0}
-                className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {awardingBean ? "Awarding..." : "Award Beans"}
-              </button>
-            </div>
           )}
 
           {/* Vouchers */}
