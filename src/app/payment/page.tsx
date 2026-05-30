@@ -70,7 +70,7 @@ export default function PaymentPage() {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
-    window.removeEventListener("offline", handleOffline);
+    window.addEventListener("offline", handleOffline);
 
     // Load sound enabled setting, default dining option, and store info
     const loadSettings = async () => {
