@@ -19,6 +19,16 @@ export interface CartModifier {
   price_adjustment: number;
 }
 
+export interface VoucherDiscount {
+  id: string;
+  name: string;
+  discountType: 'percentage' | 'fixed' | 'free_item' | 'free_modifier';
+  discountValue: number;
+  beanCost: number;
+  itemType?: string;
+  category?: string;
+}
+
 export interface CartLine {
   id: string; // Unique ID for this cart line
   item_id: string;
@@ -30,6 +40,7 @@ export interface CartLine {
   modifiers: CartModifier[];
   notes: string;
   tax_rate: number;
+  voucher?: VoucherDiscount; // Applied voucher for this line
 }
 
 interface CartStore {
@@ -40,9 +51,12 @@ interface CartStore {
   updateNotes: (lineId: string, notes: string) => void;
   clearCart: () => void;
   loadLines: (lines: CartLine[]) => void; // For syncing from database
+  applyVoucher: (lineId: string, voucher: VoucherDiscount) => void;
+  removeVoucher: (lineId: string) => void;
   getSubtotal: () => number;
   getTaxTotal: () => number;
   getTotal: () => number;
+  getVoucherDiscountTotal: () => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -127,6 +141,22 @@ export const useCartStore = create<CartStore>()(
     set({ lines });
   },
 
+  applyVoucher: (lineId, voucher) => {
+    set((state) => ({
+      lines: state.lines.map((line) =>
+        line.id === lineId ? { ...line, voucher } : line
+      ),
+    }));
+  },
+
+  removeVoucher: (lineId) => {
+    set((state) => ({
+      lines: state.lines.map((line) =>
+        line.id === lineId ? { ...line, voucher: undefined } : line
+      ),
+    }));
+  },
+
   getSubtotal: () => {
     const { lines } = get();
     return lines.reduce((sum, line) => {
@@ -151,6 +181,28 @@ export const useCartStore = create<CartStore>()(
 
   getTotal: () => {
     return get().getSubtotal() + get().getTaxTotal();
+  },
+
+  getVoucherDiscountTotal: () => {
+    const { lines } = get();
+    return lines.reduce((sum, line) => {
+      if (!line.voucher) return sum;
+
+      const lineTotal = line.unit_price * line.quantity;
+      const modifiersTotal =
+        line.modifiers.reduce((modSum, mod) => modSum + mod.price_adjustment, 0) *
+        line.quantity;
+      const fullLineTotal = lineTotal + modifiersTotal;
+
+      if (line.voucher.discountType === 'percentage') {
+        return sum + (fullLineTotal * line.voucher.discountValue / 100);
+      } else if (line.voucher.discountType === 'fixed') {
+        return sum + line.voucher.discountValue;
+      } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
+        return sum + fullLineTotal;
+      }
+      return sum;
+    }, 0);
   },
     }),
     {

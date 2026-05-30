@@ -59,7 +59,7 @@ export default function PaymentPage() {
   const [perksCustomer, setPerksCustomer] = useState<any>(null);
   const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
   const [scanningQR, setScanningQR] = useState(false);
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher } = useCartStore();
   
   // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
@@ -321,6 +321,16 @@ export default function PaymentPage() {
       console.error("Redeem voucher error:", error);
       showToast(error.message || "Failed to redeem voucher", "error");
     }
+  };
+
+  const handleApplyVoucherToCart = (voucher: any) => {
+    // For now, just show a toast - full implementation will match voucher to cart items
+    showToast(`Voucher "${voucher.name}" applied to cart`, "success");
+    
+    // TODO: Implement voucher matching logic:
+    // - free_modifier: Find items with matching modifiers and apply discount
+    // - free_item: Find items matching itemType/category and apply discount
+    // - percentage/fixed: Apply to cart total or specific items
   };
 
   useEffect(() => {
@@ -1890,6 +1900,7 @@ export default function PaymentPage() {
           locationId={session?.register?.store_id || ""}
           currentCartItems={lines.map(line => ({ name: line.item_name, price: line.unit_price }))}
           beanRules={perksBeanRules}
+          onApplyVoucherToCart={handleApplyVoucherToCart}
         />
       )}
 

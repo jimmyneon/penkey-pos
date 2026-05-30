@@ -14,6 +14,7 @@ interface PerksCustomerPanelProps {
   currentCartItems: Array<{ name: string; price: number }>;
   beanRules?: any;
   showBeanWarning?: boolean;
+  onApplyVoucherToCart?: (voucher: any) => void;
 }
 
 export function PerksCustomerPanel({
@@ -26,6 +27,7 @@ export function PerksCustomerPanel({
   currentCartItems,
   beanRules,
   showBeanWarning = false,
+  onApplyVoucherToCart,
 }: PerksCustomerPanelProps) {
   console.log("[PerksCustomerPanel] Rendering with customer:", customer);
   
@@ -210,13 +212,25 @@ export function PerksCustomerPanel({
                         Cost: {voucher.beanCost || 0} beans
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleRedeemVoucher(voucher.id)}
-                      disabled={redeemingVoucher === voucher.id}
-                      className="bg-penkey-orange text-white px-4 py-1 rounded text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50"
-                    >
-                      {redeemingVoucher === voucher.id ? "Redeeming..." : "Redeem"}
-                    </button>
+                    <div className="flex gap-2">
+                      {onApplyVoucherToCart && (
+                        <button
+                          onClick={() => onApplyVoucherToCart(voucher)}
+                          disabled={redeemingVoucher === voucher.id}
+                          className="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
+                          title="Apply to cart"
+                        >
+                          Apply
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleRedeemVoucher(voucher.id)}
+                        disabled={redeemingVoucher === voucher.id}
+                        className="bg-penkey-orange text-white px-4 py-1 rounded text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50"
+                      >
+                        {redeemingVoucher === voucher.id ? "Redeeming..." : "Redeem"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

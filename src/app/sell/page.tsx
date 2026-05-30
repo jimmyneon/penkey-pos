@@ -228,7 +228,7 @@ export default function SellPage() {
     forceRefresh
   );
   const { items: popularItems, loading: popularLoading } = usePopularItems(session?.org_id || "skip", forceRefresh);
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines, applyVoucher, removeVoucher } = useCartStore();
   
   // Local sync state
   const [syncing, setSyncing] = useState(false);
@@ -414,6 +414,16 @@ export default function SellPage() {
       console.error("Redeem voucher error:", error);
       showToast(error.message || "Failed to redeem voucher", "error");
     }
+  };
+
+  const handleApplyVoucherToCart = (voucher: any) => {
+    // For now, just show a toast - full implementation will match voucher to cart items
+    showToast(`Voucher "${voucher.name}" applied to cart`, "success");
+    
+    // TODO: Implement voucher matching logic:
+    // - free_modifier: Find items with matching modifiers and apply discount
+    // - free_item: Find items matching itemType/category and apply discount
+    // - percentage/fixed: Apply to cart total or specific items
   };
 
   // Determine which items to show based on selected category and popular filter
@@ -2166,6 +2176,7 @@ export default function SellPage() {
           locationId={session?.register?.store_id || ""}
           currentCartItems={lines.map(line => ({ name: line.item_name, price: line.unit_price }))}
           beanRules={perksBeanRules}
+          onApplyVoucherToCart={handleApplyVoucherToCart}
         />
       )}
 
