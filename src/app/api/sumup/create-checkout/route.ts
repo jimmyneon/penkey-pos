@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
     const apiKey = dbCreds?.api_key || request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
     const merchantCode = dbCreds?.merchant_code || request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
     const affiliateKey = dbCreds?.affiliate_key || request.headers.get('x-sumup-affiliate-key') || process.env.SUMUP_AFFILIATE_KEY || '';
+    console.log('[SumUp Checkout] Using API key from:', dbCreds?.api_key ? 'DB' : request.headers.get('x-sumup-api-key') ? 'Header' : 'Env var');
+    console.log('[SumUp Checkout] API key (first 10 chars):', apiKey?.substring(0, 10));
+    console.log('[SumUp Checkout] Merchant code:', merchantCode);
     console.log('[SumUp Checkout] Affiliate key:', affiliateKey);
 
     if (!apiKey || !merchantCode) {
