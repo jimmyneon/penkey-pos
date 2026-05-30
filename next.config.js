@@ -6,6 +6,9 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   scope: '/',
   sw: 'sw.js',
+  disableRuntimeCaching: false,
+  disable: false,
+  buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic file from precaching
   runtimeCaching: [
     // JS/CSS
     {
