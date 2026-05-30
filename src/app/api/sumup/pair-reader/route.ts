@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/database';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
-import { getStoredSumUpCredentials } from '../credentials/route';
 
 export async function POST(request: NextRequest) {
   const session = await validatePOSSession(request);
@@ -13,10 +12,9 @@ export async function POST(request: NextRequest) {
   try {
     const { pairingCode, name, apiKey: bodyApiKey, merchantCode: bodyMerchantCode } = await request.json();
 
-    // Read credentials from DB first, fall back to headers/env vars
-    const dbCreds = await getStoredSumUpCredentials(session.org_id);
-    const SUMUP_API_KEY = dbCreds?.api_key || request.headers.get('x-sumup-api-key') || bodyApiKey || process.env.SUMUP_API_KEY;
-    const SUMUP_MERCHANT_CODE = dbCreds?.merchant_code || request.headers.get('x-sumup-merchant-code') || bodyMerchantCode || process.env.SUMUP_MERCHANT_CODE;
+    // Use env vars (primary - single-tenant setup)
+    const SUMUP_API_KEY = process.env.SUMUP_API_KEY || bodyApiKey;
+    const SUMUP_MERCHANT_CODE = process.env.SUMUP_MERCHANT_CODE || bodyMerchantCode;
 
     if (!SUMUP_API_KEY || !SUMUP_MERCHANT_CODE) {
       return NextResponse.json(

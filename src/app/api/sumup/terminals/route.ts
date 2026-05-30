@@ -77,16 +77,17 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Unpair from SumUp API
-    const creds = await getStoredSumUpCredentials(session.org_id);
-    if (creds) {
+    const apiKey = process.env.SUMUP_API_KEY;
+    const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+    if (apiKey && merchantCode) {
       const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
       try {
         const sumupResponse = await fetch(
-          `${apiBase}/v0.1/merchants/${creds.merchant_code}/readers/${terminal.reader_id}`,
+          `${apiBase}/v0.1/merchants/${merchantCode}/readers/${terminal.reader_id}`,
           {
             method: 'DELETE',
             headers: {
-              'Authorization': `Bearer ${creds.api_key}`,
+              'Authorization': `Bearer ${apiKey}`,
               'Content-Type': 'application/json',
             },
           }

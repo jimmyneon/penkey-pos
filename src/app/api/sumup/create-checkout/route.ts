@@ -12,23 +12,16 @@ export async function POST(request: NextRequest) {
 
     const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
 
-    // 1. Try DB-stored credentials (persisted across devices)
-    const dbCreds = await getStoredSumUpCredentials(session.org_id);
-    console.log('[SumUp Checkout] DB creds:', dbCreds);
-    // 2. Fall back to request headers (client localStorage) then env vars
-    // TEMPORARY: Force env vars as fallback until DB retrieval is debugged
-    const apiKey = dbCreds?.api_key || request.headers.get('x-sumup-api-key') || process.env.SUMUP_API_KEY;
-    const merchantCode = dbCreds?.merchant_code || request.headers.get('x-sumup-merchant-code') || process.env.SUMUP_MERCHANT_CODE;
-    const affiliateKey = dbCreds?.affiliate_key || request.headers.get('x-sumup-affiliate-key') || process.env.SUMUP_AFFILIATE_KEY || '';
-    console.log('[SumUp Checkout] Using API key from:', dbCreds?.api_key ? 'DB' : request.headers.get('x-sumup-api-key') ? 'Header' : 'Env var');
+    // 1. Use env vars (primary - single-tenant setup)
+    // 2. Fall back to DB-stored credentials (multi-tenant support)
+    // 3. Fall back to request headers (client localStorage)
+    const apiKey = process.env.SUMUP_API_KEY || request.headers.get('x-sumup-api-key');
+    const merchantCode = process.env.SUMUP_MERCHANT_CODE || request.headers.get('x-sumup-merchant-code');
+    const affiliateKey = process.env.SUMUP_AFFILIATE_KEY || request.headers.get('x-sumup-affiliate-key') || '';
+    console.log('[SumUp Checkout] Using API key from:', process.env.SUMUP_API_KEY ? 'Env var' : request.headers.get('x-sumup-api-key') ? 'Header' : 'None');
     console.log('[SumUp Checkout] API key (first 10 chars):', apiKey?.substring(0, 10));
     console.log('[SumUp Checkout] Merchant code:', merchantCode);
     console.log('[SumUp Checkout] Affiliate key:', affiliateKey);
-    console.log('[SumUp Checkout] Env vars available:', {
-      hasApiKey: !!process.env.SUMUP_API_KEY,
-      hasMerchantCode: !!process.env.SUMUP_MERCHANT_CODE,
-      hasAffiliateKey: !!process.env.SUMUP_AFFILIATE_KEY,
-    });
 
     if (!apiKey || !merchantCode) {
       return NextResponse.json(

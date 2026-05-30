@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
-import { getStoredSumUpCredentials } from '../credentials/route';
 
 /**
  * GET /api/sumup/diagnose?reader_id=xxx
@@ -16,10 +15,10 @@ export async function GET(request: NextRequest) {
   if (!session) return unauthorizedResponse();
 
   const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-  const creds = await getStoredSumUpCredentials(session.org_id);
-  const apiKey = creds?.api_key || process.env.SUMUP_API_KEY;
-  const merchantCode = creds?.merchant_code || process.env.SUMUP_MERCHANT_CODE;
-  const affiliateKey = creds?.affiliate_key || '';
+  // Use env vars (primary - single-tenant setup)
+  const apiKey = process.env.SUMUP_API_KEY;
+  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+  const affiliateKey = process.env.SUMUP_AFFILIATE_KEY || '';
 
   if (!apiKey || !merchantCode) {
     return NextResponse.json({ error: 'SumUp not configured' }, { status: 400 });

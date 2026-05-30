@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
-import { getStoredSumUpCredentials } from '../credentials/route';
 
 // SumUp Refund API: POST /v0.1/me/refund/{transaction_id}
 // Docs: https://developer.sumup.com/online-payments/guides/refund
@@ -12,9 +11,8 @@ export async function POST(request: NextRequest) {
 
     const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
 
-    // Get credentials from DB
-    const dbCreds = await getStoredSumUpCredentials(session.org_id);
-    const apiKey = dbCreds?.api_key || process.env.SUMUP_API_KEY;
+    // Use env vars (primary - single-tenant setup)
+    const apiKey = process.env.SUMUP_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
