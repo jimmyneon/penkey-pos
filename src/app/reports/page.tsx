@@ -3,13 +3,14 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon, Download } from "lucide-react";
+import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon, Download, Coffee, UtensilsCrossed } from "lucide-react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useSalesSummary } from "@/lib/hooks/use-sales-summary";
 import { useSalesByItems } from "@/lib/hooks/use-sales-by-items";
 import { useSalesByTransactionType } from "@/lib/hooks/use-sales-by-transaction-type";
 import { useSalesByEmployee } from "@/lib/hooks/use-sales-by-employee";
 import { useHourlySales } from "@/lib/hooks/use-hourly-sales";
+import { useDrinkFoodSplit } from "@/lib/hooks/use-drink-food-split";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
@@ -79,6 +80,7 @@ export default function ReportsPage() {
   const { data: transactionTypeData, loading: transactionTypeLoading } = useSalesByTransactionType(getDaysForPeriod(), dateRangeParams);
   const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(getDaysForPeriod(), dateRangeParams);
   const { data: hourlyData, loading: hourlyLoading } = useHourlySales(getDaysForPeriod(), dateRangeParams);
+  const { data: drinkFoodData, loading: drinkFoodLoading } = useDrinkFoodSplit(getDaysForPeriod(), dateRangeParams);
 
   // Use all receipts from the selected period (already filtered by API)
   const periodReceipts = useMemo(() => {
@@ -631,6 +633,59 @@ export default function ReportsPage() {
                 </button>
               </div>
             </div>
+
+            {/* Drink vs Food Split */}
+            <button
+              onClick={() => openModal('drink-food-split')}
+              className="w-full bg-[#3d3d3d] rounded-xl p-6 shadow-lg hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
+            >
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+                <Coffee className="h-5 w-5 text-penkey-orange" />
+                <UtensilsCrossed className="h-5 w-5 text-penkey-orange" />
+                Drinks vs Food Split
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coffee className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm text-gray-300">Drinks Only</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {drinkFoodData?.summary?.drinks_only?.count || 0} ({drinkFoodData?.summary?.drinks_only?.percentage?.toFixed(0) || 0}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UtensilsCrossed className="h-4 w-4 text-orange-400" />
+                    <span className="text-sm text-gray-300">Food Only</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {drinkFoodData?.summary?.food_only?.count || 0} ({drinkFoodData?.summary?.food_only?.percentage?.toFixed(0) || 0}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <Coffee className="h-4 w-4 text-blue-400" />
+                      <UtensilsCrossed className="h-4 w-4 text-orange-400" />
+                    </div>
+                    <span className="text-sm text-gray-300">Both</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {drinkFoodData?.summary?.both?.count || 0} ({drinkFoodData?.summary?.both?.percentage?.toFixed(0) || 0}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-3 overflow-hidden">
+                  <div 
+                    className="bg-blue-400 h-full transition-all duration-500" 
+                    style={{ width: `${drinkFoodData?.summary?.drinks_only?.percentage || 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 text-center">
+                  {drinkFoodData?.summary?.total_receipts || 0} total orders
+                </p>
+              </div>
+            </button>
 
             {/* Period Story - Clickable */}
             <button
@@ -1348,6 +1403,141 @@ export default function ReportsPage() {
                       <p className="text-penkey-orange font-bold">£{hour.total_sales.toFixed(2)}</p>
                     </div>
                   ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400">No data available</p>
+            )}
+            
+            <Button
+              onClick={closeModal}
+              className="w-full mt-6 bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px]"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Drink vs Food Split Modal */}
+      {activeModal === 'drink-food-split' && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={closeModal}>
+          <div className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Coffee className="h-6 w-6 text-penkey-orange" />
+                <UtensilsCrossed className="h-6 w-6 text-penkey-orange" />
+                Drinks vs Food Split
+              </h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {drinkFoodLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <RefreshCw className="h-6 w-6 text-penkey-orange animate-spin" />
+              </div>
+            ) : drinkFoodData ? (
+              <div className="space-y-4">
+                <div className="bg-[#2d2d2d] rounded-lg p-4">
+                  <p className="text-xs text-gray-400">Total Orders</p>
+                  <p className="text-2xl font-bold text-white">{drinkFoodData.summary.total_receipts}</p>
+                  <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.total_revenue.toFixed(2)} total revenue</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Coffee className="h-5 w-5 text-blue-400" />
+                        <span className="font-semibold text-white">Drinks Only</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{drinkFoodData.summary.drinks_only.percentage.toFixed(1)}%</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-400">{drinkFoodData.summary.drinks_only.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.drinks_only.revenue.toFixed(2)} revenue</p>
+                  </div>
+
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <UtensilsCrossed className="h-5 w-5 text-orange-400" />
+                        <span className="font-semibold text-white">Food Only</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{drinkFoodData.summary.food_only.percentage.toFixed(1)}%</span>
+                    </div>
+                    <p className="text-2xl font-bold text-orange-400">{drinkFoodData.summary.food_only.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.food_only.revenue.toFixed(2)} revenue</p>
+                  </div>
+
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <Coffee className="h-5 w-5 text-blue-400" />
+                          <UtensilsCrossed className="h-5 w-5 text-orange-400" />
+                        </div>
+                        <span className="font-semibold text-white">Both</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{drinkFoodData.summary.both.percentage.toFixed(1)}%</span>
+                    </div>
+                    <p className="text-2xl font-bold text-purple-400">{drinkFoodData.summary.both.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.both.revenue.toFixed(2)} revenue</p>
+                  </div>
+
+                  {drinkFoodData.summary.other_only.count > 0 && (
+                    <div className="bg-gray-500/10 border border-gray-500/30 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Circle className="h-5 w-5 text-gray-400" />
+                          <span className="font-semibold text-white">Other</span>
+                        </div>
+                        <span className="text-sm text-gray-400">{drinkFoodData.summary.other_only.percentage.toFixed(1)}%</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-400">{drinkFoodData.summary.other_only.count} orders</p>
+                      <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.other_only.revenue.toFixed(2)} revenue</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[#2d2d2d] rounded-lg p-4">
+                  <p className="text-sm text-gray-400 mb-3">Order Mix</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 text-xs text-gray-400">Drinks Only</div>
+                      <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
+                        <div 
+                          className="bg-blue-400 h-full transition-all duration-500" 
+                          style={{ width: `${drinkFoodData.summary.drinks_only.percentage}%` }}
+                        />
+                      </div>
+                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.drinks_only.percentage.toFixed(0)}%</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 text-xs text-gray-400">Food Only</div>
+                      <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
+                        <div 
+                          className="bg-orange-400 h-full transition-all duration-500" 
+                          style={{ width: `${drinkFoodData.summary.food_only.percentage}%` }}
+                        />
+                      </div>
+                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.food_only.percentage.toFixed(0)}%</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 text-xs text-gray-400">Both</div>
+                      <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
+                        <div 
+                          className="bg-purple-400 h-full transition-all duration-500" 
+                          style={{ width: `${drinkFoodData.summary.both.percentage}%` }}
+                        />
+                      </div>
+                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.both.percentage.toFixed(0)}%</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
