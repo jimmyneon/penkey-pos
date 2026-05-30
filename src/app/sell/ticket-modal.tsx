@@ -37,7 +37,8 @@ interface TicketModalProps {
   onSave: () => void;
   onClearAll: () => void;
   onPrint: () => void;
-  ticketAssignment?: { type: 'customer' | 'table'; name: string } | null;
+  ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
+  onCustomerClick?: (customer: any) => void;
 }
 
 export function TicketModal({
@@ -54,6 +55,7 @@ export function TicketModal({
   onClearAll,
   onPrint,
   ticketAssignment,
+  onCustomerClick,
 }: TicketModalProps) {
   // Use scroll lock hook to manage scroll state
   useScrollLock(open);
@@ -84,9 +86,19 @@ export function TicketModal({
             ) : (
               <Hash className="h-4 w-4 text-penkey-orange" />
             )}
-            <span className="text-white text-sm font-medium">
-              {ticketAssignment.name}
-            </span>
+            {ticketAssignment.type === 'customer' && onCustomerClick && ticketAssignment.customer ? (
+              <button
+                onClick={() => onCustomerClick(ticketAssignment.customer)}
+                className="text-white text-sm font-medium hover:text-penkey-orange transition-colors flex items-center gap-1"
+              >
+                {ticketAssignment.name}
+                <span className="text-xs text-gray-400">(click for details)</span>
+              </button>
+            ) : (
+              <span className="text-white text-sm font-medium">
+                {ticketAssignment.name}
+              </span>
+            )}
           </div>
         )}
 

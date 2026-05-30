@@ -1854,6 +1854,9 @@ export default function PaymentPage() {
         onClearAll={() => {}}
         onPrint={() => {}}
         ticketAssignment={ticketAssignment}
+        onCustomerClick={(customer) => {
+          setPerksCustomer(customer);
+        }}
       />
 
       {/* Assign Ticket Dialog */}

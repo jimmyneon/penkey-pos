@@ -329,6 +329,7 @@ export default function SellPage() {
       console.log("[handleQRScan] qrScannerOpen set to false");
       
       console.log("[handleQRScan] QR scan process completed successfully");
+      showToast(`Customer ${customer.name} assigned to current ticket`, 'success');
     } catch (error: any) {
       console.error("[handleQRScan] QR scan error:", error);
       console.error("[handleQRScan] Error stack:", error.stack);
@@ -2004,6 +2005,9 @@ export default function SellPage() {
         onClearAll={() => setClearConfirmOpen(true)}
         onPrint={handlePrintCurrentTicket}
         ticketAssignment={ticketAssignment}
+        onCustomerClick={(customer) => {
+          setPerksCustomer(customer);
+        }}
       />
 
       {/* Sidebar Menu */}
