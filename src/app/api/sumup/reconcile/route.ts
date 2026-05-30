@@ -32,9 +32,11 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Reconcile] Starting reconciliation from ${startDate} to ${endDate}`);
 
-    // Use env vars (primary - single-tenant setup)
-    const apiKey = process.env.SUMUP_API_KEY;
-    const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+    // Get SumUp credentials
+    const { getStoredSumUpCredentials } = await import("@/app/api/sumup/credentials/route");
+    const dbCreds = await getStoredSumUpCredentials(session.org_id);
+    const apiKey = dbCreds?.api_key || process.env.SUMUP_API_KEY;
+    const merchantCode = dbCreds?.merchant_code || process.env.SUMUP_MERCHANT_CODE;
 
     if (!apiKey || !merchantCode) {
       return NextResponse.json(

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
+import { getStoredSumUpCredentials } from '@/app/api/sumup/credentials/route';
 
 /**
  * SumUp Cloud API has NO "get checkout status" endpoint.
@@ -17,9 +18,9 @@ export async function GET(request: NextRequest) {
   if (!session) return unauthorizedResponse();
 
   const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
-  // Use env vars (primary - single-tenant setup)
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+  const dbCreds = await getStoredSumUpCredentials(session.org_id);
+  const apiKey = dbCreds?.api_key || process.env.SUMUP_API_KEY;
+  const merchantCode = dbCreds?.merchant_code || process.env.SUMUP_MERCHANT_CODE;
 
   try {
     if (!apiKey || !merchantCode) {

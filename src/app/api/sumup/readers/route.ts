@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
+import { getStoredSumUpCredentials } from '../credentials/route';
 
 /**
  * GET /api/sumup/readers
@@ -11,13 +12,10 @@ export async function GET(request: NextRequest) {
   const session = await validatePOSSession(request);
   if (!session) return unauthorizedResponse();
 
-  // Use env vars (primary - single-tenant setup)
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
-
-  if (!apiKey || !merchantCode) {
+  const creds = await getStoredSumUpCredentials(session.org_id);
+  if (!creds) {
     return NextResponse.json(
-      { error: 'SumUp not configured' },
+      { error: 'SumUp not connected' },
       { status: 400 }
     );
   }
@@ -26,10 +24,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `${apiBase}/v0.1/merchants/${merchantCode}/readers`,
+      `${apiBase}/v0.1/merchants/${creds.merchant_code}/readers`,
       {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${creds.api_key}`,
           'Content-Type': 'application/json',
         },
       }
@@ -78,13 +76,10 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  // Use env vars (primary - single-tenant setup)
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
-
-  if (!apiKey || !merchantCode) {
+  const creds = await getStoredSumUpCredentials(session.org_id);
+  if (!creds) {
     return NextResponse.json(
-      { error: 'SumUp not configured' },
+      { error: 'SumUp not connected' },
       { status: 400 }
     );
   }
@@ -93,11 +88,11 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `${apiBase}/v0.1/merchants/${merchantCode}/readers/${readerId}`,
+      `${apiBase}/v0.1/merchants/${creds.merchant_code}/readers/${readerId}`,
       {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${creds.api_key}`,
           'Content-Type': 'application/json',
         },
       }

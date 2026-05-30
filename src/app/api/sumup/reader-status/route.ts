@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
+import { getStoredSumUpCredentials } from '../credentials/route';
 
 // SumUp Reader Status API: GET /v0.1/merchants/{code}/readers/{reader_id}/status
 // Docs: https://developer.sumup.com/api/readers/get-status
@@ -11,9 +12,10 @@ export async function GET(request: NextRequest) {
 
     const apiBase = process.env.SUMUP_API_BASE || 'https://api.sumup.com';
 
-    // Use env vars (primary - single-tenant setup)
-    const apiKey = process.env.SUMUP_API_KEY;
-    const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+    // Get credentials from DB
+    const dbCreds = await getStoredSumUpCredentials(session.org_id);
+    const apiKey = dbCreds?.api_key || process.env.SUMUP_API_KEY;
+    const merchantCode = dbCreds?.merchant_code || process.env.SUMUP_MERCHANT_CODE;
 
     if (!apiKey || !merchantCode) {
       return NextResponse.json(
