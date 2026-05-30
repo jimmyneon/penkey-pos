@@ -204,6 +204,7 @@ export async function recordVisit(
     }
 
     const data = await response.json();
+    console.log("[Perks] Record visit response:", JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
     console.error("[Perks] Record visit error:", error);
