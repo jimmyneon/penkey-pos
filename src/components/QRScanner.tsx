@@ -44,7 +44,10 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         streamRef.current = stream;
         videoElement.srcObject = stream;
         
-        await videoElement.play();
+        // Only play if not already playing
+        if (videoElement.paused) {
+          await videoElement.play();
+        }
         console.log("[QR Scanner] Video playing");
         setCameraStarted(true);
         isRunningRef.current = true;
@@ -53,18 +56,20 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         // Start scanning
         qrReader.decodeFromVideoDevice(null, videoElement, (result, error) => {
           if (result && isRunningRef.current) {
-            console.log("[QR Scanner] QR code detected:", result.text);
+            console.log("[QR Scanner] QR code detected:", result.getText());
             setScanning(false);
             isRunningRef.current = false;
-            onScan(result.text);
             
-            // Stop scanning
+            // Stop scanning immediately to prevent duplicate callbacks
             qrReader.reset();
             
             // Stop camera
             if (streamRef.current) {
               streamRef.current.getTracks().forEach(track => track.stop());
             }
+            
+            // Call onScan after cleanup
+            onScan(result.getText());
           }
         });
 
