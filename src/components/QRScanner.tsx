@@ -13,6 +13,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(true);
   const [cameraStarted, setCameraStarted] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isRunningRef = useRef(false);
@@ -58,18 +59,21 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           if (result && isRunningRef.current) {
             console.log("[QR Scanner] QR code detected:", result.getText());
             setScanning(false);
+            setProcessing(true);
             isRunningRef.current = false;
             
             // Stop scanning immediately to prevent duplicate callbacks
             qrReader.reset();
             
-            // Stop camera
-            if (streamRef.current) {
-              streamRef.current.getTracks().forEach(track => track.stop());
-            }
-            
-            // Call onScan after cleanup
+            // Call onScan immediately (don't stop camera yet to avoid blank screen)
             onScan(result.getText());
+            
+            // Stop camera after a short delay to allow UI to transition
+            setTimeout(() => {
+              if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+              }
+            }, 100);
           }
         });
 
@@ -123,7 +127,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
       </div>
 
       {/* Scanning Indicator */}
-      {scanning && cameraStarted && (
+      {scanning && cameraStarted && !processing && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full z-10">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -132,8 +136,18 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
         </div>
       )}
 
+      {/* Processing Indicator */}
+      {processing && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
+          <div className="bg-black/90 text-white px-6 py-4 rounded-lg flex items-center gap-3">
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span>Processing...</span>
+          </div>
+        </div>
+      )}
+
       {/* Camera starting indicator */}
-      {scanning && !cameraStarted && (
+      {scanning && !cameraStarted && !processing && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full z-10">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
