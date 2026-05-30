@@ -178,7 +178,7 @@ export default function TransactionDetailsPage() {
         name: apiResponse.customer?.name || '',
         email: apiResponse.customer?.email || '',
         phone: apiResponse.customer?.phone || '',
-        beanBalance: apiResponse.bean_balance?.balance || 0,
+        beanBalance: apiResponse.bean_balance?.current_beans || 0,
         activeVouchers: apiResponse.vouchers || [],
         canAwardBeanToday: apiResponse.can_award_bean || false,
       };

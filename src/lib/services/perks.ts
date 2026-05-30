@@ -23,7 +23,9 @@ export interface PerksAPIResponse {
     phone?: string;
   };
   bean_balance: {
-    balance: number;
+    current_beans: number;
+    lifetime_beans?: number;
+    visit_count?: number;
   };
   vouchers: PerksVoucher[];
   can_award_bean: boolean;
