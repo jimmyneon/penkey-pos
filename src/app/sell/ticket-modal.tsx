@@ -94,7 +94,10 @@ export function TicketModal({
             )}
             {ticketAssignment.type === 'customer' && onCustomerClick && ticketAssignment.customer ? (
               <button
-                onClick={() => onCustomerClick(ticketAssignment.customer)}
+                onClick={() => {
+                  console.log("[TicketModal] Customer button clicked, customer:", ticketAssignment.customer);
+                  onCustomerClick(ticketAssignment.customer);
+                }}
                 className="text-white text-sm font-medium hover:text-penkey-orange transition-colors flex items-center gap-1"
               >
                 {ticketAssignment.name}

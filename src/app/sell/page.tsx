@@ -1220,6 +1220,7 @@ export default function SellPage() {
       }
       
       // Save to database
+      console.log('[handleSaveTicket] Saving ticket with assignment:', finalAssignment);
       const savedTicket = await TicketSyncService.saveTicket(
         session.org_id,
         session.register.id,
@@ -1230,6 +1231,7 @@ export default function SellPage() {
         finalAssignment,
         getTotal()
       );
+      console.log('[handleSaveTicket] Saved ticket result:', savedTicket);
 
       if (!savedTicket) {
         showToast('Failed to save ticket', 'error');
