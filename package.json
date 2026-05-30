@@ -62,6 +62,7 @@
     "@tanstack/react-query-persist-client": "^5.59.0",
     "@upstash/ratelimit": "^2.0.6",
     "@upstash/redis": "^1.35.6",
+    "@zxing/library": "^0.21.3",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
