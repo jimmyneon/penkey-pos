@@ -998,7 +998,7 @@ export default function SellPage() {
     checkAndShowModifiers(selectedItem, variant, event || undefined);
   };
 
-  const handleModifiersConfirm = (modifiers: any[]) => {
+  const handleModifiersConfirm = (lines: Array<{ modifiers: any[]; quantity: number }>) => {
     if (!selectedItem) return;
 
     const price = selectedVariant
@@ -1014,16 +1014,19 @@ export default function SellPage() {
     hapticItemAdded();
     playItemAddedSound();
 
-    addLine({
-      item_id: selectedItem.id,
-      item_name: selectedItem.name,
-      variant_id: selectedVariant?.id || null,
-      variant_name: selectedVariant?.name || null,
-      quantity: 1,
-      unit_price: price,
-      modifiers: modifiers,
-      notes: "",
-      tax_rate: 0, // Prices already include VAT
+    // Add each line (handles multiple lines when different options selected in quantity group)
+    lines.forEach((line) => {
+      addLine({
+        item_id: selectedItem.id,
+        item_name: selectedItem.name,
+        variant_id: selectedVariant?.id || null,
+        variant_name: selectedVariant?.name || null,
+        quantity: line.quantity,
+        unit_price: price,
+        modifiers: line.modifiers,
+        notes: "",
+        tax_rate: 0, // Prices already include VAT
+      });
     });
 
     // Trigger upsell suggestions after adding item with modifiers

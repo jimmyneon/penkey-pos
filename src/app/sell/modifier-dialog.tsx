@@ -46,7 +46,7 @@ interface ModifierDialogProps {
   itemName: string;
   basePrice: number;
   gridSize?: 2 | 3 | 4 | 5 | 6;
-  onConfirm: (modifiers: Array<{ id: string; name: string; price_adjustment: number }>) => void;
+  onConfirm: (lines: Array<{ modifiers: Array<{ id: string; name: string; price_adjustment: number }>; quantity: number }>) => void;
   triggerAnimation?: (itemName: string, event: React.MouseEvent) => void;
 }
 
@@ -281,31 +281,89 @@ export function ModifierDialog({
       // Do nothing; button should generally be disabled, but guard anyway
       return;
     }
-    const allSelectedModifiers: Array<{ id: string; name: string; price_adjustment: number }> = [];
 
-    modifierGroups.forEach((group) => {
-      const groupSelections = selectedModifiers[group.id] || {};
-      Object.entries(groupSelections).forEach(([optionId, quantity]) => {
-        const option = group.modifier_options.find((opt) => opt.id === optionId);
-        if (option && quantity > 0) {
-          // Add the modifier multiple times based on quantity
-          for (let i = 0; i < quantity; i++) {
-            allSelectedModifiers.push({
-              id: option.id,
-              name: option.name,
-              price_adjustment: option.price_adjustment,
+    // Find if there's a required group with max_selections > 1 (quantity selection)
+    const quantityGroup = modifierGroups.find(
+      (group) => group.selection_type === 'required' && group.max_selections != null && group.max_selections > 1
+    );
+
+    const lines: Array<{ modifiers: Array<{ id: string; name: string; price_adjustment: number }>; quantity: number }> = [];
+
+    if (quantityGroup) {
+      // This group controls quantity - create separate lines for each selected option
+      const groupSelections = selectedModifiers[quantityGroup.id] || {};
+      const selectedOptions = Object.entries(groupSelections).filter(([_, qty]) => qty > 0);
+
+      selectedOptions.forEach(([optionId, quantity]) => {
+        const option = quantityGroup.modifier_options.find((opt) => opt.id === optionId);
+        if (option) {
+          // Build modifiers for this line (excluding the quantity group)
+          const lineModifiers: Array<{ id: string; name: string; price_adjustment: number }> = [];
+          
+          modifierGroups.forEach((group) => {
+            if (group.id === quantityGroup.id) return; // Skip quantity group
+            const groupSelections = selectedModifiers[group.id] || {};
+            Object.entries(groupSelections).forEach(([optId, qty]) => {
+              const opt = group.modifier_options.find((o) => o.id === optId);
+              if (opt && qty > 0) {
+                // For non-quantity groups, duplicate based on quantity
+                for (let i = 0; i < qty; i++) {
+                  lineModifiers.push({
+                    id: opt.id,
+                    name: opt.name,
+                    price_adjustment: opt.price_adjustment,
+                  });
+                }
+              }
             });
-          }
+          });
+
+          // Add the quantity group option as a single modifier (not duplicated)
+          lineModifiers.push({
+            id: option.id,
+            name: option.name,
+            price_adjustment: option.price_adjustment,
+          });
+
+          lines.push({
+            modifiers: lineModifiers,
+            quantity: quantity,
+          });
         }
       });
-    });
+    } else {
+      // No quantity group - use original behavior (single line, duplicate modifiers)
+      const allSelectedModifiers: Array<{ id: string; name: string; price_adjustment: number }> = [];
+
+      modifierGroups.forEach((group) => {
+        const groupSelections = selectedModifiers[group.id] || {};
+        Object.entries(groupSelections).forEach(([optionId, quantity]) => {
+          const option = group.modifier_options.find((opt) => opt.id === optionId);
+          if (option && quantity > 0) {
+            // Add the modifier multiple times based on quantity
+            for (let i = 0; i < quantity; i++) {
+              allSelectedModifiers.push({
+                id: option.id,
+                name: option.name,
+                price_adjustment: option.price_adjustment,
+              });
+            }
+          }
+        });
+      });
+
+      lines.push({
+        modifiers: allSelectedModifiers,
+        quantity: 1,
+      });
+    }
 
     // Trigger flying animation if provided
     if (triggerAnimation) {
       triggerAnimation(itemName, event);
     }
 
-    onConfirm(allSelectedModifiers);
+    onConfirm(lines);
     onClose();
   };
 
@@ -324,6 +382,39 @@ export function ModifierDialog({
   };
 
   const getTotal = () => {
+    // Find if there's a required group with max_selections > 1 (quantity selection)
+    const quantityGroup = modifierGroups.find(
+      (group) => group.selection_type === 'required' && group.max_selections != null && group.max_selections > 1
+    );
+
+    if (quantityGroup) {
+      // Calculate total quantity from the quantity group
+      const groupSelections = selectedModifiers[quantityGroup.id] || {};
+      const totalQuantity = Object.values(groupSelections).reduce((sum, qty) => sum + qty, 0);
+      
+      // Calculate modifier adjustments for non-quantity groups
+      let modifierTotal = 0;
+      modifierGroups.forEach((group) => {
+        if (group.id === quantityGroup.id) return; // Skip quantity group
+        const groupSelections = selectedModifiers[group.id] || {};
+        Object.entries(groupSelections).forEach(([optionId, quantity]) => {
+          const option = group.modifier_options.find((opt) => opt.id === optionId);
+          if (option && quantity > 0) {
+            modifierTotal += option.price_adjustment * quantity;
+          }
+        });
+      });
+
+      // Total = (basePrice + quantityGroupOptionPrice) * totalQuantity + otherModifiers
+      // But actually, the quantity group option price should be per item, so:
+      // Total = basePrice * totalQuantity + (quantityGroupOptionPrice * totalQuantity) + otherModifiers
+      // Wait, the quantity group option is just a selection (like "normal" vs "decaf"), it might not have a price adjustment
+      // Let's just multiply basePrice by quantity and add all modifier adjustments
+      
+      return (basePrice * totalQuantity) + modifierTotal;
+    }
+
+    // No quantity group - use original calculation
     return basePrice + getTotalAdjustment();
   };
 
