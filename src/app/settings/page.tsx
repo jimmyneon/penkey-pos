@@ -426,65 +426,65 @@ export default function SettingsPage() {
   };
 
   const handleOAuthCallback = async () => {
-  try {
-    // Get callback data from cookie
-    const callbackCookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('sumup_oauth_callback='));
-    
-    if (!callbackCookie) {
-      showToast("OAuth callback data not found", "error");
-      return;
-    }
+    try {
+      // Get callback data from cookie
+      const callbackCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('sumup_oauth_callback='));
 
-    const callbackData = JSON.parse(
-      decodeURIComponent(callbackCookie.split('=')[1])
-    );
-
-    // Exchange code for token
-    const response = await fetch("/api/auth/sumup/exchange", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        code: callbackData.code,
-        state: callbackData.state,
-      }),
-    });
-
-    if (response.ok) {
-      const tokenData = await response.json();
-      
-      if (tokenData.success) {
-        // Save tokens
-        const { SumUpClient } = await import("@penkey/sumup");
-        const sumUpClient = new SumUpClient({
-          clientId: process.env.NEXT_PUBLIC_SUMUP_CLIENT_ID || "",
-          clientSecret: "",
-          redirectUri: `${window.location.origin}/api/auth/sumup/callback`,
-          environment: "production",
-        });
-        
-        sumUpClient.config.accessToken = tokenData.accessToken;
-        sumUpClient.config.refreshToken = tokenData.refreshToken;
-        sumUpClient.config.merchantCode = tokenData.merchantCode;
-        sumUpClient.saveTokens();
-        
-        setSumUpConnected(true);
-        setSumUpMerchantCode(tokenData.merchantCode || "");
-        
-        showToast("SumUp connected successfully!", "success");
-      } else {
-        showToast(`Failed to connect SumUp: ${tokenData.error}`, "error");
+      if (!callbackCookie) {
+        showToast("OAuth callback data not found", "error");
+        return;
       }
-    } else {
-      showToast("Failed to exchange OAuth code", "error");
-    }
-    
-    // Clean up cookie and URL
-    document.cookie = "sumup_oauth_callback=; Max-Age=0; path=/";
-    window.history.replaceState({}, "", "/settings");
+
+      const callbackData = JSON.parse(
+        decodeURIComponent(callbackCookie.split('=')[1])
+      );
+
+      // Exchange code for token
+      const response = await fetch("/api/auth/sumup/exchange", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: callbackData.code,
+          state: callbackData.state,
+        }),
+      });
+
+      if (response.ok) {
+        const tokenData = await response.json();
+
+        if (tokenData.success) {
+          // Save tokens
+          const { SumUpClient } = await import("@penkey/sumup");
+          const sumUpClient = new SumUpClient({
+            clientId: process.env.NEXT_PUBLIC_SUMUP_CLIENT_ID || "",
+            clientSecret: "",
+            redirectUri: `${window.location.origin}/api/auth/sumup/callback`,
+            environment: "production",
+          });
+
+          sumUpClient.config.accessToken = tokenData.accessToken;
+          sumUpClient.config.refreshToken = tokenData.refreshToken;
+          sumUpClient.config.merchantCode = tokenData.merchantCode;
+          sumUpClient.saveTokens();
+
+          setSumUpConnected(true);
+          setSumUpMerchantCode(tokenData.merchantCode || "");
+
+          showToast("SumUp connected successfully!", "success");
+        } else {
+          showToast(`Failed to connect SumUp: ${tokenData.error}`, "error");
+        }
+      } else {
+        showToast("Failed to exchange OAuth code", "error");
+      }
+
+      // Clean up cookie and URL
+      document.cookie = "sumup_oauth_callback=; Max-Age=0; path=/";
+      window.history.replaceState({}, "", "/settings");
   } catch (error) {
     console.error("OAuth callback error:", error);
     showToast("Failed to complete OAuth connection", "error");
