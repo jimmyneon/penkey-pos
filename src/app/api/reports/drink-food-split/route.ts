@@ -66,10 +66,10 @@ export async function GET(request: NextRequest) {
         line_total,
         receipt_id,
         items!inner (
-          category_id
-        ),
-        categories!inner (
-          name
+          category_id,
+          categories!inner (
+            name
+          )
         ),
         receipts!inner (
           created_at,
@@ -114,12 +114,14 @@ export async function GET(request: NextRequest) {
       return 'other';
     };
 
+    console.log(`[Drink/Food Split] Fetched ${receiptLines?.length || 0} receipt lines`);
+
     // Group by receipt and categorize
     const receiptMap = new Map<string, { hasDrink: boolean; hasFood: boolean; total: number }>();
 
     (receiptLines || []).forEach((line: any) => {
       const receiptId = line.receipt_id;
-      const categoryName = line.categories?.name || '';
+      const categoryName = line.items?.categories?.name || '';
       const category = categorizeItem(categoryName);
       const lineTotal = parseFloat(line.line_total || "0");
 
@@ -133,6 +135,8 @@ export async function GET(request: NextRequest) {
       if (category === 'drink') receipt.hasDrink = true;
       if (category === 'food') receipt.hasFood = true;
     });
+
+    console.log(`[Drink/Food Split] Processed ${receiptMap.size} unique receipts`);
 
     // Calculate statistics
     let drinksOnlyCount = 0;
