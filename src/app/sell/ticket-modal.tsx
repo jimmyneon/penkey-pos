@@ -22,6 +22,12 @@ interface CartLine {
   }>;
   notes: string;
   tax_rate: number;
+  voucher?: {
+    id: string;
+    name: string;
+    discountType: string;
+    discountValue: number;
+  };
 }
 
 interface TicketModalProps {
@@ -112,9 +118,16 @@ export function TicketModal({
                   className="bg-[#2d2d2d] rounded-lg p-4 border border-gray-700"
                 >
                   <div className="mb-3">
-                    <h4 className="font-semibold text-white text-sm sm:text-base">
-                      {line.item_name}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-white text-sm sm:text-base">
+                        {line.item_name}
+                      </h4>
+                      {line.voucher && (
+                        <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded font-medium">
+                          Voucher Applied
+                        </span>
+                      )}
+                    </div>
                     {line.variant_name && (
                       <p className="text-xs sm:text-sm text-gray-400">
                         {line.variant_name}
@@ -123,6 +136,11 @@ export function TicketModal({
                     {line.modifiers.length > 0 && (
                       <p className="text-xs sm:text-sm text-gray-400">
                         {line.modifiers.map((m) => m.name).join(", ")}
+                      </p>
+                    )}
+                    {line.voucher && (
+                      <p className="text-xs text-green-400">
+                        {line.voucher.name} ({line.voucher.discountType === 'percentage' ? `${line.voucher.discountValue}% off` : line.voucher.discountType === 'fixed' ? `£${line.voucher.discountValue} off` : 'Free'})
                       </p>
                     )}
                   </div>
@@ -151,7 +169,28 @@ export function TicketModal({
                       </button>
                     </div>
                     <span className="font-bold text-lg sm:text-xl text-penkey-orange">
-                      {formatCurrency((line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0)) * line.quantity)}
+                      {line.voucher ? (
+                        <>
+                          <span className="line-through text-gray-500 text-sm mr-2">
+                            {formatCurrency((line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0)) * line.quantity)}
+                          </span>
+                          {formatCurrency(
+                            (() => {
+                              const fullPrice = (line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0)) * line.quantity;
+                              if (line.voucher.discountType === 'percentage') {
+                                return fullPrice * (1 - line.voucher.discountValue / 100);
+                              } else if (line.voucher.discountType === 'fixed') {
+                                return Math.max(0, fullPrice - line.voucher.discountValue);
+                              } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
+                                return 0;
+                              }
+                              return fullPrice;
+                            })()
+                          )}
+                        </>
+                      ) : (
+                        formatCurrency((line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0)) * line.quantity)
+                      )}
                     </span>
                   </div>
                 </div>

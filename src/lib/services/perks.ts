@@ -42,6 +42,8 @@ export interface PerksVoucher {
   category?: string; // e.g., 'drink', 'food', 'modifier'
   expiresAt: string;
   isRedeemed: boolean;
+  // API may return additional fields
+  [key: string]: any;
 }
 
 export interface BeanRules {

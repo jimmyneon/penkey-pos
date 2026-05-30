@@ -30,6 +30,10 @@ export function PerksCustomerPanel({
   onApplyVoucherToCart,
 }: PerksCustomerPanelProps) {
   console.log("[PerksCustomerPanel] Rendering with customer:", customer);
+  console.log("[PerksCustomerPanel] Active vouchers:", customer.activeVouchers);
+  customer.activeVouchers.forEach((v, i) => {
+    console.log(`[PerksCustomerPanel] Voucher ${i}:`, JSON.stringify(v, null, 2));
+  });
   
   const [awardingBean, setAwardingBean] = useState(false);
   const [redeemingVoucher, setRedeemingVoucher] = useState<string | null>(null);
