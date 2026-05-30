@@ -30,6 +30,13 @@ export function ServiceWorkerRegister() {
 
         console.log("[SW] Service worker registered successfully:", registration);
 
+        // Check if there's a waiting worker from a previous session
+        // If so, force it to activate immediately to prevent serving stale cached versions
+        if (registration.waiting) {
+          console.log("[SW] Found waiting service worker, activating immediately");
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
         // Don't notify on mount - only notify when a NEW update is found via updatefound
         // This prevents false positives when a waiting worker from a previous session is still there
 
