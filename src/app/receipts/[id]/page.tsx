@@ -25,10 +25,14 @@ import {
   Info,
   CheckCircle,
   AlertCircle,
-  XCircle
+  XCircle,
+  QrCode
 } from "lucide-react";
 import { RefundDialog } from "./refund-dialog";
 import { EmailDialog } from "./email-dialog";
+import { QRScanner } from "@/components/QRScanner";
+import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
+import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -106,6 +110,10 @@ export default function TransactionDetailsPage() {
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
   // Guards against double-fire of the refund handler while a request is in flight
   const refundingRef = useRef(false);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [perksCustomer, setPerksCustomer] = useState<any>(null);
+  const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
+  const [scanningQR, setScanningQR] = useState(false);
 
   const [orgId, setOrgId] = useState<string | null>(null);
 
@@ -124,6 +132,149 @@ export default function TransactionDetailsPage() {
       setOrgId(parsed.org_id);
     } catch {}
   }, [params.id, router]);
+
+  // Load Perks bean rules
+  useEffect(() => {
+    const loadPerksBeanRules = async () => {
+      try {
+        const response = await fetch("/api/settings/perks");
+        if (response.ok) {
+          const data = await response.json();
+          setPerksBeanRules(data.beanRules);
+        }
+      } catch (error) {
+        console.error("Failed to load Perks bean rules:", error);
+      }
+    };
+    loadPerksBeanRules();
+  }, []);
+
+  // Check if receipt is within 24 hours
+  const isWithin24Hours = () => {
+    if (!receipt?.created_at) return false;
+    const receiptDate = new Date(receipt.created_at);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - receiptDate.getTime()) / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  };
+
+  const handleQRScan = async (qrData: string) => {
+    if (!orgId) {
+      showToast("No session data", "error");
+      return;
+    }
+    
+    setScanningQR(true);
+    
+    try {
+      const apiResponse = await scanQRCode(orgId, qrData);
+      
+      if (!apiResponse) {
+        throw new Error("No customer data returned from API");
+      }
+      
+      const customer = {
+        id: apiResponse.customer?.id || '',
+        name: apiResponse.customer?.name || '',
+        email: apiResponse.customer?.email || '',
+        phone: apiResponse.customer?.phone || '',
+        beanBalance: apiResponse.bean_balance?.balance || 0,
+        activeVouchers: apiResponse.vouchers || [],
+        canAwardBeanToday: apiResponse.can_award_bean || false,
+      };
+      
+      setPerksCustomer(customer);
+      setQrScannerOpen(false);
+      
+      // Update receipt with customer data
+      await updateReceiptCustomer(customer);
+      
+      showToast(`Customer ${customer.name} linked to receipt`, 'success');
+    } catch (error: any) {
+      console.error("[Receipt QR Scan] Error:", error);
+      showToast(error.message || "Failed to scan QR code", 'error');
+    } finally {
+      setScanningQR(false);
+    }
+  };
+
+  const updateReceiptCustomer = async (customer: any) => {
+    if (!receipt || !orgId) return;
+    
+    try {
+      const response = await fetch(`/api/receipts/${receipt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: customer.id,
+          customer_name: customer.name,
+          customer_email: customer.email,
+          customer_phone: customer.phone,
+        }),
+      });
+      
+      if (response.ok) {
+        // Update local receipt state
+        setReceipt({
+          ...receipt,
+          customer_name: customer.name,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update receipt customer:", error);
+    }
+  };
+
+  const handleAwardBean = async (rules: BeanRules) => {
+    if (!orgId || !perksCustomer) return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+
+    try {
+      const result = await recordVisit(orgId, {
+        userId: perksCustomer.id,
+        beanRules: rules,
+        menuItems: receipt?.lines?.map((line: any) => ({ name: line.name, price: line.unit_price })) || [],
+        staffId: receipt?.member?.first_name || '',
+        locationId: receipt?.store?.name || '',
+      });
+
+      if (result) {
+        showToast(`Awarded ${result.beansAwarded} bean(s)! New balance: ${result.newBalance}`, "success");
+        setPerksCustomer({
+          ...perksCustomer,
+          beanBalance: result.newBalance,
+          canAwardBeanToday: false,
+        });
+        return result;
+      }
+      return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+    } catch (error: any) {
+      console.error("Award bean error:", error);
+      showToast(error.message || "Failed to award beans", "error");
+      return { beansAwarded: 0, newBalance: perksCustomer?.beanBalance || 0 };
+    }
+  };
+
+  const handleRedeemVoucher = async (voucherId: string) => {
+    if (!orgId) return;
+
+    try {
+      const result = await redeemVoucher(orgId, {
+        voucher_id: voucherId,
+        staff_id: receipt?.member?.first_name || '',
+      });
+
+      if (result) {
+        showToast("Voucher redeemed successfully!", "success");
+        setPerksCustomer({
+          ...perksCustomer,
+          activeVouchers: perksCustomer.activeVouchers.filter((v: any) => v.id !== voucherId),
+        });
+      }
+    } catch (error: any) {
+      console.error("Redeem voucher error:", error);
+      showToast(error.message || "Failed to redeem voucher", "error");
+    }
+  };
 
   // Auto-open refund dialog if requested
   useEffect(() => {
@@ -499,6 +650,14 @@ export default function TransactionDetailsPage() {
             >
               Void
             </Button>
+            <Button
+              onClick={() => setQrScannerOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12"
+              title={isWithin24Hours() ? "Assign customer to receipt (beans can be awarded within 24 hours)" : "Assign customer to receipt (no bean awarding - outside 24-hour window)"}
+            >
+              <QrCode className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Assign Customer</span>
+            </Button>
             </div>
           </div>
 
@@ -726,6 +885,29 @@ export default function TransactionDetailsPage() {
         onSend={handleEmail}
         receiptNumber={receipt.receipt_number}
       />
+
+      {/* QR Scanner */}
+      {qrScannerOpen && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => setQrScannerOpen(false)}
+        />
+      )}
+
+      {/* Perks Customer Panel */}
+      {perksCustomer && (
+        <PerksCustomerPanel
+          customer={perksCustomer}
+          onClose={() => setPerksCustomer(null)}
+          onAwardBean={handleAwardBean}
+          onRedeemVoucher={handleRedeemVoucher}
+          staffId={receipt?.member?.first_name || ''}
+          locationId={receipt?.store?.name || ''}
+          currentCartItems={receipt?.lines?.map((line: any) => ({ name: line.name, price: line.unit_price })) || []}
+          beanRules={perksBeanRules}
+          showBeanWarning={!isWithin24Hours()}
+        />
+      )}
 
       
 

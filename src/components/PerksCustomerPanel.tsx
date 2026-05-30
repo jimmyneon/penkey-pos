@@ -13,6 +13,7 @@ interface PerksCustomerPanelProps {
   locationId: string;
   currentCartItems: Array<{ name: string; price: number }>;
   beanRules?: any;
+  showBeanWarning?: boolean;
 }
 
 export function PerksCustomerPanel({
@@ -24,6 +25,7 @@ export function PerksCustomerPanel({
   locationId,
   currentCartItems,
   beanRules,
+  showBeanWarning = false,
 }: PerksCustomerPanelProps) {
   console.log("[PerksCustomerPanel] Rendering with customer:", customer);
   
@@ -127,12 +129,25 @@ export function PerksCustomerPanel({
           {customer.canAwardBeanToday && (
             <button
               onClick={() => setShowBeanDialog(true)}
-              disabled={awardingBean}
+              disabled={awardingBean || showBeanWarning}
               className="w-full bg-penkey-orange text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Gift size={20} />
               {awardingBean ? "Awarding..." : "Award Bean"}
             </button>
+          )}
+
+          {/* Bean Awarding Warning */}
+          {showBeanWarning && (
+            <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2 text-yellow-400">
+                <AlertCircle size={20} />
+                <span className="font-semibold">Bean Awarding Unavailable</span>
+              </div>
+              <div className="text-white text-sm">
+                <p>This receipt is outside the 24-hour window for bean awarding. Customer has been linked for tracking purposes only.</p>
+              </div>
+            </div>
           )}
 
           {/* Award Confirmation */}

@@ -129,3 +129,91 @@ export async function GET(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // ✅ SECURITY: Validate session first
+  const session = await validatePOSSession(request);
+  if (!session) {
+    console.warn(`[API-AUTH] Unauthorized PATCH /api/receipts/[id]`);
+    return unauthorizedResponse();
+  }
+
+  // ✅ SECURITY: Rate limit
+  const { success } = await ratelimit.limit(session.user_id);
+  if (!success) {
+    return new NextResponse("Too many requests", { status: 429 });
+  }
+
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { customer_id, customer_name, customer_email, customer_phone } = body;
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: "Database configuration missing" },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createSupabaseServerClient(supabaseUrl, supabaseServiceKey);
+
+    // Update receipt with customer data
+    const { data: receipt, error } = await supabase
+      .from("receipts")
+      .update({
+        customer_id: customer_id || null,
+        customer_name: customer_name || null,
+        customer_email: customer_email || null,
+        customer_phone: customer_phone || null,
+      })
+      .eq("id", id)
+      .eq("org_id", session.org_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating receipt:", error);
+      return NextResponse.json(
+        { error: "Failed to update receipt" },
+        { status: 500 }
+      );
+    }
+
+    // Sync customer record if provided
+    if (customer_id && customer_name) {
+      try {
+        const nameParts = customer_name.trim().split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+        await supabase.from("customers").upsert(
+          {
+            id: customer_id,
+            org_id: session.org_id,
+            first_name: firstName,
+            last_name: lastName,
+            email: customer_email || null,
+            phone: customer_phone || null,
+          },
+          { onConflict: "id", ignoreDuplicates: false }
+        );
+      } catch (customerError) {
+        console.error("[Receipt] Failed to sync customer:", customerError);
+      }
+    }
+
+    return NextResponse.json({ receipt });
+  } catch (error) {
+    console.error("Error in receipt PATCH API:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
