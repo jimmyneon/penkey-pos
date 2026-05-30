@@ -8,6 +8,16 @@ const withPWA = require('next-pwa')({
   sw: 'sw.js',
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic file from precaching
   runtimeCaching: [
+    // HTML documents - always use NetworkFirst to avoid serving stale/broken cached versions
+    {
+      urlPattern: ({ request }) => request.destination === 'document',
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'html-cache',
+        networkTimeoutSeconds: 3,
+        expiration: { maxAgeSeconds: 0 }, // Don't cache HTML at all
+      },
+    },
     // JS/CSS
     {
       urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
