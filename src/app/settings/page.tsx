@@ -343,20 +343,22 @@ export default function SettingsPage() {
         const credsRes = await fetch('/api/sumup/credentials');
         if (credsRes.ok) {
           const credsData = await credsRes.json();
-          if (credsData.configured) {
+          console.log("[Settings] SumUp credentials response:", credsData);
+          if (credsData?.configured) {
             setSumUpConnected(true);
-            setSumUpMerchantCode(credsData.merchant_code || '');
-            setSumUpAffiliateKey(credsData.affiliate_key || '');
+            setSumUpMerchantCode(String(credsData.merchant_code || ''));
+            setSumUpAffiliateKey(String(credsData.affiliate_key || ''));
           } else {
             setSumUpConnected(false);
           }
         }
       } catch (e) {
+        console.error("[Settings] Failed to load SumUp credentials:", e);
         // Non-fatal - fall back to localStorage mirror
         const storedCreds = getSumUpCredentials();
         if (storedCreds?.apiKey && storedCreds?.merchantCode) {
           setSumUpConnected(true);
-          setSumUpMerchantCode(storedCreds.merchantCode);
+          setSumUpMerchantCode(String(storedCreds.merchantCode || ''));
         }
       }
 
