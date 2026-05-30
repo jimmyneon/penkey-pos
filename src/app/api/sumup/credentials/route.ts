@@ -33,10 +33,14 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  console.log("[SumUp Credentials GET] org_id:", session.org_id);
   const settings = await getOrgSettings(supabase, session.org_id);
+  console.log("[SumUp Credentials GET] settings:", settings);
   const creds = settings[SETTINGS_KEY];
+  console.log("[SumUp Credentials GET] creds:", creds);
 
   if (!creds?.api_key || !creds?.merchant_code) {
+    console.log("[SumUp Credentials GET] Not configured - missing api_key or merchant_code");
     return NextResponse.json({ configured: false });
   }
 
@@ -66,7 +70,9 @@ export async function POST(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  console.log("[SumUp Credentials POST] org_id:", session.org_id);
   const existing = await getOrgSettings(supabase, session.org_id);
+  console.log("[SumUp Credentials POST] existing settings:", existing);
   const updated = {
     ...existing,
     [SETTINGS_KEY]: {
@@ -76,6 +82,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     },
   };
+  console.log("[SumUp Credentials POST] updated settings:", updated);
 
   const { error } = await supabase
     .from('org_settings')
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save credentials' }, { status: 500 });
   }
 
-  console.log(`[SumUp Credentials] Saved for org ${session.org_id}`);
+  console.log(`[SumUp Credentials POST] Saved successfully for org ${session.org_id}`);
   return NextResponse.json({ success: true, merchant_code });
 }
 
