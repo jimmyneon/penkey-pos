@@ -33,8 +33,11 @@ export interface PerksVoucher {
   id: string;
   name: string;
   description: string;
-  discountType: 'percentage' | 'fixed' | 'free_item';
+  discountType: 'percentage' | 'fixed' | 'free_item' | 'free_modifier';
   discountValue: number;
+  beanCost: number;
+  itemType?: string; // e.g., 'coffee', 'tea', 'milkshake', 'sandwich', 'modifier'
+  category?: string; // e.g., 'drink', 'food', 'modifier'
   expiresAt: string;
   isRedeemed: boolean;
 }

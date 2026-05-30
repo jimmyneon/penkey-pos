@@ -137,6 +137,15 @@ export function PerksCustomerPanel({
             </button>
           )}
 
+          {/* Bean Balance Debug Info */}
+          {customer.beanBalance === 0 && (
+            <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-3">
+              <p className="text-yellow-400 text-xs">
+                Bean balance is 0. This may be an issue with the Perks API response.
+              </p>
+            </div>
+          )}
+
           {/* Bean Awarding Warning */}
           {showBeanWarning && (
             <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4 space-y-2">
@@ -174,20 +183,33 @@ export function PerksCustomerPanel({
                   className="bg-[#3d3d3d] rounded-lg p-4 space-y-2"
                 >
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <h5 className="text-white font-semibold">{voucher.name}</h5>
                       <p className="text-gray-400 text-sm">{voucher.description}</p>
+                      {voucher.itemType && (
+                        <p className="text-gray-500 text-xs mt-1">
+                          Applies to: {voucher.itemType}
+                          {voucher.category && ` (${voucher.category})`}
+                        </p>
+                      )}
                     </div>
-                    <Gift className="text-penkey-orange" size={20} />
+                    <Gift className="text-penkey-orange flex-shrink-0" size={20} />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-green-400 font-semibold">
-                      {voucher.discountType === 'percentage'
-                        ? `${voucher.discountValue}% off`
-                        : voucher.discountType === 'fixed'
-                        ? `£${voucher.discountValue.toFixed(2)} off`
-                        : 'Free item'}
-                    </span>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-600">
+                    <div className="space-y-1">
+                      <span className="text-green-400 font-semibold block">
+                        {voucher.discountType === 'percentage'
+                          ? `${voucher.discountValue}% off`
+                          : voucher.discountType === 'fixed'
+                          ? `£${voucher.discountValue.toFixed(2)} off`
+                          : voucher.discountType === 'free_modifier'
+                          ? 'Free modifier'
+                          : 'Free item'}
+                      </span>
+                      <span className="text-gray-400 text-xs">
+                        Cost: {voucher.beanCost || 0} beans
+                      </span>
+                    </div>
                     <button
                       onClick={() => handleRedeemVoucher(voucher.id)}
                       disabled={redeemingVoucher === voucher.id}
