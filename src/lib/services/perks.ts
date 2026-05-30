@@ -33,15 +33,21 @@ export interface PerksAPIResponse {
 
 export interface PerksVoucher {
   id: string;
-  name: string;
-  description: string;
-  discountType: 'percentage' | 'fixed' | 'free_item' | 'free_modifier';
-  discountValue: number;
-  beanCost: number;
-  itemType?: string; // e.g., 'coffee', 'tea', 'milkshake', 'sandwich', 'modifier'
-  category?: string; // e.g., 'drink', 'food', 'modifier'
-  expiresAt: string;
-  isRedeemed: boolean;
+  qr_code: string;
+  status: string;
+  expires_at: string;
+  voucher_templates: {
+    id: string;
+    name: string;
+    description: string;
+    category: 'enhancer' | 'coffee' | 'major' | 'wheel_spin';
+    bean_threshold: number;
+  };
+  // Mapped fields for internal use
+  discountType?: 'percentage' | 'fixed' | 'free_item' | 'free_modifier';
+  discountValue?: number;
+  beanCost?: number;
+  itemType?: string;
   // API may return additional fields
   [key: string]: any;
 }

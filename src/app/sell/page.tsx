@@ -422,46 +422,61 @@ export default function SellPage() {
       return;
     }
 
+    const category = voucher.voucher_templates?.category;
+    const voucherName = voucher.voucher_templates?.name || voucher.name;
+    const beanThreshold = voucher.voucher_templates?.bean_threshold || voucher.beanCost || 0;
+
+    // Map Perks category to internal discount type
+    const discountType = category === 'enhancer' ? 'free_modifier' : 'free_item';
+    const discountValue = 0; // Free items have 100% discount
+
     let targetLineId: string | null = null;
 
-    if (voucher.discountType === 'free_modifier') {
-      // Find items with matching modifiers
-      targetLineId = lines.find(line => 
-        line.modifiers.some(mod => 
-          mod.name.toLowerCase().includes(voucher.itemType?.toLowerCase() || '')
-        )
-      )?.id || null;
+    if (discountType === 'free_modifier') {
+      // Find items with modifiers (any modifier for enhancer category)
+      targetLineId = lines.find(line => line.modifiers.length > 0)?.id || null;
 
       if (!targetLineId) {
-        showToast(`No items with "${voucher.itemType}" modifier in cart`, "error");
+        showToast("No items with modifiers in cart", "error");
         return;
       }
-    } else if (voucher.discountType === 'free_item') {
-      // Find items matching itemType/category
-      targetLineId = lines.find(line => {
-        const itemName = line.item_name.toLowerCase();
-        const matchesItem = voucher.itemType && itemName.includes(voucher.itemType.toLowerCase());
-        const matchesCategory = voucher.category && itemName.includes(voucher.category.toLowerCase());
-        return matchesItem || matchesCategory;
-      })?.id || null;
+    } else if (discountType === 'free_item') {
+      // For coffee category, find coffee/tea items
+      if (category === 'coffee') {
+        targetLineId = lines.find(line => {
+          const itemName = line.item_name.toLowerCase();
+          return itemName.includes('coffee') || itemName.includes('tea') || itemName.includes('latte') || itemName.includes('cappuccino') || itemName.includes('americano') || itemName.includes('flat white');
+        })?.id || null;
 
-      if (!targetLineId) {
-        showToast(`No matching "${voucher.itemType || voucher.category}" items in cart`, "error");
-        return;
-      }
-    } else if (voucher.discountType === 'percentage' || voucher.discountType === 'fixed') {
-      // Apply to first item or cart total - for now apply to first item
-      targetLineId = lines[0]?.id || null;
-      
-      if (!targetLineId) {
-        showToast("No items in cart to apply discount", "error");
-        return;
+        if (!targetLineId) {
+          showToast("No coffee or tea items in cart", "error");
+          return;
+        }
+      } else {
+        // For major items, apply to first item
+        targetLineId = lines[0]?.id || null;
+
+        if (!targetLineId) {
+          showToast("No items in cart to apply discount", "error");
+          return;
+        }
       }
     }
 
     if (targetLineId) {
-      applyVoucher(targetLineId, voucher);
-      showToast(`Voucher "${voucher.name}" applied to cart`, "success");
+      // Create voucher object in the format expected by cart store
+      const voucherForCart = {
+        id: voucher.id,
+        name: voucherName,
+        discountType: discountType as 'free_modifier' | 'free_item',
+        discountValue,
+        beanCost: beanThreshold,
+        itemType: category,
+        category,
+      };
+
+      applyVoucher(targetLineId, voucherForCart);
+      showToast(`Voucher "${voucherName}" applied to cart`, "success");
     }
   };
 

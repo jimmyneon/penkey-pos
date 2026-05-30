@@ -190,12 +190,11 @@ export function PerksCustomerPanel({
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h5 className="text-white font-semibold">{voucher.name}</h5>
-                      <p className="text-gray-400 text-sm">{voucher.description}</p>
-                      {voucher.itemType && (
+                      <h5 className="text-white font-semibold">{voucher.voucher_templates?.name || voucher.name}</h5>
+                      <p className="text-gray-400 text-sm">{voucher.voucher_templates?.description || voucher.description}</p>
+                      {voucher.voucher_templates?.category && (
                         <p className="text-gray-500 text-xs mt-1">
-                          Applies to: {voucher.itemType}
-                          {voucher.category && ` (${voucher.category})`}
+                          Category: {voucher.voucher_templates.category}
                         </p>
                       )}
                     </div>
@@ -204,16 +203,16 @@ export function PerksCustomerPanel({
                   <div className="flex items-center justify-between pt-2 border-t border-gray-600">
                     <div className="space-y-1">
                       <span className="text-green-400 font-semibold block">
-                        {voucher.discountType === 'percentage'
-                          ? `${voucher.discountValue}% off`
-                          : voucher.discountType === 'fixed'
-                          ? `£${voucher.discountValue.toFixed(2)} off`
-                          : voucher.discountType === 'free_modifier'
+                        {voucher.voucher_templates?.category === 'enhancer'
                           ? 'Free modifier'
+                          : voucher.voucher_templates?.category === 'coffee'
+                          ? 'Free coffee/tea'
+                          : voucher.voucher_templates?.category === 'major'
+                          ? 'Free item'
                           : 'Free item'}
                       </span>
                       <span className="text-gray-400 text-xs">
-                        Cost: {voucher.beanCost || 0} beans
+                        Cost: {voucher.voucher_templates?.bean_threshold || voucher.beanCost || 0} beans
                       </span>
                     </div>
                     <div className="flex gap-2">
