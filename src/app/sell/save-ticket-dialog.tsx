@@ -9,7 +9,7 @@ interface SaveTicketDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (name: string, comment: string, assignment?: { type: 'customer' | 'table'; name: string }) => void;
-  ticketAssignment?: { type: 'customer' | 'table'; name: string } | null;
+  ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
   mode?: 'save' | 'assign';
 }
 

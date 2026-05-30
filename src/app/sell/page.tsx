@@ -314,13 +314,7 @@ export default function SellPage() {
       setTicketAssignment({
         type: 'customer',
         name: customer.name,
-        customer: {
-          id: customer.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          beanBalance: customer.beanBalance,
-        }
+        customer: customer, // Store full customer object for PerksCustomerPanel
       });
       console.log("[handleQRScan] Set ticketAssignment for customer:", customer.name);
       
