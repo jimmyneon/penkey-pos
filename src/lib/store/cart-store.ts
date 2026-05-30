@@ -164,7 +164,20 @@ export const useCartStore = create<CartStore>()(
       const modifiersTotal =
         line.modifiers.reduce((modSum, mod) => modSum + mod.price_adjustment, 0) *
         line.quantity;
-      return sum + lineTotal + modifiersTotal;
+      const fullLineTotal = lineTotal + modifiersTotal;
+
+      // Apply voucher discount if present
+      if (line.voucher) {
+        if (line.voucher.discountType === 'percentage') {
+          return sum + (fullLineTotal * (1 - line.voucher.discountValue / 100));
+        } else if (line.voucher.discountType === 'fixed') {
+          return sum + Math.max(0, fullLineTotal - line.voucher.discountValue);
+        } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
+          return sum; // Free item - no cost
+        }
+      }
+
+      return sum + fullLineTotal;
     }, 0);
   },
 
@@ -175,7 +188,21 @@ export const useCartStore = create<CartStore>()(
       const modifiersTotal =
         line.modifiers.reduce((modSum, mod) => modSum + mod.price_adjustment, 0) *
         line.quantity;
-      return sum + (lineTotal + modifiersTotal) * line.tax_rate;
+      const fullLineTotal = lineTotal + modifiersTotal;
+
+      // Apply voucher discount if present
+      let discountedTotal = fullLineTotal;
+      if (line.voucher) {
+        if (line.voucher.discountType === 'percentage') {
+          discountedTotal = fullLineTotal * (1 - line.voucher.discountValue / 100);
+        } else if (line.voucher.discountType === 'fixed') {
+          discountedTotal = Math.max(0, fullLineTotal - line.voucher.discountValue);
+        } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
+          discountedTotal = 0; // Free item - no cost
+        }
+      }
+
+      return sum + discountedTotal * line.tax_rate;
     }, 0);
   },
 

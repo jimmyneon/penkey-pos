@@ -417,13 +417,52 @@ export default function SellPage() {
   };
 
   const handleApplyVoucherToCart = (voucher: any) => {
-    // For now, just show a toast - full implementation will match voucher to cart items
-    showToast(`Voucher "${voucher.name}" applied to cart`, "success");
-    
-    // TODO: Implement voucher matching logic:
-    // - free_modifier: Find items with matching modifiers and apply discount
-    // - free_item: Find items matching itemType/category and apply discount
-    // - percentage/fixed: Apply to cart total or specific items
+    if (lines.length === 0) {
+      showToast("Cart is empty. Add items before applying voucher.", "error");
+      return;
+    }
+
+    let targetLineId: string | null = null;
+
+    if (voucher.discountType === 'free_modifier') {
+      // Find items with matching modifiers
+      targetLineId = lines.find(line => 
+        line.modifiers.some(mod => 
+          mod.name.toLowerCase().includes(voucher.itemType?.toLowerCase() || '')
+        )
+      )?.id || null;
+
+      if (!targetLineId) {
+        showToast(`No items with "${voucher.itemType}" modifier in cart`, "error");
+        return;
+      }
+    } else if (voucher.discountType === 'free_item') {
+      // Find items matching itemType/category
+      targetLineId = lines.find(line => {
+        const itemName = line.item_name.toLowerCase();
+        const matchesItem = voucher.itemType && itemName.includes(voucher.itemType.toLowerCase());
+        const matchesCategory = voucher.category && itemName.includes(voucher.category.toLowerCase());
+        return matchesItem || matchesCategory;
+      })?.id || null;
+
+      if (!targetLineId) {
+        showToast(`No matching "${voucher.itemType || voucher.category}" items in cart`, "error");
+        return;
+      }
+    } else if (voucher.discountType === 'percentage' || voucher.discountType === 'fixed') {
+      // Apply to first item or cart total - for now apply to first item
+      targetLineId = lines[0]?.id || null;
+      
+      if (!targetLineId) {
+        showToast("No items in cart to apply discount", "error");
+        return;
+      }
+    }
+
+    if (targetLineId) {
+      applyVoucher(targetLineId, voucher);
+      showToast(`Voucher "${voucher.name}" applied to cart`, "success");
+    }
   };
 
   // Determine which items to show based on selected category and popular filter
