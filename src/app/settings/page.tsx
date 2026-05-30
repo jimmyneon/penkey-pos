@@ -327,8 +327,7 @@ export default function SettingsPage() {
       if (settingsRes.ok) {
         const loadedSettings = await settingsRes.json();
         console.log("[Settings] Loaded settings:", loadedSettings);
-        // Merge with defaults to ensure all fields exist
-        setSettings({ ...DEFAULT_SETTINGS, ...loadedSettings });
+        setSettings(loadedSettings);
       } else {
         console.warn("[Settings] Failed to load settings from API, using defaults");
         const errorData = await settingsRes.json();
