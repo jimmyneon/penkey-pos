@@ -81,6 +81,7 @@ const withPWA = require('next-pwa')({
     {
       urlPattern: ({ url, request }) => url.pathname.startsWith('/api/receipts') && request.method === 'POST',
       handler: 'NetworkOnly',
+      options: {},
     },
   ],
   fallbacks: {
