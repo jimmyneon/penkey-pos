@@ -54,8 +54,10 @@ const withPWA = require('next-pwa')({
       },
     },
     // Next API routes that return mostly-static lists
+    // NOTE: /api/register is intentionally excluded — those routes require httpOnly cookie
+    // auth and must not be served from cache (stale 401s would lock users out for 24h).
     {
-      urlPattern: ({ url }) => url.pathname.startsWith('/api/items') || url.pathname.startsWith('/api/categories') || url.pathname.startsWith('/api/modifiers') || url.pathname.startsWith('/api/register') || url.pathname.startsWith('/api/taxes'),
+      urlPattern: ({ url }) => url.pathname.startsWith('/api/items') || url.pathname.startsWith('/api/categories') || url.pathname.startsWith('/api/modifiers') || url.pathname.startsWith('/api/taxes'),
       handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'api-static',
@@ -72,31 +74,13 @@ const withPWA = require('next-pwa')({
         expiration: { maxAgeSeconds: 24 * 60 * 60 },
       },
     },
-    // Queue sales creation when offline
+    // Receipts and refund POST requests use NetworkOnly with NO backgroundSync.
+    // The OutboxSyncService (IndexedDB-based) handles all offline queuing and
+    // retry logic. Adding SW backgroundSync on top of it causes duplicate receipts
+    // because both mechanisms replay the request when connectivity returns.
     {
-      urlPattern: ({ url, request }) => url.pathname.startsWith('/api/receipts/create') && request.method === 'POST',
+      urlPattern: ({ url, request }) => url.pathname.startsWith('/api/receipts') && request.method === 'POST',
       handler: 'NetworkOnly',
-      options: {
-        backgroundSync: {
-          name: 'pos-receipts-create-queue',
-          options: {
-            maxRetentionTime: 24 * 60, // minutes (24h)
-          },
-        },
-      },
-    },
-    // Queue refund operations when offline
-    {
-      urlPattern: ({ url, request }) => url.pathname.includes('/api/receipts/') && url.pathname.endsWith('/refund') && request.method === 'POST',
-      handler: 'NetworkOnly',
-      options: {
-        backgroundSync: {
-          name: 'pos-receipts-refund-queue',
-          options: {
-            maxRetentionTime: 24 * 60, // minutes (24h)
-          },
-        },
-      },
     },
   ],
   fallbacks: {

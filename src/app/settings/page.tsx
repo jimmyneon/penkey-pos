@@ -278,7 +278,10 @@ export default function SettingsPage() {
 
   const loadPerksSettings = async () => {
     try {
-      const response = await fetch("/api/settings/perks");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch("/api/settings/perks", { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (response.ok) {
         const data = await response.json();
         setPerksDomain(data.domain || "");
