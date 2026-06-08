@@ -27,7 +27,7 @@ export function QuickAddItemDialog({
     base_price: "",
     sku: "",
     description: "",
-    show_online: false,
+    show_online: true,
   });
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export function QuickAddItemDialog({
         base_price: "",
         sku: "",
         description: "",
-        show_online: false,
+        show_online: true,
       });
       onSuccess();
     } catch (error: any) {

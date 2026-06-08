@@ -43,7 +43,7 @@ export function QuickEditItemDialog({
     description: "",
     image_url: "",
     is_active: true,
-    show_online: false,
+    show_online: true,
   });
   const [modifiersLoading, setModifiersLoading] = useState(false);
   const [assignedGroups, setAssignedGroups] = useState<Array<{ id: string; name: string; selection_type: string }>>([]);
@@ -62,7 +62,7 @@ export function QuickEditItemDialog({
         description: item.description || "",
         image_url: item.image_url || "",
         is_active: item.is_active ?? true,
-        show_online: item.show_online ?? false,
+        show_online: item.show_online ?? true,
       });
       // Load assigned modifier groups for this item (IDB-first for speed)
       (async () => {

@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("org_id", PENKEY_ORG_ID)
       .eq("is_active", true)
+      .eq("show_online", true)
       .order("name");
 
     if (error) throw error;
