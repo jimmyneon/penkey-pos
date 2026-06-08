@@ -27,6 +27,7 @@ export function QuickAddItemDialog({
     base_price: "",
     sku: "",
     description: "",
+    show_online: false,
   });
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export function QuickAddItemDialog({
           base_price: formData.base_price,
           sku: formData.sku || null,
           description: formData.description || null,
+          show_online: formData.show_online,
         }),
       });
 
@@ -80,6 +82,7 @@ export function QuickAddItemDialog({
         base_price: "",
         sku: "",
         description: "",
+        show_online: false,
       });
       onSuccess();
     } catch (error: any) {
@@ -182,6 +185,19 @@ export function QuickAddItemDialog({
               rows={3}
               className="mt-1 w-full bg-[#2d2d2d] text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-penkey-orange placeholder:text-gray-500"
             />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="show_online"
+              checked={formData.show_online}
+              onChange={(e) => setFormData({ ...formData, show_online: e.target.checked })}
+              className="w-5 h-5 rounded border-gray-600 bg-[#2d2d2d] text-penkey-orange focus:ring-penkey-orange focus:ring-offset-0"
+            />
+            <Label htmlFor="show_online" className="text-sm font-medium text-gray-300 cursor-pointer">
+              Show online
+            </Label>
           </div>
 
           <div className="flex gap-3 pt-4">

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, category_id, base_price, sku, description } = body;
+    const { name, category_id, base_price, sku, description, show_online } = body;
 
     if (!name || !base_price) {
       return NextResponse.json(
@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
         has_variants: false,
         track_inventory: true,
         is_active: true,
+        show_online: show_online || false,
       })
       .select()
       .single();

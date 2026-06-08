@@ -43,6 +43,7 @@ export function QuickEditItemDialog({
     description: "",
     image_url: "",
     is_active: true,
+    show_online: false,
   });
   const [modifiersLoading, setModifiersLoading] = useState(false);
   const [assignedGroups, setAssignedGroups] = useState<Array<{ id: string; name: string; selection_type: string }>>([]);
@@ -61,6 +62,7 @@ export function QuickEditItemDialog({
         description: item.description || "",
         image_url: item.image_url || "",
         is_active: item.is_active ?? true,
+        show_online: item.show_online ?? false,
       });
       // Load assigned modifier groups for this item (IDB-first for speed)
       (async () => {
@@ -142,6 +144,7 @@ export function QuickEditItemDialog({
         description: formData.description || null,
         image_url: formData.image_url || null,
         is_active: formData.is_active,
+        show_online: formData.show_online,
       };
 
       // Only update price if item doesn't have variants
@@ -394,6 +397,19 @@ export function QuickEditItemDialog({
             />
             <Label htmlFor="is_active" className="text-sm font-medium cursor-pointer text-gray-300">
               Active (visible in POS)
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show_online"
+              checked={formData.show_online}
+              onChange={(e) => setFormData({ ...formData, show_online: e.target.checked })}
+              className="w-4 h-4 text-penkey-orange border-gray-600 rounded focus:ring-penkey-orange bg-[#2d2d2d]"
+            />
+            <Label htmlFor="show_online" className="text-sm font-medium cursor-pointer text-gray-300">
+              Show online
             </Label>
           </div>
 

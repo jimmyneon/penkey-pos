@@ -82,6 +82,7 @@ export async function PATCH(
       low_stock_threshold,
       image_url,
       favourite_position,
+      show_online,
     } = body;
 
     const updateData: any = {};
@@ -107,6 +108,7 @@ export async function PATCH(
       // This requires database migrations to be run first (add_is_favourite_to_items.sql and add_favourite_position_to_items.sql)
       updateData.favourite_position = favourite_position;
     }
+    if (show_online !== undefined) updateData.show_online = show_online;
 
     console.log(`[API-AUTH] Updating item ${id} with data:`, updateData);
 
