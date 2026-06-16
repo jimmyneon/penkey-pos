@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       transaction_id,
       checkout_id,
       created_at,
+      tip_amount,
       voucher_redemptions, // Array of voucher redemptions
     } = body;
 
@@ -183,7 +184,8 @@ export async function POST(request: NextRequest) {
       return sum + (line.unit_price + modifiersTotal) * line.quantity * (line.tax_rate || 0);
     }, 0);
 
-    const total = subtotal + taxTotal;
+    const tipTotal = parseFloat(tip_amount) || 0;
+    const total = subtotal + taxTotal + tipTotal;
 
     // Get next receipt number
     const { data: receiptNumber } = await supabase.rpc("get_next_receipt_number", {
@@ -207,7 +209,8 @@ export async function POST(request: NextRequest) {
         subtotal,
         discount_total: 0,
         tax_total: taxTotal,
-        tip_total: 0,
+        tip_total: tipTotal,
+        tip_amount: tipTotal,
         total,
         paid_amount: total,
         change_amount: payment_method === "cash" ? (cash_tendered || 0) - total : 0,
@@ -281,7 +284,7 @@ export async function POST(request: NextRequest) {
       receipt_id: newReceiptId,
       method: payment_method,
       amount: total,
-      tip_amount: 0,
+      tip_amount: tipTotal,
       reference: payment_method === "cash" ? `Cash tendered: ${cash_tendered}` : null,
     };
 

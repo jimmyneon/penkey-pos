@@ -1,0 +1,486 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { formatCurrency } from "@penkey/ui";
+import {
+  ArrowLeft,
+  Gift,
+  Plus,
+  Search,
+  Mail,
+  Printer,
+  QrCode,
+  Check,
+  X,
+  Coffee,
+  DollarSign,
+  Percent,
+  ChevronDown,
+} from "lucide-react";
+
+type VoucherType = "amount" | "item" | "percent";
+
+const STATUS_COLOURS: Record<string, string> = {
+  active: "bg-green-500/20 text-green-400 border border-green-500/30",
+  redeemed: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
+  expired: "bg-red-500/20 text-red-400 border border-red-500/30",
+  cancelled: "bg-red-800/20 text-red-600 border border-red-800/30",
+};
+
+export default function VouchersPage() {
+  const router = useRouter();
+  const [vouchers, setVouchers] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [emailingId, setEmailingId] = useState<string | null>(null);
+
+  // Create form state
+  const [voucherType, setVoucherType] = useState<VoucherType>("amount");
+  const [amount, setAmount] = useState("");
+  const [percentDiscount, setPercentDiscount] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const [selectedItemName, setSelectedItemName] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [message, setMessage] = useState("");
+  const [sendEmail, setSendEmail] = useState(false);
+  const [itemSearch, setItemSearch] = useState("");
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+
+  useEffect(() => {
+    fetchVouchers();
+    fetchItems();
+  }, []);
+
+  const fetchVouchers = async () => {
+    try {
+      const res = await fetch("/api/vouchers");
+      if (res.ok) {
+        const data = await res.json();
+        setVouchers(data.vouchers || []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchItems = async () => {
+    try {
+      const res = await fetch("/api/items?active=true&limit=200");
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.items || []);
+      }
+    } catch {}
+  };
+
+  const filteredItems = items.filter((item) =>
+    item.name.toLowerCase().includes(itemSearch.toLowerCase())
+  );
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const body: any = {
+        voucher_type: voucherType,
+        recipient_name: recipientName || null,
+        recipient_email: recipientEmail || null,
+        expires_at: expiryDate ? new Date(expiryDate).toISOString() : null,
+        message: message || null,
+        send_email: sendEmail && !!recipientEmail,
+      };
+
+      if (voucherType === "amount") body.amount = parseFloat(amount);
+      if (voucherType === "percent") body.percent_discount = parseFloat(percentDiscount);
+      if (voucherType === "item") {
+        body.item_id = selectedItemId;
+        body.item_name = selectedItemName;
+      }
+
+      const res = await fetch("/api/vouchers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setVouchers((prev) => [data.voucher, ...prev]);
+        resetForm();
+        setShowCreate(false);
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleEmail = async (voucher: any) => {
+    const email = voucher.recipient_email || prompt("Enter email address:");
+    if (!email) return;
+    setEmailingId(voucher.id);
+    try {
+      await fetch(`/api/vouchers/${voucher.id}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } finally {
+      setEmailingId(null);
+    }
+  };
+
+  const handlePrint = async (voucher: any) => {
+    window.open(`/api/vouchers/${voucher.id}/print`, "_blank");
+  };
+
+  const resetForm = () => {
+    setVoucherType("amount");
+    setAmount("");
+    setPercentDiscount("");
+    setSelectedItemId("");
+    setSelectedItemName("");
+    setRecipientName("");
+    setRecipientEmail("");
+    setExpiryDate("");
+    setMessage("");
+    setSendEmail(false);
+    setItemSearch("");
+  };
+
+  const isFormValid = () => {
+    if (voucherType === "amount") return !!amount && !isNaN(parseFloat(amount));
+    if (voucherType === "percent") return !!percentDiscount && !isNaN(parseFloat(percentDiscount));
+    if (voucherType === "item") return !!selectedItemId;
+    return false;
+  };
+
+  const filtered = vouchers.filter((v) =>
+    [v.code, v.recipient_name, v.recipient_email, v.item_name]
+      .filter(Boolean)
+      .some((f) => f.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const voucherLabel = (v: any) => {
+    if (v.voucher_type === "amount") return formatCurrency(v.amount);
+    if (v.voucher_type === "percent") return `${v.percent_discount}% off`;
+    if (v.voucher_type === "item") return `Free: ${v.item_name}`;
+    return "—";
+  };
+
+  return (
+    <div className="min-h-screen bg-[#2d2d2d] flex flex-col text-white">
+      {/* Header */}
+      <header className="bg-[#3d3d3d] px-4 py-3 flex items-center justify-between border-b border-gray-700">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push("/sell")} className="p-2 rounded-lg hover:bg-white/10">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-xl font-bold">Gift Vouchers</h1>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 bg-penkey-orange hover:bg-penkey-orange/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Create
+        </button>
+      </header>
+
+      {/* Search */}
+      <div className="px-4 py-3 border-b border-gray-700">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by code, name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-[#3d3d3d] text-white pl-10 pr-4 py-2.5 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Voucher list */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-penkey-orange" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-4 text-gray-400">
+            <Gift className="h-16 w-16 opacity-30" />
+            <p className="text-lg">No vouchers yet</p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="bg-penkey-orange text-white px-6 py-2 rounded-lg font-semibold"
+            >
+              Create your first voucher
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-700">
+            {filtered.map((voucher) => (
+              <div key={voucher.id} className="px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-mono font-bold text-penkey-orange">{voucher.code}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_COLOURS[voucher.status] || ""}`}>
+                        {voucher.status}
+                      </span>
+                    </div>
+                    <div className="text-lg font-semibold">{voucherLabel(voucher)}</div>
+                    {voucher.recipient_name && (
+                      <div className="text-sm text-gray-400">For: {voucher.recipient_name}</div>
+                    )}
+                    {voucher.expires_at && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Expires {new Date(voucher.expires_at).toLocaleDateString("en-GB")}
+                      </div>
+                    )}
+                  </div>
+                  {voucher.status === "active" && (
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleEmail(voucher)}
+                        disabled={emailingId === voucher.id}
+                        className="p-2 bg-[#4d4d4d] hover:bg-[#5d5d5d] rounded-lg transition-colors disabled:opacity-50"
+                        title="Email voucher"
+                      >
+                        {emailingId === voucher.id ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handlePrint(voucher)}
+                        className="p-2 bg-[#4d4d4d] hover:bg-[#5d5d5d] rounded-lg transition-colors"
+                        title="Print voucher"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Create Voucher Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#3d3d3d] w-full sm:max-w-lg sm:rounded-xl overflow-hidden flex flex-col max-h-[95vh]">
+            {/* Modal header */}
+            <div className="px-4 py-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-xl font-bold">Create Voucher</h2>
+              <button onClick={() => { setShowCreate(false); resetForm(); }} className="p-2 hover:bg-white/10 rounded-lg">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              {/* Type selector */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Voucher Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["amount", "item", "percent"] as VoucherType[]).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setVoucherType(type)}
+                      className={`py-3 rounded-lg flex flex-col items-center gap-1 text-sm font-semibold border-2 transition-colors ${
+                        voucherType === type
+                          ? "border-penkey-orange bg-penkey-orange/10 text-penkey-orange"
+                          : "border-gray-600 bg-[#2d2d2d] text-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      {type === "amount" && <DollarSign className="h-5 w-5" />}
+                      {type === "item" && <Coffee className="h-5 w-5" />}
+                      {type === "percent" && <Percent className="h-5 w-5" />}
+                      <span className="capitalize">{type === "amount" ? "£ Value" : type === "item" ? "Free Item" : "% Off"}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Value input */}
+              {voucherType === "amount" && (
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Amount (£)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl font-bold text-penkey-orange">£</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={amount} onChange={(e) => setAmount(e.target.value)}
+                      className="w-full bg-[#2d2d2d] text-white pl-8 pr-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange text-xl font-bold"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    {[5, 10, 20, 50].map((v) => (
+                      <button key={v} onClick={() => setAmount(String(v))}
+                        className="flex-1 py-2 bg-[#2d2d2d] border border-gray-600 hover:border-penkey-orange text-sm rounded-lg transition-colors">
+                        £{v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {voucherType === "percent" && (
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Discount (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number" min="1" max="100" step="1"
+                      value={percentDiscount} onChange={(e) => setPercentDiscount(e.target.value)}
+                      className="w-full bg-[#2d2d2d] text-white pl-4 pr-8 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange text-xl font-bold"
+                      placeholder="10"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-bold text-penkey-orange">%</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    {[10, 15, 20, 25].map((v) => (
+                      <button key={v} onClick={() => setPercentDiscount(String(v))}
+                        className="flex-1 py-2 bg-[#2d2d2d] border border-gray-600 hover:border-penkey-orange text-sm rounded-lg transition-colors">
+                        {v}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {voucherType === "item" && (
+                <div className="relative">
+                  <label className="text-sm text-gray-400 mb-2 block">Select Item</label>
+                  <button
+                    onClick={() => setShowItemDropdown(!showItemDropdown)}
+                    className="w-full bg-[#2d2d2d] text-left px-4 py-3 rounded-lg border border-gray-600 hover:border-penkey-orange flex items-center justify-between transition-colors"
+                  >
+                    <span className={selectedItemName ? "text-white" : "text-gray-400"}>
+                      {selectedItemName || "Choose an item..."}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  </button>
+                  {showItemDropdown && (
+                    <div className="absolute z-10 w-full bg-[#4d4d4d] border border-gray-600 rounded-lg mt-1 shadow-xl">
+                      <div className="p-2 border-b border-gray-600">
+                        <input
+                          type="text" placeholder="Search items..."
+                          value={itemSearch} onChange={(e) => setItemSearch(e.target.value)}
+                          className="w-full bg-[#3d3d3d] text-white px-3 py-2 rounded-lg text-sm focus:outline-none"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {filteredItems.slice(0, 30).map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setSelectedItemId(item.id);
+                              setSelectedItemName(item.name);
+                              setShowItemDropdown(false);
+                              setItemSearch("");
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex justify-between items-center"
+                          >
+                            <span className="text-sm">{item.name}</span>
+                            <span className="text-xs text-gray-400">{formatCurrency(item.price)}</span>
+                          </button>
+                        ))}
+                        {filteredItems.length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-400">No items found</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Recipient */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Recipient Name (optional)</label>
+                <input
+                  type="text" value={recipientName} onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder="e.g. Jane Smith"
+                  className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Recipient Email (optional)</label>
+                <input
+                  type="email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange"
+                />
+              </div>
+
+              {/* Expiry */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Expiry Date (optional)</label>
+                <input
+                  type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange"
+                />
+              </div>
+
+              {/* Message */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Personal Message (optional)</label>
+                <textarea
+                  value={message} onChange={(e) => setMessage(e.target.value)}
+                  placeholder="With love from..."
+                  rows={2}
+                  className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange resize-none"
+                />
+              </div>
+
+              {/* Send email toggle */}
+              {recipientEmail && (
+                <button
+                  onClick={() => setSendEmail(!sendEmail)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-colors ${
+                    sendEmail ? "border-penkey-orange bg-penkey-orange/10" : "border-gray-600 bg-[#2d2d2d]"
+                  }`}
+                >
+                  <Mail className="h-5 w-5 flex-shrink-0" />
+                  <span className="flex-1 text-left text-sm font-medium">Send voucher by email</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${sendEmail ? "bg-penkey-orange border-penkey-orange" : "border-gray-500"}`}>
+                    {sendEmail && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                </button>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-700 flex-shrink-0">
+              <button
+                onClick={handleCreate}
+                disabled={creating || !isFormValid()}
+                className="w-full py-4 bg-penkey-orange hover:bg-penkey-orange/90 disabled:opacity-40 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {creating ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white" />
+                ) : (
+                  <>
+                    <Gift className="h-5 w-5" />
+                    Create Voucher
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@penkey/ui";
-import { X, Settings, Package, BarChart3, Lock, Receipt, ShoppingCart, RefreshCw, Clock } from "lucide-react";
+import { X, Settings, Package, BarChart3, Lock, Receipt, ShoppingCart, RefreshCw, Clock, Bell, Gift } from "lucide-react";
+import { usePendingOrders } from "@/lib/hooks/use-pending-orders";
 import { SyncManager } from "@/lib/services/sync-manager";
 
 interface SidebarMenuProps {
@@ -19,6 +20,7 @@ interface SidebarMenuProps {
 
 export function SidebarMenu({ open, onClose, onLock, onSync, syncing, lastSync, storeName, registerName }: SidebarMenuProps) {
   const router = useRouter();
+  const pendingOrders = usePendingOrders();
   const [computedLastSync, setComputedLastSync] = useState<number | null>(null);
 
   // Poll SyncManager for the most recent last sync while the menu is open,
@@ -119,6 +121,21 @@ export function SidebarMenu({ open, onClose, onLock, onSync, syncing, lastSync, 
               <button 
                 onClick={() => {
                   onClose();
+                  router.push('/orders');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+              >
+                <Bell className="h-5 w-5" />
+                <span className="flex-1">Orders</span>
+                {pendingOrders > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {pendingOrders}
+                  </span>
+                )}
+              </button>
+              <button 
+                onClick={() => {
+                  onClose();
                   router.push('/items-hub');
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
@@ -145,6 +162,16 @@ export function SidebarMenu({ open, onClose, onLock, onSync, syncing, lastSync, 
               >
                 <Clock className="h-5 w-5" />
                 <span>Shifts</span>
+              </button>
+              <button 
+                onClick={() => {
+                  onClose();
+                  router.push('/vouchers');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+              >
+                <Gift className="h-5 w-5" />
+                <span>Gift Vouchers</span>
               </button>
               <button 
                 onClick={() => {

@@ -987,6 +987,37 @@ export default function SettingsPage() {
             </SettingRow>
           </SettingsSection>
 
+          {/* Tip Settings */}
+          <SettingsSection title="Tip Presets" icon={CreditCard}>
+            <SettingRow
+              label="Tip Preset Amounts"
+              description="Customise the tip amounts shown to customers on the payment screen (in £)"
+            >
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex gap-2 flex-wrap">
+                  {(settings?.additional_settings?.tip_presets ?? [2, 5, 10]).map((preset: number, idx: number) => (
+                    <div key={idx} className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-penkey-orange font-bold text-sm">£</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={preset}
+                        onChange={(e) => {
+                          const presets: number[] = [...(settings?.additional_settings?.tip_presets ?? [2, 5, 10])];
+                          presets[idx] = parseFloat(e.target.value) || 0;
+                          updateSetting("additional_settings", { ...(settings?.additional_settings || {}), tip_presets: presets });
+                        }}
+                        className="bg-[#3d3d3d] text-white pl-5 pr-2 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none w-20 min-h-[44px] text-sm font-bold"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">These amounts appear as quick-select buttons on the tip screen before payment.</p>
+              </div>
+            </SettingRow>
+          </SettingsSection>
+
           {/* Printer Status */}
           <SettingsSection title="Printer Status" icon={Printer}>
             <SettingRow

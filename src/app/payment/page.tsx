@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode } from "lucide-react";
+import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode, Gift } from "lucide-react";
+import { TipSelection } from "./tip-selection";
 import { useCartStore } from "@/lib/store/cart-store";
 import { TicketModal } from "../sell/ticket-modal";
 import { CashTenderedDialog } from "./cash-tendered-dialog";
@@ -59,6 +60,9 @@ export default function PaymentPage() {
   const [perksCustomer, setPerksCustomer] = useState<any>(null);
   const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
   const [scanningQR, setScanningQR] = useState(false);
+  const [tipAmount, setTipAmount] = useState(0);
+  const [showTipSelection, setShowTipSelection] = useState(false);
+  const [tipPresets, setTipPresets] = useState<number[]>([2, 5, 10]);
   const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher } = useCartStore();
   
   // SumUp API key credential check
@@ -97,6 +101,11 @@ export default function PaymentPage() {
             // Load default dining option
             if (settings.default_dining_option) {
               setDefaultDiningOption(settings.default_dining_option);
+            }
+            // Load tip presets from additional_settings
+            const presets = settings.additional_settings?.tip_presets;
+            if (Array.isArray(presets) && presets.length > 0) {
+              setTipPresets(presets);
             }
           }
           
@@ -546,7 +555,8 @@ export default function PaymentPage() {
     wakeUpTerminals();
   }, [sumUpConfigured, isOnline]);
 
-  const total = getTotal();
+  const cartTotal = getTotal();
+  const total = cartTotal + tipAmount;
 
   const handleCashPayment = async (amount: number) => {
     if (!session) return;
@@ -559,7 +569,7 @@ export default function PaymentPage() {
     setCashDialogOpen(false);
     playPaymentProcessingSound();
 
-    const change = amount - total;
+    const change = amount - total; // total already includes tip
     console.log("[Payment] Cash tendered:", amount);
     console.log("[Payment] Total:", total);
     console.log("[Payment] Change calculated:", change);
@@ -593,6 +603,7 @@ export default function PaymentPage() {
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       // Use global default dining option setting (can be overridden by table assignment)
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+      tip_amount: tipAmount,
       voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
         voucher_id: line.voucher!.id,
         voucher_name: line.voucher!.name,
@@ -650,6 +661,7 @@ export default function PaymentPage() {
         total: total,
         subtotal: subtotal,
         tax_total: taxTotal,
+        tip_amount: tipAmount,
         change: change,
         change_amount: change,
         cash_change: change,
@@ -736,6 +748,7 @@ export default function PaymentPage() {
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+      tip_amount: tipAmount,
       voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
         voucher_id: line.voucher!.id,
         voucher_name: line.voucher!.name,
@@ -1638,6 +1651,7 @@ export default function PaymentPage() {
         payment_provider: "sumup",
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,
+        tip_amount: tipAmount,
         voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
           voucher_id: line.voucher!.id,
           voucher_name: line.voucher!.name,
@@ -1666,6 +1680,7 @@ export default function PaymentPage() {
         total,
         subtotal: subtotal,
         tax_total: taxTotal,
+        tip_amount: tipAmount,
         created_at: new Date().toISOString(),
         offline: false,
         // Add formatted fields for printing
@@ -1749,6 +1764,9 @@ export default function PaymentPage() {
           >
             <div className="text-xs uppercase tracking-wide opacity-90">Total Amount</div>
             <div className="text-3xl font-bold">{formatCurrency(total)}</div>
+            {tipAmount > 0 && (
+              <div className="text-xs text-white/80 mt-0.5">incl. {formatCurrency(tipAmount)} tip</div>
+            )}
           </button>
           
           <div className="flex-1"></div>
@@ -1765,10 +1783,31 @@ export default function PaymentPage() {
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto">
-        <div className="max-w-2xl mx-auto">
-          {/* Payment Methods */}
-          <h2 className="text-xl font-bold text-white mb-4">Select Payment Method</h2>
+      <div className="flex-1 p-4 overflow-y-auto flex flex-col">
+        {showTipSelection ? (
+          <TipSelection
+            subtotal={cartTotal}
+            tipPresets={tipPresets}
+            onSelect={(amount) => { setTipAmount(amount); setShowTipSelection(false); }}
+            onSkip={() => { setTipAmount(0); setShowTipSelection(false); }}
+          />
+        ) : (
+        <div className="max-w-2xl mx-auto w-full">
+          {/* Tip row */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white">Select Payment Method</h2>
+            <button
+              onClick={() => setShowTipSelection(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                tipAmount > 0
+                  ? 'bg-penkey-orange text-white'
+                  : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
+              }`}
+            >
+              <Gift className="h-4 w-4" />
+              {tipAmount > 0 ? `Tip: ${formatCurrency(tipAmount)}` : 'Add Tip'}
+            </button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Cash Payment Button */}
             <button
@@ -1817,6 +1856,7 @@ export default function PaymentPage() {
             Cancel
           </button>
         </div>
+        )}
       </div>
 
       {/* Cash Tendered Dialog */}

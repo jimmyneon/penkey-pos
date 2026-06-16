@@ -1,6 +1,8 @@
 "use client";
 
-import { Menu, UserPlus, RefreshCw, Scan } from "lucide-react";
+import { Menu, UserPlus, RefreshCw, Scan, Bell } from "lucide-react";
+import { usePendingOrders } from "@/lib/hooks/use-pending-orders";
+import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { Badge } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
@@ -35,6 +37,8 @@ export function SellHeader({
   onSyncClick,
   onQRScanClick,
 }: SellHeaderProps) {
+  const router = useRouter();
+  const pendingOrders = usePendingOrders();
   return (
     <>
       {/* Header - Responsive */}
@@ -63,6 +67,20 @@ export function SellHeader({
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Minimal sync status indicator */}
           <SyncStatusIndicator />
+
+          {/* Orders notification */}
+          <button
+            onClick={() => router.push('/orders')}
+            className="relative text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+            title="Orders"
+          >
+            <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+            {pendingOrders > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                {pendingOrders}
+              </span>
+            )}
+          </button>
           
           {onQRScanClick && (
             <Button 
