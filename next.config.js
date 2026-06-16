@@ -83,6 +83,20 @@ const withPWA = require('next-pwa')({
       handler: 'NetworkOnly',
       options: {},
     },
+    // Vouchers API - NetworkOnly to prevent service worker interference
+    // Voucher operations don't need offline support and should always hit the network
+    {
+      urlPattern: ({ url }) => url.pathname.startsWith('/api/vouchers'),
+      handler: 'NetworkOnly',
+      options: {},
+    },
+    // Auth and register APIs - NetworkOnly to prevent stale cached auth responses
+    // These require httpOnly cookie auth and must not be served from cache
+    {
+      urlPattern: ({ url }) => url.pathname.startsWith('/api/register') || url.pathname.startsWith('/api/auth'),
+      handler: 'NetworkOnly',
+      options: {},
+    },
   ],
   fallbacks: {
     document: '/offline.html',
