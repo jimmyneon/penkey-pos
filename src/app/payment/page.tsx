@@ -600,9 +600,20 @@ export default function PaymentPage() {
           message: config.message || null,
           send_email: config.sendEmail && !!config.recipientEmail,
         }),
-      }).then(() => {
+      }).then((res) => {
+        if (res.ok) {
+          return res.json();
+        }
+        throw new Error("Failed to create voucher");
+      }).then((data) => {
+        if (data.voucher?.id) {
+          sessionStorage.setItem("created_voucher_id", data.voucher.id);
+        }
         sessionStorage.removeItem("pending_voucher_create");
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error("[Payment] Failed to create voucher:", err);
+        sessionStorage.removeItem("pending_voucher_create");
+      });
     } catch {
       sessionStorage.removeItem("pending_voucher_create");
     }

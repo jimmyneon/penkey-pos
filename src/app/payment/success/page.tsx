@@ -28,12 +28,24 @@ function PaymentSuccessContent() {
   const [printing, setPrinting] = useState(false);
   const [printQueued, setPrintQueued] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [voucherId, setVoucherId] = useState<string | null>(null);
   
   console.log(`[PaymentSuccessContent] Initial render values - receiptId: ${receiptId}, change: ${change}, countdown: ${countdown}, mounted: ${mounted}`);
   
   useEffect(() => {
     console.log("[PaymentSuccess] Mount effect: Component is now mounted.");
     setMounted(true);
+
+    // Check if a voucher was created
+    try {
+      const vid = sessionStorage.getItem("created_voucher_id");
+      if (vid) {
+        setVoucherId(vid);
+        sessionStorage.removeItem("created_voucher_id");
+      }
+    } catch (err) {
+      console.error("[PaymentSuccess] Failed to load voucher ID:", err);
+    }
 
     // Load sound enabled setting
     const loadSoundSetting = async () => {
@@ -257,6 +269,11 @@ function PaymentSuccessContent() {
     redirect();
   };
 
+  const handlePrintVoucher = () => {
+    if (!voucherId) return;
+    window.open(`/api/vouchers/${voucherId}/print`, "_blank");
+  };
+
   console.log(`[PaymentSuccessContent] Rendering JSX - countdown: ${countdown}`);
   return (
     <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center p-4">
@@ -286,7 +303,7 @@ function PaymentSuccessContent() {
 
         {/* Actions */}
         <div className="flex justify-center items-center gap-3 mb-8 flex-wrap">
-          <Button 
+          <Button
             size="lg"
             className="flex flex-col items-center justify-center h-28 w-28 sm:h-32 sm:w-32 bg-penkey-orange hover:bg-orange-600 text-white p-2 aspect-square"
             onClick={handleNewSale}
@@ -313,6 +330,16 @@ function PaymentSuccessContent() {
               {printing ? "Sending..." : printQueued ? "Sent ✓" : "Print Receipt"}
             </span>
           </Button>
+          {voucherId && (
+            <Button
+              size="lg"
+              className="flex flex-col items-center justify-center h-28 w-28 sm:h-32 sm:w-32 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white border-0 p-2 aspect-square transition-colors"
+              onClick={handlePrintVoucher}
+            >
+              <Printer className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
+              <span className="text-xs sm:text-sm text-center leading-tight">Print Voucher</span>
+            </Button>
+          )}
         </div>
 
         {/* QR Code Section */}
