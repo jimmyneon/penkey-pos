@@ -1,14 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export function ServiceWorkerRegister() {
+  const pathname = usePathname();
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     // Only register in production
     if (process.env.NODE_ENV !== "production") {
       console.log("[SW] Development mode - service worker registration skipped");
+      return;
+    }
+
+    // Only register on pages that need offline support
+    // Vouchers, items, reports, settings, etc. don't need offline support
+    const offlineRoutes = ['/sell', '/payment'];
+    const needsOffline = offlineRoutes.some(route => pathname.startsWith(route));
+
+    if (!needsOffline) {
+      console.log("[SW] Route doesn't need offline support, skipping SW registration:", pathname);
       return;
     }
 
@@ -44,12 +57,12 @@ export function ServiceWorkerRegister() {
         registration.addEventListener("updatefound", () => {
           console.log("[SW] Service worker update found");
           const newWorker = registration.installing;
-          
+
           if (!newWorker) return;
 
           newWorker.addEventListener("statechange", () => {
             console.log("[SW] New service worker state:", newWorker.state);
-            
+
             if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
               // New service worker is installed and waiting
               console.log("[SW] New service worker installed and waiting");
@@ -88,7 +101,7 @@ export function ServiceWorkerRegister() {
 
     // Register immediately
     registerServiceWorker();
-  }, []);
+  }, [pathname]);
 
   return null;
 }
