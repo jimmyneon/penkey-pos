@@ -86,41 +86,61 @@ export default function VouchersPage() {
   }, [router]);
 
   const fetchVouchers = async () => {
+    console.log("[Vouchers] fetchVouchers called");
     try {
       let sessionData;
       try {
         sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        console.log("[Vouchers] Session data for fetch:", !!sessionData);
       } catch {
         sessionData = null;
+        console.log("[Vouchers] Session storage error in fetchVouchers");
       }
+      console.log("[Vouchers] Fetching /api/vouchers");
       const res = await fetch("/api/vouchers", {
         headers: sessionData ? { "x-pos-session": sessionData } : {},
       });
+      console.log("[Vouchers] Vouchers response status:", res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log("[Vouchers] Vouchers data received:", data.vouchers?.length);
         setVouchers(data.vouchers || []);
+      } else {
+        console.error("[Vouchers] Vouchers fetch failed:", res.status, res.statusText);
       }
+    } catch (err) {
+      console.error("[Vouchers] fetchVouchers error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchItems = async () => {
+    console.log("[Vouchers] fetchItems called");
     try {
       let sessionData;
       try {
         sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        console.log("[Vouchers] Session data for items fetch:", !!sessionData);
       } catch {
         sessionData = null;
+        console.log("[Vouchers] Session storage error in fetchItems");
       }
+      console.log("[Vouchers] Fetching /api/items");
       const res = await fetch("/api/items?limit=200", {
         headers: sessionData ? { "x-pos-session": sessionData } : {},
       });
+      console.log("[Vouchers] Items response status:", res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log("[Vouchers] Items data received:", data.items?.length);
         setItems(data.items || []);
+      } else {
+        console.error("[Vouchers] Items fetch failed:", res.status, res.statusText);
       }
-    } catch {}
+    } catch (err) {
+      console.error("[Vouchers] fetchItems error:", err);
+    }
   };
 
   const filteredItems = items.filter((item) =>
