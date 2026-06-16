@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 /**
  * Security Headers Middleware
  * Adds security headers to all responses
- * 
+ *
  * ✅ SECURITY: Protects against various attacks
  */
 

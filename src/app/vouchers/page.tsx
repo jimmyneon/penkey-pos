@@ -195,9 +195,9 @@ export default function VouchersPage() {
   );
 
   const voucherLabel = (v: any) => {
-    if (v.voucher_type === "amount") return formatCurrency(v.amount);
-    if (v.voucher_type === "percent") return `${v.percent_discount}% off`;
-    if (v.voucher_type === "item") return `Free: ${v.item_name}`;
+    if (v.voucher_type === "amount") return formatCurrency(v.amount || 0);
+    if (v.voucher_type === "percent") return `${v.percent_discount || 0}% off`;
+    if (v.voucher_type === "item") return `Free: ${v.item_name || "item"}`;
     return "—";
   };
 
@@ -588,7 +588,7 @@ export default function VouchersPage() {
                   className="w-full py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-40 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  Create & Charge
+                  Charge & Create
                 </button>
               )}
             </div>
