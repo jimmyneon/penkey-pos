@@ -46,7 +46,11 @@ export default function VouchersPage() {
   const [selectedItemName, setSelectedItemName] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() + 12);
+    return d.toISOString().split("T")[0];
+  });
+  const [expiryMode, setExpiryMode] = useState<"3m" | "6m" | "12m" | "custom" | "none">("12m");
   const [message, setMessage] = useState("");
   const [sendEmail, setSendEmail] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
@@ -134,24 +138,8 @@ export default function VouchersPage() {
     }
   };
 
-  const handlePrint = async (voucher: any) => {
-    try {
-      const res = await fetch(`/api/vouchers/${voucher.id}/print`, { method: "POST" });
-      const data = await res.json();
-      if (data.queued) {
-        alert("Voucher sent to printer!");
-      } else if (data.voucher_text) {
-        // No printer - open browser print dialog with text
-        const win = window.open("", "_blank");
-        if (win) {
-          win.document.write(`<pre style="font-family:monospace;white-space:pre;">${data.voucher_text}</pre>`);
-          win.document.close();
-          win.print();
-        }
-      }
-    } catch (err) {
-      console.error("Print failed:", err);
-    }
+  const handlePrint = (voucher: any) => {
+    window.open(`/api/vouchers/${voucher.id}/print?autoprint=1`, "_blank");
   };
 
   const resetForm = () => {
@@ -162,10 +150,12 @@ export default function VouchersPage() {
     setSelectedItemName("");
     setRecipientName("");
     setRecipientEmail("");
-    setExpiryDate("");
+    const d12 = new Date(); d12.setMonth(d12.getMonth() + 12);
+    setExpiryDate(d12.toISOString().split("T")[0]);
     setMessage("");
     setSendEmail(false);
     setItemSearch("");
+    setExpiryMode("12m");
   };
 
   const isFormValid = () => {
@@ -441,12 +431,45 @@ export default function VouchersPage() {
 
               {/* Expiry */}
               <div>
-                <label className="text-sm text-gray-400 mb-2 block">Expiry Date (optional)</label>
-                <input
-                  type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
-                  className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange"
-                />
+                <label className="text-sm text-gray-400 mb-2 block">Expiry</label>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {(["3m", "6m", "12m", "custom"] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setExpiryMode(opt);
+                        if (opt !== "custom") {
+                          const d = new Date();
+                          if (opt === "3m") d.setMonth(d.getMonth() + 3);
+                          if (opt === "6m") d.setMonth(d.getMonth() + 6);
+                          if (opt === "12m") d.setMonth(d.getMonth() + 12);
+                          setExpiryDate(d.toISOString().split("T")[0]);
+                        } else {
+                          setExpiryDate("");
+                        }
+                      }}
+                      className={`py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors ${
+                        expiryMode === opt
+                          ? "border-penkey-orange bg-penkey-orange/10 text-penkey-orange"
+                          : "border-gray-600 bg-[#2d2d2d] text-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      {opt === "3m" ? "3 Months" : opt === "6m" ? "6 Months" : opt === "12m" ? "12 Months" : "Custom"}
+                    </button>
+                  ))}
+                </div>
+                {expiryMode === "custom" && (
+                  <input
+                    type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange"
+                  />
+                )}
+                {expiryDate && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Expires: {new Date(expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
               </div>
 
               {/* Message */}

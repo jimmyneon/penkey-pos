@@ -121,23 +121,33 @@ export async function sendVoucherEmail(voucher: any) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY not configured');
 
-  const { Resend } = await import('resend');
+  const [{ Resend }, QRCode] = await Promise.all([
+    import('resend'),
+    import('qrcode'),
+  ]);
   const resend = new Resend(apiKey);
 
   const valueText =
-    voucher.voucher_type === 'amount' ? `£${Number(voucher.amount).toFixed(2)}`
+    voucher.voucher_type === 'amount' ? `\u00a3${Number(voucher.amount).toFixed(2)}`
     : voucher.voucher_type === 'percent' ? `${voucher.percent_discount}% off`
     : `Free ${voucher.item_name}`;
 
   const expiryText = voucher.expires_at
-    ? `Valid until: ${new Date(voucher.expires_at).toLocaleDateString('en-GB')}`
+    ? `Valid until: ${new Date(voucher.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
     : 'No expiry date';
+
+  // Generate QR code as base64 data URL
+  const qrDataUrl = await QRCode.toDataURL(voucher.code, {
+    width: 200,
+    margin: 2,
+    color: { dark: '#1a1a1a', light: '#ffffff' },
+  });
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'noreply@rewards.penkey.co.uk',
-    reply_to: process.env.RESEND_REPLY_TO_EMAIL,
+    replyTo: process.env.RESEND_REPLY_TO_EMAIL,
     to: voucher.recipient_email,
-    subject: `Your Penkey Gift Voucher – ${valueText}`,
+    subject: `Your Penkey Gift Voucher \u2013 ${valueText}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -153,17 +163,21 @@ export async function sendVoucherEmail(voucher: any) {
     <div style="padding:32px 24px;text-align:center;border-bottom:1px solid #f0f0f0;">
       ${voucher.recipient_name ? `<p style="margin:0 0 8px;color:#666;font-size:14px;">For ${voucher.recipient_name}</p>` : ''}
       <div style="font-size:48px;font-weight:900;color:#e97c2c;">${valueText}</div>
-      <div style="margin-top:16px;background:#f9f9f9;border-radius:12px;padding:16px;">
+      <!-- QR Code -->
+      <div style="margin:20px auto;display:inline-block;background:#f9f9f9;border-radius:12px;padding:16px;">
+        <img src="${qrDataUrl}" width="160" height="160" alt="Voucher QR Code" style="display:block;" />
+      </div>
+      <div style="background:#f9f9f9;border-radius:12px;padding:16px;margin-top:0;">
         <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Voucher Code</div>
-        <div style="font-size:28px;font-weight:700;color:#1a1a1a;letter-spacing:4px;">${voucher.code}</div>
+        <div style="font-size:26px;font-weight:700;color:#1a1a1a;letter-spacing:4px;">${voucher.code}</div>
       </div>
       ${voucher.message ? `<p style="margin:16px 0 0;color:#555;font-style:italic;">"${voucher.message}"</p>` : ''}
     </div>
     <!-- Footer -->
     <div style="padding:20px 24px;text-align:center;background:#fafafa;">
       <p style="margin:0;color:#999;font-size:12px;">${expiryText}</p>
-      <p style="margin:8px 0 0;color:#999;font-size:12px;">Present this code in-store to redeem.</p>
-      <p style="margin:16px 0 0;color:#ccc;font-size:11px;">Penkey Delicafé &amp; Gifts · Lymington</p>
+      <p style="margin:8px 0 0;color:#999;font-size:12px;">Scan the QR code or present this code in-store to redeem.</p>
+      <p style="margin:16px 0 0;color:#ccc;font-size:11px;">Penkey Delicaf\u00e9 &amp; Gifts &middot; Lymington</p>
     </div>
   </div>
 </body>
