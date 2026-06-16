@@ -135,7 +135,23 @@ export default function VouchersPage() {
   };
 
   const handlePrint = async (voucher: any) => {
-    window.open(`/api/vouchers/${voucher.id}/print`, "_blank");
+    try {
+      const res = await fetch(`/api/vouchers/${voucher.id}/print`, { method: "POST" });
+      const data = await res.json();
+      if (data.queued) {
+        alert("Voucher sent to printer!");
+      } else if (data.voucher_text) {
+        // No printer - open browser print dialog with text
+        const win = window.open("", "_blank");
+        if (win) {
+          win.document.write(`<pre style="font-family:monospace;white-space:pre;">${data.voucher_text}</pre>`);
+          win.document.close();
+          win.print();
+        }
+      }
+    } catch (err) {
+      console.error("Print failed:", err);
+    }
   };
 
   const resetForm = () => {
