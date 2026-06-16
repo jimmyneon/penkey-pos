@@ -63,7 +63,10 @@ export default function VouchersPage() {
 
   const fetchVouchers = async () => {
     try {
-      const res = await fetch("/api/vouchers");
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const res = await fetch("/api/vouchers", {
+        headers: sessionData ? { "x-pos-session": sessionData } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setVouchers(data.vouchers || []);
@@ -75,7 +78,10 @@ export default function VouchersPage() {
 
   const fetchItems = async () => {
     try {
-      const res = await fetch("/api/items?active=true&limit=200");
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const res = await fetch("/api/items?limit=200", {
+        headers: sessionData ? { "x-pos-session": sessionData } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setItems(data.items || []);
@@ -106,9 +112,13 @@ export default function VouchersPage() {
         body.item_name = selectedItemName;
       }
 
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
       const res = await fetch("/api/vouchers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
         body: JSON.stringify(body),
       });
 
@@ -128,9 +138,13 @@ export default function VouchersPage() {
     if (!email) return;
     setEmailingId(voucher.id);
     try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
       await fetch(`/api/vouchers/${voucher.id}/email`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
         body: JSON.stringify({ email }),
       });
     } finally {
