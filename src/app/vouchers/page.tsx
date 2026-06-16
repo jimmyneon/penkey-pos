@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { SellVoucherDialog } from "./sell-voucher-dialog";
 import { useRouter } from "next/navigation";
-import { formatCurrency } from "@penkey/ui";
 import {
   ArrowLeft,
   Gift,
@@ -28,6 +27,13 @@ const STATUS_COLOURS: Record<string, string> = {
   redeemed: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
   expired: "bg-red-500/20 text-red-400 border border-red-500/30",
   cancelled: "bg-red-800/20 text-red-600 border border-red-800/30",
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(amount);
 };
 
 export default function VouchersPage() {
