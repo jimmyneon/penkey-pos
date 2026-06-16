@@ -67,18 +67,28 @@ export default function VouchersPage() {
 
   useEffect(() => {
     // Check for session and redirect if missing
-    const session = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
-    if (!session) {
+    try {
+      const session = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      fetchVouchers();
+      fetchItems();
+    } catch (err) {
+      console.error("[Vouchers] Session storage error:", err);
       router.push("/login");
-      return;
     }
-    fetchVouchers();
-    fetchItems();
   }, [router]);
 
   const fetchVouchers = async () => {
     try {
-      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      let sessionData;
+      try {
+        sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      } catch {
+        sessionData = null;
+      }
       const res = await fetch("/api/vouchers", {
         headers: sessionData ? { "x-pos-session": sessionData } : {},
       });
@@ -93,7 +103,12 @@ export default function VouchersPage() {
 
   const fetchItems = async () => {
     try {
-      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      let sessionData;
+      try {
+        sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      } catch {
+        sessionData = null;
+      }
       const res = await fetch("/api/items?limit=200", {
         headers: sessionData ? { "x-pos-session": sessionData } : {},
       });
