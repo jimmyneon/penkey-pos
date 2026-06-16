@@ -209,11 +209,16 @@ export default function VouchersPage() {
     return false;
   };
 
-  const filtered = vouchers.filter((v) =>
-    [v.code, v.recipient_name, v.recipient_email, v.item_name]
-      .filter(Boolean)
-      .some((f) => f.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = Array.isArray(vouchers) ? vouchers.filter((v) => {
+    try {
+      const fields = [v.code, v.recipient_name, v.recipient_email, v.item_name]
+        .filter(Boolean)
+        .map(f => String(f).toLowerCase());
+      return fields.some((f) => f.includes(search.toLowerCase()));
+    } catch {
+      return false;
+    }
+  }) : [];
 
   const voucherLabel = (v: any) => {
     if (v.voucher_type === "amount") return formatCurrency(v.amount || 0);
@@ -223,15 +228,15 @@ export default function VouchersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#2d2d2d] flex flex-col text-white">
-      {/* Header */}
-      <header className="bg-[#3d3d3d] px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/sell")} className="p-2 rounded-lg hover:bg-white/10">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="text-xl font-bold">Gift Vouchers</h1>
-        </div>
+      <div className="min-h-screen bg-[#2d2d2d] flex flex-col text-white">
+        {/* Header */}
+        <header className="bg-[#3d3d3d] px-4 py-3 flex items-center justify-between border-b border-gray-700">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/sell")} className="p-2 rounded-lg hover:bg-white/10">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-xl font-bold">Gift Vouchers</h1>
+          </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSell(true)}
