@@ -97,9 +97,13 @@ export default function VouchersPage() {
         console.log("[Vouchers] Session storage error in fetchVouchers");
       }
       console.log("[Vouchers] Fetching /api/vouchers");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       const res = await fetch("/api/vouchers", {
         headers: sessionData ? { "x-pos-session": sessionData } : {},
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       console.log("[Vouchers] Vouchers response status:", res.status);
       if (res.ok) {
         const data = await res.json();
@@ -108,8 +112,11 @@ export default function VouchersPage() {
       } else {
         console.error("[Vouchers] Vouchers fetch failed:", res.status, res.statusText);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[Vouchers] fetchVouchers error:", err);
+      if (err.name === 'AbortError') {
+        console.error("[Vouchers] Fetch aborted due to timeout");
+      }
     } finally {
       setLoading(false);
     }
@@ -127,9 +134,13 @@ export default function VouchersPage() {
         console.log("[Vouchers] Session storage error in fetchItems");
       }
       console.log("[Vouchers] Fetching /api/items");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       const res = await fetch("/api/items?limit=200", {
         headers: sessionData ? { "x-pos-session": sessionData } : {},
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       console.log("[Vouchers] Items response status:", res.status);
       if (res.ok) {
         const data = await res.json();
@@ -138,8 +149,11 @@ export default function VouchersPage() {
       } else {
         console.error("[Vouchers] Items fetch failed:", res.status, res.statusText);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[Vouchers] fetchItems error:", err);
+      if (err.name === 'AbortError') {
+        console.error("[Vouchers] Fetch aborted due to timeout");
+      }
     }
   };
 
