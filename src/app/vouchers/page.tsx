@@ -66,9 +66,15 @@ export default function VouchersPage() {
   const [showItemDropdown, setShowItemDropdown] = useState(false);
 
   useEffect(() => {
+    // Check for session and redirect if missing
+    const session = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    if (!session) {
+      router.push("/login");
+      return;
+    }
     fetchVouchers();
     fetchItems();
-  }, []);
+  }, [router]);
 
   const fetchVouchers = async () => {
     try {
