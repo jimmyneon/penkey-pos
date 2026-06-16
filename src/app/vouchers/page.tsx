@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useCartStore } from "@/lib/store/cart-store";
+import { SellVoucherDialog } from "./sell-voucher-dialog";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@penkey/ui";
 import {
@@ -17,6 +19,7 @@ import {
   DollarSign,
   Percent,
   ChevronDown,
+  ShoppingCart,
 } from "lucide-react";
 
 type VoucherType = "amount" | "item" | "percent";
@@ -37,6 +40,8 @@ export default function VouchersPage() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [showSell, setShowSell] = useState(false);
+  const { addLine } = useCartStore();
 
   // Create form state
   const [voucherType, setVoucherType] = useState<VoucherType>("amount");
@@ -202,13 +207,22 @@ export default function VouchersPage() {
           </button>
           <h1 className="text-xl font-bold">Gift Vouchers</h1>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-penkey-orange hover:bg-penkey-orange/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Create
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSell(true)}
+            className="flex items-center gap-2 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white px-4 py-2 rounded-lg font-semibold transition-colors border border-gray-600"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Sell
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-penkey-orange hover:bg-penkey-orange/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Create
+          </button>
+        </div>
       </header>
 
       {/* Search */}
@@ -293,6 +307,26 @@ export default function VouchersPage() {
           </div>
         )}
       </div>
+
+      {/* Sell Voucher Dialog */}
+      <SellVoucherDialog
+        open={showSell}
+        onClose={() => setShowSell(false)}
+        onAddToBasket={(val, name) => {
+          addLine({
+            item_id: "gift-voucher",
+            item_name: name ? `Gift Voucher – ${name}` : "Gift Voucher",
+            variant_id: null,
+            variant_name: null,
+            quantity: 1,
+            unit_price: val,
+            modifiers: [],
+            notes: name ? `For: ${name}` : "",
+            tax_rate: 0,
+          });
+          router.push("/sell");
+        }}
+      />
 
       {/* Create Voucher Modal */}
       {showCreate && (

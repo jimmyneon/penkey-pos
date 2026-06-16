@@ -240,6 +240,7 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
 <body>
   <div class="voucher">
     <div class="header">
+      <img src="/penkey-logo.png" alt="${storeName}" style="height:48px;width:auto;object-fit:contain;margin-bottom:8px;position:relative;z-index:1;" onerror="this.style.display='none'" />
       <div class="brand">${storeName}</div>
       <div class="gift-label">&#10022; Gift Voucher &#10022;</div>
     </div>

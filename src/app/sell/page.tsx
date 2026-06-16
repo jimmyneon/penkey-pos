@@ -34,6 +34,7 @@ import { PenkeyPromptsBar } from "./penkey-prompts-bar";
 import { ItemsDisplay } from "./items-display";
 import { SellHeader } from "./sell-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { VoucherRedeemDialog } from "./voucher-redeem-dialog";
 import { hapticButtonPress, hapticItemAdded, hapticDelete, hapticSuccess, setHapticEnabledCheck } from "@/lib/utils/haptics";
 import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, playPaymentInitSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -85,6 +86,7 @@ export default function SellPage() {
   const [modifierDialogOpen, setModifierDialogOpen] = useState(false);
   const [pendingItemEvent, setPendingItemEvent] = useState<React.MouseEvent | null>(null);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [voucherRedeemOpen, setVoucherRedeemOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [ticketActionsOpen, setTicketActionsOpen] = useState(false);
@@ -2070,6 +2072,7 @@ export default function SellPage() {
       <TicketModal
         open={ticketModalOpen}
         onClose={() => setTicketModalOpen(false)}
+        onRedeemVoucher={() => setVoucherRedeemOpen(true)}
         lines={lines}
         updateQuantity={updateQuantity}
         removeLine={removeLine}
@@ -2106,6 +2109,24 @@ export default function SellPage() {
           console.log("[TicketModal] Customer with defaults:", customerWithDefaults);
           setPerksCustomer(customerWithDefaults);
           console.log("[TicketModal] Set perksCustomer state");
+        }}
+      />
+
+      {/* Voucher Redeem Dialog */}
+      <VoucherRedeemDialog
+        open={voucherRedeemOpen}
+        onClose={() => setVoucherRedeemOpen(false)}
+        onApply={(voucher) => {
+          // Apply as basket-level discount on the first line
+          if (lines.length > 0) {
+            applyVoucher(lines[0].id, {
+              id: voucher.id,
+              name: voucher.name,
+              discountType: voucher.discountType as any,
+              discountValue: voucher.discountValue,
+            });
+          }
+          showToast(`Voucher applied: ${voucher.name}`, 'success');
         }}
       />
 

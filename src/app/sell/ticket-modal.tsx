@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
-import { Plus, Minus, User, Hash, Trash2, Printer, Save } from "lucide-react";
+import { Plus, Minus, User, Hash, Trash2, Printer, Save, Tag } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress, hapticDelete, hapticSuccess } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
@@ -43,6 +43,7 @@ interface TicketModalProps {
   onSave: () => void;
   onClearAll: () => void;
   onPrint: () => void;
+  onRedeemVoucher?: () => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
   onCustomerClick?: (customer: any) => void;
 }
@@ -60,6 +61,7 @@ export function TicketModal({
   onSave,
   onClearAll,
   onPrint,
+  onRedeemVoucher,
   ticketAssignment,
   onCustomerClick,
 }: TicketModalProps) {
@@ -206,9 +208,18 @@ export function TicketModal({
           )}
         </div>
 
-        {/* Clear All Button */}
+        {/* Clear All + Redeem Voucher Buttons */}
         {lines.length > 0 && (
-          <div className="pt-3">
+          <div className="pt-3 flex gap-2">
+            {onRedeemVoucher && (
+              <button
+                onClick={() => { hapticButtonPress(); onRedeemVoucher(); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2d2d2d] hover:bg-[#4d4d4d] text-penkey-orange border border-penkey-orange/40 rounded-lg font-semibold transition-colors text-sm"
+              >
+                <Tag className="h-4 w-4" />
+                Redeem Voucher
+              </button>
+            )}
             <Button
               size="lg"
               variant="outline"
@@ -216,10 +227,10 @@ export function TicketModal({
                 hapticDelete();
                 onClearAll();
               }}
-              className="w-full bg-red-600 hover:bg-red-700 text-white border-0 active:scale-95 transition-transform"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0 active:scale-95 transition-transform"
             >
               <Trash2 className="h-5 w-5 mr-2" />
-              Clear All Items
+              Clear All
             </Button>
           </div>
         )}

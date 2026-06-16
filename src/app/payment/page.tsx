@@ -558,6 +558,23 @@ export default function PaymentPage() {
   const cartTotal = getTotal();
   const total = cartTotal + tipAmount;
 
+  // Fire-and-forget: mark any gift vouchers applied in cart as redeemed
+  const confirmVoucherRedemptions = () => {
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    lines.forEach((line) => {
+      if (line.voucher?.id) {
+        fetch("/api/vouchers/redeem", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionData ? { "x-pos-session": sessionData } : {}),
+          },
+          body: JSON.stringify({ id: line.voucher.id, confirm: true }),
+        }).catch(() => {});
+      }
+    });
+  };
+
   const handleCashPayment = async (amount: number) => {
     if (!session) return;
 
@@ -687,7 +704,8 @@ export default function PaymentPage() {
       
       console.log('[Payment] Receipt saved locally and queued for sync:', tempReceiptId);
 
-      // Clear cart and ticket assignment immediately
+      // Confirm any voucher redemptions, then clear cart
+      confirmVoucherRedemptions();
       clearCart();
       CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
@@ -818,6 +836,7 @@ export default function PaymentPage() {
       
       console.log('[Payment] Manual receipt saved locally and queued for sync:', tempReceiptId);
 
+      confirmVoucherRedemptions();
       clearCart();
       CartSyncService.clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
@@ -1702,6 +1721,7 @@ export default function PaymentPage() {
       
       console.log('[Payment] Card receipt saved locally and queued for sync:', tempReceiptId);
 
+      confirmVoucherRedemptions();
       clearCart();
       CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
