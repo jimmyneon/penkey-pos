@@ -106,12 +106,16 @@ export async function POST(request: NextRequest) {
 
   // Send email if requested
   if (send_email && recipient_email && voucher) {
+    console.log('[Voucher POST] Sending email to:', recipient_email);
     try {
       await sendVoucherEmail(voucher as any);
+      console.log('[Voucher POST] Email sent successfully');
     } catch (emailErr) {
       console.error('[Voucher POST] Email failed:', emailErr);
       // Non-fatal - voucher still created
     }
+  } else {
+    console.log('[Voucher POST] Email not sent. send_email:', send_email, 'recipient_email:', recipient_email);
   }
 
   return NextResponse.json({ voucher }, { status: 201 });

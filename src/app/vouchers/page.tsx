@@ -66,13 +66,17 @@ export default function VouchersPage() {
   const [showItemDropdown, setShowItemDropdown] = useState(false);
 
   useEffect(() => {
+    console.log("[Vouchers] Component mounted");
     // Check for session and redirect if missing
     try {
       const session = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      console.log("[Vouchers] Session check:", !!session);
       if (!session) {
+        console.log("[Vouchers] No session, redirecting to login");
         router.push("/login");
         return;
       }
+      console.log("[Vouchers] Fetching vouchers and items");
       fetchVouchers();
       fetchItems();
     } catch (err) {
