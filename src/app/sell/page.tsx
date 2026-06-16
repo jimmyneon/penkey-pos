@@ -231,7 +231,32 @@ export default function SellPage() {
   );
   const { items: popularItems, loading: popularLoading } = usePopularItems(session?.org_id || "skip", forceRefresh);
   const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines, applyVoucher, removeVoucher } = useCartStore();
-  
+
+  // Handle pending gift voucher from vouchers page
+  useEffect(() => {
+    const pending = sessionStorage.getItem("pending_gift_voucher");
+    if (pending) {
+      try {
+        const { amount, recipientName } = JSON.parse(pending);
+        addLine({
+          item_id: "gift-voucher",
+          item_name: recipientName ? `Gift Voucher – ${recipientName}` : "Gift Voucher",
+          variant_id: null,
+          variant_name: null,
+          quantity: 1,
+          unit_price: amount,
+          modifiers: [],
+          notes: recipientName ? `For: ${recipientName}` : "",
+          tax_rate: 0,
+        });
+        sessionStorage.removeItem("pending_gift_voucher");
+      } catch (err) {
+        console.error("[Sell] Failed to parse pending gift voucher:", err);
+        sessionStorage.removeItem("pending_gift_voucher");
+      }
+    }
+  }, [addLine]);
+
   // Local sync state
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
@@ -2124,6 +2149,7 @@ export default function SellPage() {
               name: voucher.name,
               discountType: voucher.discountType as any,
               discountValue: voucher.discountValue,
+              beanCost: 0,
             });
           }
           showToast(`Voucher applied: ${voucher.name}`, 'success');

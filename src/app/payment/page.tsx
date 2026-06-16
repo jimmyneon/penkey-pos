@@ -575,6 +575,39 @@ export default function PaymentPage() {
     });
   };
 
+  // Fire-and-forget: create pending voucher after payment
+  const createPendingVoucher = () => {
+    const pending = sessionStorage.getItem("pending_voucher_create");
+    if (!pending) return;
+    try {
+      const config = JSON.parse(pending);
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      fetch("/api/vouchers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
+        body: JSON.stringify({
+          voucher_type: config.voucherType,
+          amount: config.voucherType === "amount" ? parseFloat(config.amount) : null,
+          percent_discount: config.voucherType === "percent" ? parseFloat(config.percentDiscount) : null,
+          item_id: config.voucherType === "item" ? config.selectedItemId : null,
+          item_name: config.voucherType === "item" ? config.selectedItemName : null,
+          recipient_name: config.recipientName || null,
+          recipient_email: config.recipientEmail || null,
+          expires_at: config.expiryDate || null,
+          message: config.message || null,
+          send_email: config.sendEmail && !!config.recipientEmail,
+        }),
+      }).then(() => {
+        sessionStorage.removeItem("pending_voucher_create");
+      }).catch(() => {});
+    } catch {
+      sessionStorage.removeItem("pending_voucher_create");
+    }
+  };
+
   const handleCashPayment = async (amount: number) => {
     if (!session) return;
 
@@ -704,8 +737,9 @@ export default function PaymentPage() {
       
       console.log('[Payment] Receipt saved locally and queued for sync:', tempReceiptId);
 
-      // Confirm any voucher redemptions, then clear cart
+      // Confirm any voucher redemptions, create pending voucher, then clear cart
       confirmVoucherRedemptions();
+      createPendingVoucher();
       clearCart();
       CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
@@ -837,6 +871,7 @@ export default function PaymentPage() {
       console.log('[Payment] Manual receipt saved locally and queued for sync:', tempReceiptId);
 
       confirmVoucherRedemptions();
+      createPendingVoucher();
       clearCart();
       CartSyncService.clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
@@ -1722,6 +1757,7 @@ export default function PaymentPage() {
       console.log('[Payment] Card receipt saved locally and queued for sync:', tempReceiptId);
 
       confirmVoucherRedemptions();
+      createPendingVoucher();
       clearCart();
       CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");

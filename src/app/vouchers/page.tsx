@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useCartStore } from "@/lib/store/cart-store";
 import { SellVoucherDialog } from "./sell-voucher-dialog";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@penkey/ui";
@@ -41,7 +40,6 @@ export default function VouchersPage() {
   const [creating, setCreating] = useState(false);
   const [emailingId, setEmailingId] = useState<string | null>(null);
   const [showSell, setShowSell] = useState(false);
-  const { addLine } = useCartStore();
 
   // Create form state
   const [voucherType, setVoucherType] = useState<VoucherType>("amount");
@@ -313,17 +311,10 @@ export default function VouchersPage() {
         open={showSell}
         onClose={() => setShowSell(false)}
         onAddToBasket={(val, name) => {
-          addLine({
-            item_id: "gift-voucher",
-            item_name: name ? `Gift Voucher – ${name}` : "Gift Voucher",
-            variant_id: null,
-            variant_name: null,
-            quantity: 1,
-            unit_price: val,
-            modifiers: [],
-            notes: name ? `For: ${name}` : "",
-            tax_rate: 0,
-          });
+          sessionStorage.setItem("pending_gift_voucher", JSON.stringify({
+            amount: val,
+            recipientName: name,
+          }));
           router.push("/sell");
         }}
       />
@@ -549,7 +540,7 @@ export default function VouchersPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-700 flex-shrink-0">
+            <div className="p-4 border-t border-gray-700 flex-shrink-0 space-y-2">
               <button
                 onClick={handleCreate}
                 disabled={creating || !isFormValid()}
@@ -564,6 +555,36 @@ export default function VouchersPage() {
                   </>
                 )}
               </button>
+              {voucherType === "amount" && (
+                <button
+                  onClick={() => {
+                    if (!isFormValid()) return;
+                    const config = {
+                      voucherType,
+                      amount,
+                      percentDiscount,
+                      selectedItemId,
+                      selectedItemName,
+                      recipientName,
+                      recipientEmail,
+                      expiryDate,
+                      message,
+                      sendEmail,
+                    };
+                    sessionStorage.setItem("pending_voucher_create", JSON.stringify(config));
+                    sessionStorage.setItem("pending_gift_voucher", JSON.stringify({
+                      amount: parseFloat(amount),
+                      recipientName: recipientName || undefined,
+                    }));
+                    router.push("/sell");
+                  }}
+                  disabled={!isFormValid()}
+                  className="w-full py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-40 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  Create & Charge
+                </button>
+              )}
             </div>
           </div>
         </div>

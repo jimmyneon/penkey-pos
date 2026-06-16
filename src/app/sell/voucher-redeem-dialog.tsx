@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Tag, CheckCircle2, AlertCircle, X, Loader2 } from "lucide-react";
+import { Tag, CheckCircle2, AlertCircle, X, Loader2, QrCode } from "lucide-react";
+import { QRScanner } from "@/components/QRScanner";
 
 interface VoucherResult {
   id: string;
@@ -25,6 +26,7 @@ export function VoucherRedeemDialog({ open, onClose, onApply }: VoucherRedeemDia
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VoucherResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
 
   if (!open) return null;
 
@@ -72,6 +74,13 @@ export function VoucherRedeemDialog({ open, onClose, onApply }: VoucherRedeemDia
     onClose();
   };
 
+  const handleQRScan = (scannedCode: string) => {
+    setCode(scannedCode.toUpperCase());
+    setQrScannerOpen(false);
+    // Auto-lookup after scan
+    setTimeout(() => handleLookup(), 300);
+  };
+
   const valueLabel =
     result?.discountType === "fixed" ? `£${result.discountValue.toFixed(2)} off`
     : result?.discountType === "percentage" ? `${result.discountValue}% off`
@@ -109,6 +118,13 @@ export function VoucherRedeemDialog({ open, onClose, onApply }: VoucherRedeemDia
                 className="flex-1 bg-[#2d2d2d] text-white px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange font-mono text-lg tracking-widest uppercase"
                 autoFocus
               />
+              <button
+                onClick={() => setQrScannerOpen(true)}
+                className="px-3 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white rounded-lg transition-colors"
+                title="Scan QR code"
+              >
+                <QrCode className="h-5 w-5" />
+              </button>
               <button
                 onClick={handleLookup}
                 disabled={loading || !code.trim()}
@@ -167,6 +183,14 @@ export function VoucherRedeemDialog({ open, onClose, onApply }: VoucherRedeemDia
           </button>
         </div>
       </div>
+
+      {/* QR Scanner */}
+      {qrScannerOpen && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => setQrScannerOpen(false)}
+        />
+      )}
     </div>
   );
 }
