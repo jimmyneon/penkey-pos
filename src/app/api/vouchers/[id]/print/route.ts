@@ -17,7 +17,7 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
   const qrDataUrl = await QRCode.toDataURL(voucher.code, {
     width: 200,
     margin: 1,
-    color: { dark: '#e97c2c', light: '#ffffff' },
+    color: { dark: '#1a1a1a', light: '#ffffff' },
   });
 
   return `<!DOCTYPE html>
@@ -27,11 +27,12 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Gift Voucher \u2013 ${voucher.code}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #2d2d2d;
+      font-family: 'Inter', Arial, sans-serif;
+      background: #f5f5f0;
     }
     body {
       display: flex;
@@ -44,116 +45,158 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
 
     .voucher {
       width: 100%;
-      max-width: 400px;
-      background: #3d3d3d;
-      border-radius: 16px;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
       page-break-inside: avoid;
-      border: 1px solid #4d4d4d;
+      position: relative;
     }
 
     .header {
-      background: #e97c2c;
-      padding: 24px 20px;
+      background: linear-gradient(135deg, #e97c2c 0%, #d45f10 100%);
+      padding: 40px 30px 30px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
     }
-    .brand {
-      font-size: 28px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 1px;
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; left: -40px;
+      width: 150px; height: 150px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+    }
+    .logo {
+      max-height: 60px;
+      width: auto;
+      object-fit: contain;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
     }
     .gift-label {
       font-size: 12px;
       font-weight: 600;
       color: rgba(255,255,255,0.9);
       text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-top: 4px;
+      letter-spacing: 4px;
+      position: relative;
+      z-index: 1;
     }
 
+    .wave {
+      display: block;
+      width: 100%;
+      background: #e97c2c;
+    }
+    .wave svg { display: block; }
+
     .body {
-      padding: 24px 20px;
+      padding: 32px 30px 24px;
       text-align: center;
     }
 
     .recipient-name {
-      font-size: 18px;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 16px;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 24px;
+      color: #2a1a0a;
+      margin-bottom: 20px;
+      font-weight: 700;
     }
 
     .value-wrap {
-      background: #2d2d2d;
+      background: linear-gradient(135deg, #fff8f3, #ffeedd);
       border: 2px solid #e97c2c;
-      border-radius: 12px;
-      padding: 16px 24px;
-      margin-bottom: 20px;
+      border-radius: 16px;
+      padding: 20px 32px;
+      margin-bottom: 24px;
     }
-    .value-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .value { font-size: 36px; font-weight: 700; color: #e97c2c; line-height: 1; }
+    .value-label { font-size: 11px; color: #b08060; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+    .value { font-family: 'Playfair Display', Georgia, serif; font-size: 48px; font-weight: 900; color: #e97c2c; line-height: 1; }
+
+    .dots {
+      display: flex; align-items: center; gap: 8px; justify-content: center; margin: 20px 0;
+    }
+    .dots span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #e2c9b8; }
+    .dots span.big { width: 8px; height: 8px; background: #e97c2c; }
 
     .qr-row {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 20px;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
     }
     .qr-box {
       background: #fff;
-      border-radius: 12px;
+      border: 2px solid #f0e0d0;
+      border-radius: 16px;
       padding: 12px;
+      flex-shrink: 0;
     }
-    .qr-box img { display: block; border-radius: 8px; }
+    .qr-box img { display: block; border-radius: 10px; }
+    .code-box { text-align: left; }
+    .code-label { font-size: 10px; color: #b08060; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
     .code {
       font-family: 'Courier New', monospace;
       font-size: 18px;
       font-weight: 700;
-      color: #e97c2c;
-      letter-spacing: 2px;
-      background: #2d2d2d;
-      border: 1px solid #4d4d4d;
-      border-radius: 8px;
-      padding: 8px 16px;
+      color: #2a1a0a;
+      letter-spacing: 3px;
+      background: #f9f3ee;
+      border: 1.5px dashed #e0c0a0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      display: inline-block;
     }
-    .scan-hint { font-size: 12px; color: #888; margin-top: 8px; }
+    .scan-hint { font-size: 11px; color: #888; margin-top: 8px; }
 
     .message-wrap {
-      background: #2d2d2d;
+      background: #fffaf6;
       border-left: 3px solid #e97c2c;
-      border-radius: 0 8px 8px 0;
-      padding: 12px 16px;
-      margin-bottom: 16px;
+      border-radius: 0 10px 10px 0;
+      padding: 14px 18px;
+      margin-bottom: 20px;
       text-align: left;
     }
-    .message { font-size: 14px; color: #ccc; font-style: italic; line-height: 1.5; }
+    .message { font-size: 14px; color: #666; font-style: italic; line-height: 1.6; }
 
     .footer {
-      background: #2d2d2d;
-      border-top: 1px solid #4d4d4d;
-      padding: 16px 20px;
+      background: #fdf8f4;
+      border-top: 1px dashed #e8d5c4;
+      padding: 20px 30px;
       text-align: center;
     }
-    .expiry-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
-    .expiry-date { font-size: 14px; font-weight: 600; color: #fff; margin-top: 4px; }
+    .expiry-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #c0a080; }
+    .expiry-date { font-size: 14px; font-weight: 600; color: #5a3a1a; margin-top: 4px; }
     .store-address { font-size: 12px; color: #888; margin-top: 8px; }
 
-    .print-btn-wrap { margin-top: 20px; text-align: center; }
+    .print-btn-wrap { margin-top: 24px; text-align: center; }
     .print-btn {
-      background: #e97c2c;
+      background: linear-gradient(135deg, #e97c2c, #d45f10);
       color: white;
       border: none;
-      padding: 12px 32px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
+      padding: 14px 40px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
       cursor: pointer;
       font-family: inherit;
+      box-shadow: 0 4px 16px rgba(233,124,44,0.35);
+      letter-spacing: 0.5px;
     }
-    .print-btn:hover { background: #d45f10; }
+    .print-btn:hover { opacity: 0.9; }
 
     @media print {
       html, body {
@@ -170,45 +213,46 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
         max-width: 100%;
         page-break-inside: avoid;
         break-inside: avoid;
-        background: #fff;
-        border: 1px solid #ccc;
       }
-      .header { background: #e97c2c; }
-      .body { color: #000; }
-      .value-wrap { background: #f5f5f5; border-color: #e97c2c; }
-      .value { color: #e97c2c; }
-      .code { background: #f5f5f5; border-color: #ccc; color: #000; }
-      .message-wrap { background: #f5f5f5; border-color: #e97c2c; }
-      .message { color: #333; }
-      .footer { background: #f5f5f5; border-color: #ccc; }
-      .expiry-date { color: #000; }
-      .store-address { color: #666; }
       .print-btn-wrap { display: none !important; }
-      @page { margin: 0.5cm; size: A5 portrait; }
+      @page { margin: 0; size: A5 portrait; }
     }
   </style>
 </head>
 <body>
   <div class="voucher">
     <div class="header">
-      <div class="brand">${storeName}</div>
-      <div class="gift-label">Gift Voucher</div>
+      <img src="/penkey-logo.png" alt="${storeName}" class="logo" onerror="this.style.display='none'" />
+      <div class="gift-label">&#10022; Gift Voucher &#10022;</div>
+    </div>
+    <div class="wave">
+      <svg viewBox="0 0 420 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" height="20">
+        <path d="M0,10 C60,20 120,0 180,10 C240,20 300,0 360,10 C420,20 460,4 480,10 L480,0 L0,0 Z" fill="#e97c2c"/>
+        <path d="M0,10 C60,20 120,0 180,10 C240,20 300,0 360,10 C420,20 460,4 480,10 L480,20 L0,20 Z" fill="#ffffff"/>
+      </svg>
     </div>
 
     <div class="body">
-      ${voucher.recipient_name ? `<div class="recipient-name">For: ${voucher.recipient_name}</div>` : ''}
+      ${voucher.recipient_name ? `<div class="recipient-name">For ${voucher.recipient_name}</div>` : ''}
 
       <div class="value-wrap">
         <div class="value-label">Voucher Value</div>
         <div class="value">${voucherValue}</div>
       </div>
 
+      <div class="dots">
+        <span></span><span></span><span class="big"></span><span></span><span></span>
+      </div>
+
       <div class="qr-row">
         <div class="qr-box">
-          <img src="${qrDataUrl}" width="140" height="140" alt="QR Code" />
+          <img src="${qrDataUrl}" width="130" height="130" alt="QR Code" />
         </div>
-        <div class="code">${voucher.code}</div>
-        <div class="scan-hint">Scan QR or quote code when redeeming</div>
+        <div class="code-box">
+          <div class="code-label">Your Code</div>
+          <div class="code">${voucher.code}</div>
+          <div class="scan-hint">Scan QR or quote code<br>when redeeming in-store</div>
+        </div>
       </div>
 
       ${voucher.message ? `<div class="message-wrap"><div class="message">&ldquo;${voucher.message}&rdquo;</div></div>` : ''}
@@ -222,7 +266,7 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
   </div>
 
   <div class="print-btn-wrap">
-    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    <button class="print-btn" onclick="window.print()">&#128438; Print &nbsp;/&nbsp; Save as PDF</button>
   </div>
 
   <script>
