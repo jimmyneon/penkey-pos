@@ -63,9 +63,13 @@ export async function prefetchOrgData(orgId: string, registerId?: string) {
       if (rows && rows.length) {
         await putMany("categories", rows.map((x) => ({ ...x, org_id: orgId })));
         console.log(`[Prefetch] ✓ Cached ${rows.length} categories`);
+        await SyncManager.markSynced(orgId, 'CATEGORIES');
+      } else {
+        console.log(`[Prefetch] No categories returned or fetch failed`);
       }
-      await SyncManager.markSynced(orgId, 'CATEGORIES');
-    }).catch(() => {})
+    }).catch((err) => {
+      console.error(`[Prefetch] Failed to fetch categories:`, err);
+    })
   );
 
   // Items

@@ -62,7 +62,9 @@ export function useCategories(orgId: string, forceRefresh: boolean = false) {
 
       // Fetch from network
       const doFetch = async () => {
-        const response = await fetch(`/api/categories?org_id=${orgId}`);
+        const response = await fetch(`/api/categories?org_id=${orgId}`, {
+          credentials: 'include',
+        });
         if (!response.ok) throw new Error("Failed to fetch categories");
         const data: Category[] = await response.json();
         console.log("[useCategories] Loaded categories from API:", data.length);

@@ -1959,7 +1959,15 @@ export default function SellPage() {
                 </button>
                 <div className="flex-1" />
                 <button
-                  onClick={() => updateUserPreference('show_popular', !userPreferencesData.show_popular)}
+                  onClick={async () => {
+                    try {
+                      await updateUserPreference('show_popular', !userPreferencesData.show_popular);
+                      console.log('[Sell] Popular preference updated:', !userPreferencesData.show_popular);
+                    } catch (err) {
+                      console.error('[Sell] Failed to update popular preference:', err);
+                      showToast('Failed to update preference', 'error');
+                    }
+                  }}
                   className={`rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap min-w-fit ${
                     userPreferencesData.show_popular
                       ? "bg-gradient-to-br from-yellow-500 to-orange-500 text-white"
@@ -1971,7 +1979,15 @@ export default function SellPage() {
                   <span className="text-xs sm:text-sm">Popular</span>
                 </button>
                 <button
-                  onClick={() => updateUserPreference('show_favourites', !userPreferencesData.show_favourites)}
+                  onClick={async () => {
+                    try {
+                      await updateUserPreference('show_favourites', !userPreferencesData.show_favourites);
+                      console.log('[Sell] Favourites preference updated:', !userPreferencesData.show_favourites);
+                    } catch (err) {
+                      console.error('[Sell] Failed to update favourites preference:', err);
+                      showToast('Failed to update preference', 'error');
+                    }
+                  }}
                   className={`rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap min-w-fit ${
                     userPreferencesData.show_favourites
                       ? "bg-gradient-to-br from-yellow-400 to-yellow-500 text-[#2d2d2d]"
