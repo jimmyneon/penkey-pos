@@ -227,7 +227,6 @@ export default function SellPage() {
 
   // Only call data hooks when session is loaded to prevent "skip" issues
   const shouldLoadData = session && session.org_id && session.user_id;
-  console.log("[SellPage] shouldLoadData:", shouldLoadData, "session:", !!session);
 
   const { categories } = useCategories(shouldLoadData ? session.org_id : "skip", forceRefresh);
   const { items, loading: itemsLoading } = useItems(
@@ -236,22 +235,6 @@ export default function SellPage() {
     forceRefresh
   );
   const { items: popularItems, loading: popularLoading } = usePopularItems(shouldLoadData ? session.org_id : "skip", forceRefresh);
-
-  console.log("[SellPage] Hook params - session?.org_id:", session?.org_id, "session?.user_id:", session?.user_id);
-  console.log("[SellPage] Categories loaded:", categories.length, "Items loaded:", items.length, "Popular items:", popularItems.length);
-
-  // Track session changes
-  useEffect(() => {
-    console.log("[SellPage] Session changed:", session ? "loaded" : "null");
-    if (session) {
-      console.log("[SellPage] Session details:", {
-        org_id: session.org_id,
-        user_id: session.user_id,
-        employee_id: session.employee?.id,
-        employee_name: session.employee?.name
-      });
-    }
-  }, [session]);
 
   // Handle pending gift voucher from vouchers page
   useEffect(() => {
@@ -638,17 +621,13 @@ export default function SellPage() {
   useEffect(() => {
     // Check for valid session
     const sessionData = sessionStorage.getItem("pos_session");
-    console.log("[SellPage] Session data from storage:", sessionData);
     if (!sessionData) {
-      console.log("[SellPage] No session found, redirecting to lock");
       router.push("/lock");
       return;
     }
 
     try {
       const parsed = JSON.parse(sessionData);
-      console.log("[SellPage] Parsed session:", parsed);
-      console.log("[SellPage] org_id:", parsed.org_id, "user_id:", parsed.user_id, "employee.id:", parsed.employee?.id);
       setSession(parsed);
     } catch (err) {
       console.error("[SellPage] Failed to parse session:", err);

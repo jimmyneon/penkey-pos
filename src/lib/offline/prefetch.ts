@@ -10,9 +10,9 @@ async function safeJson<T>(res: Response): Promise<T | null> {
 async function fetchWithTimeout<T>(url: string, timeoutMs: number = 5000): Promise<T | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, credentials: 'include' });
     return await safeJson<T>(res);
   } catch (err: any) {
     if (err.name === 'AbortError') {
