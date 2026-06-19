@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SellVoucherDialog } from "./sell-voucher-dialog";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -20,6 +19,7 @@ import {
   Trash2,
   Ticket,
 } from "lucide-react";
+import { useCartStore } from "@/lib/store/cart-store";
 
 type VoucherType = "amount" | "item" | "percent";
 
@@ -39,6 +39,7 @@ const formatCurrency = (amount: number) => {
 
 export default function VouchersPage() {
   const router = useRouter();
+  const { lines, applyVoucher } = useCartStore();
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -266,18 +267,53 @@ export default function VouchersPage() {
           "Content-Type": "application/json",
           ...(sessionData ? { "x-pos-session": sessionData } : {}),
         },
-        body: JSON.stringify({ id: voucher.id, confirm: true }),
+        body: JSON.stringify({ id: voucher.id, confirm: false }),
       });
 
       if (res.ok) {
-        setVouchers((prev) =>
-          prev.map((v) =>
-            v.id === voucher.id ? { ...v, status: "redeemed", redeemed_at: new Date().toISOString() } : v
-          )
-        );
+        const data = await res.json();
+        const voucherData = data.voucher;
+
+        // Apply voucher to cart
+        if (lines.length === 0) {
+          alert("Cart is empty. Add items before applying voucher.");
+          return;
+        }
+
+        // For percentage/fixed discounts, apply to first line or create logic
+        // For free item, find matching line
+        let targetLineId = lines[0].id;
+
+        if (voucherData.discountType === "free_item") {
+          // Find line with matching item name
+          const matchingLine = lines.find((line: any) =>
+            line.item_name.toLowerCase().includes(voucherData.item_name?.toLowerCase() || "")
+          );
+          if (!matchingLine) {
+            alert(`No matching item "${voucherData.item_name}" in cart.`);
+            return;
+          }
+          targetLineId = matchingLine.id;
+        }
+
+        const voucherForCart = {
+          id: voucherData.id,
+          name: voucherData.name,
+          discountType: voucherData.discountType,
+          discountValue: voucherData.discountValue,
+          beanCost: 0,
+          itemType: voucherData.voucher_type === "item" ? "item" : undefined,
+          category: undefined,
+        };
+
+        applyVoucher(targetLineId, voucherForCart);
         setShowDetail(false);
         setSelectedVoucher(null);
+        router.push("/sell");
       }
+    } catch (err) {
+      console.error("Failed to apply voucher:", err);
+      alert("Failed to apply voucher. Please try again.");
     } finally {
       setRedeemingId(null);
     }
