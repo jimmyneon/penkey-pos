@@ -45,6 +45,7 @@ export interface CartLine {
 
 interface CartStore {
   lines: CartLine[];
+  basketVoucher: VoucherDiscount | null;
   addLine: (line: Omit<CartLine, "id">) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
@@ -53,9 +54,12 @@ interface CartStore {
   loadLines: (lines: CartLine[]) => void; // For syncing from database
   applyVoucher: (lineId: string, voucher: VoucherDiscount) => void;
   removeVoucher: (lineId: string) => void;
+  setBasketVoucher: (voucher: VoucherDiscount) => void;
+  clearBasketVoucher: () => void;
   getSubtotal: () => number;
   getTaxTotal: () => number;
   getTotal: () => number;
+  getBasketVoucherDiscount: () => number;
   getVoucherDiscountTotal: () => number;
 }
 
@@ -63,6 +67,7 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       lines: [],
+      basketVoucher: null,
 
   addLine: (line) => {
     set((state) => {
@@ -134,7 +139,7 @@ export const useCartStore = create<CartStore>()(
   },
 
   clearCart: () => {
-    set({ lines: [] });
+    set({ lines: [], basketVoucher: null });
   },
 
   loadLines: (lines) => {
@@ -155,6 +160,14 @@ export const useCartStore = create<CartStore>()(
         line.id === lineId ? { ...line, voucher: undefined } : line
       ),
     }));
+  },
+
+  setBasketVoucher: (voucher) => {
+    set({ basketVoucher: voucher });
+  },
+
+  clearBasketVoucher: () => {
+    set({ basketVoucher: null });
   },
 
   getSubtotal: () => {
@@ -207,7 +220,19 @@ export const useCartStore = create<CartStore>()(
   },
 
   getTotal: () => {
-    return get().getSubtotal() + get().getTaxTotal();
+    return Math.max(0, get().getSubtotal() + get().getTaxTotal() - get().getBasketVoucherDiscount());
+  },
+
+  getBasketVoucherDiscount: () => {
+    const { basketVoucher, lines } = get();
+    if (!basketVoucher) return 0;
+    const lineTotal = lines.reduce((sum, line) => {
+      const lt = (line.unit_price + line.modifiers.reduce((s, m) => s + m.price_adjustment, 0)) * line.quantity;
+      return sum + lt;
+    }, 0);
+    if (basketVoucher.discountType === 'fixed') return Math.min(basketVoucher.discountValue, lineTotal);
+    if (basketVoucher.discountType === 'percentage') return lineTotal * (basketVoucher.discountValue / 100);
+    return 0;
   },
 
   getVoucherDiscountTotal: () => {

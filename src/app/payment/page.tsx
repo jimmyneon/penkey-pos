@@ -63,7 +63,7 @@ export default function PaymentPage() {
   const [tipAmount, setTipAmount] = useState(0);
   const [showTipSelection, setShowTipSelection] = useState(false);
   const [tipPresets, setTipPresets] = useState<number[]>([2, 5, 10]);
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher, basketVoucher, getBasketVoucherDiscount } = useCartStore();
   
   // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
@@ -561,18 +561,20 @@ export default function PaymentPage() {
   // Fire-and-forget: mark any gift vouchers applied in cart as redeemed
   const confirmVoucherRedemptions = () => {
     const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    const confirmId = (id: string) => {
+      fetch("/api/vouchers/redeem", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
+        body: JSON.stringify({ id, confirm: true }),
+      }).catch(() => {});
+    };
     lines.forEach((line) => {
-      if (line.voucher?.id) {
-        fetch("/api/vouchers/redeem", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(sessionData ? { "x-pos-session": sessionData } : {}),
-          },
-          body: JSON.stringify({ id: line.voucher.id, confirm: true }),
-        }).catch(() => {});
-      }
+      if (line.voucher?.id) confirmId(line.voucher.id);
     });
+    if (basketVoucher?.id) confirmId(basketVoucher.id);
   };
 
   // Fire-and-forget: create pending voucher after payment
@@ -665,15 +667,26 @@ export default function PaymentPage() {
       // Use global default dining option setting (can be overridden by table assignment)
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
       tip_amount: tipAmount,
-      voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
-        voucher_id: line.voucher!.id,
-        voucher_name: line.voucher!.name,
-        discount_type: line.voucher!.discountType,
-        discount_value: line.voucher!.discountValue,
-        bean_cost: line.voucher!.beanCost || 0,
-        item_type: line.voucher!.itemType || null,
-        category: line.voucher!.category || null,
-      })),
+      voucher_redemptions: [
+        ...lines.filter(line => line.voucher).map(line => ({
+          voucher_id: line.voucher!.id,
+          voucher_name: line.voucher!.name,
+          discount_type: line.voucher!.discountType,
+          discount_value: line.voucher!.discountValue,
+          bean_cost: line.voucher!.beanCost || 0,
+          item_type: line.voucher!.itemType || null,
+          category: line.voucher!.category || null,
+        })),
+        ...(basketVoucher ? [{
+          voucher_id: basketVoucher.id,
+          voucher_name: basketVoucher.name,
+          discount_type: basketVoucher.discountType,
+          discount_value: basketVoucher.discountValue,
+          bean_cost: 0,
+          item_type: null,
+          category: null,
+        }] : []),
+      ],
     };
     
     console.log('[Payment] Creating receipt with customer data:', {
@@ -812,15 +825,26 @@ export default function PaymentPage() {
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
       tip_amount: tipAmount,
-      voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
-        voucher_id: line.voucher!.id,
-        voucher_name: line.voucher!.name,
-        discount_type: line.voucher!.discountType,
-        discount_value: line.voucher!.discountValue,
-        bean_cost: line.voucher!.beanCost || 0,
-        item_type: line.voucher!.itemType || null,
-        category: line.voucher!.category || null,
-      })),
+      voucher_redemptions: [
+        ...lines.filter(line => line.voucher).map(line => ({
+          voucher_id: line.voucher!.id,
+          voucher_name: line.voucher!.name,
+          discount_type: line.voucher!.discountType,
+          discount_value: line.voucher!.discountValue,
+          bean_cost: line.voucher!.beanCost || 0,
+          item_type: line.voucher!.itemType || null,
+          category: line.voucher!.category || null,
+        })),
+        ...(basketVoucher ? [{
+          voucher_id: basketVoucher.id,
+          voucher_name: basketVoucher.name,
+          discount_type: basketVoucher.discountType,
+          discount_value: basketVoucher.discountValue,
+          bean_cost: 0,
+          item_type: null,
+          category: null,
+        }] : []),
+      ],
     };
     
     console.log('[Payment] Creating manual receipt with method:', method);
@@ -1717,15 +1741,26 @@ export default function PaymentPage() {
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,
         tip_amount: tipAmount,
-        voucher_redemptions: lines.filter(line => line.voucher).map(line => ({
-          voucher_id: line.voucher!.id,
-          voucher_name: line.voucher!.name,
-          discount_type: line.voucher!.discountType,
-          discount_value: line.voucher!.discountValue,
-          bean_cost: line.voucher!.beanCost || 0,
-          item_type: line.voucher!.itemType || null,
-          category: line.voucher!.category || null,
-        })),
+        voucher_redemptions: [
+          ...lines.filter(line => line.voucher).map(line => ({
+            voucher_id: line.voucher!.id,
+            voucher_name: line.voucher!.name,
+            discount_type: line.voucher!.discountType,
+            discount_value: line.voucher!.discountValue,
+            bean_cost: line.voucher!.beanCost || 0,
+            item_type: line.voucher!.itemType || null,
+            category: line.voucher!.category || null,
+          })),
+          ...(basketVoucher ? [{
+            voucher_id: basketVoucher.id,
+            voucher_name: basketVoucher.name,
+            discount_type: basketVoucher.discountType,
+            discount_value: basketVoucher.discountValue,
+            bean_cost: 0,
+            item_type: null,
+            category: null,
+          }] : []),
+        ],
       };
 
       // Add line_total to each line for printing
@@ -1831,6 +1866,11 @@ export default function PaymentPage() {
           >
             <div className="text-xs uppercase tracking-wide opacity-90">Total Amount</div>
             <div className="text-3xl font-bold">{formatCurrency(total)}</div>
+            {basketVoucher && (
+              <div className="text-xs text-white/90 mt-0.5">
+                Voucher: {basketVoucher.name} &minus;{formatCurrency(getBasketVoucherDiscount())}
+              </div>
+            )}
             {tipAmount > 0 && (
               <div className="text-xs text-white/80 mt-0.5">incl. {formatCurrency(tipAmount)} tip</div>
             )}

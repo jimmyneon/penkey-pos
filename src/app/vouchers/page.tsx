@@ -39,7 +39,7 @@ const formatCurrency = (amount: number) => {
 
 export default function VouchersPage() {
   const router = useRouter();
-  const { lines, applyVoucher } = useCartStore();
+  const { lines, applyVoucher, addLine, setBasketVoucher } = useCartStore();
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +170,39 @@ export default function VouchersPage() {
   const handleCreate = async () => {
     setCreating(true);
     try {
+      if (voucherType === "amount") {
+        const voucherAmount = parseFloat(amount);
+        // Store the full config so the payment page can create the voucher after payment
+        const config = {
+          voucherType,
+          amount,
+          recipientName: recipientName || null,
+          recipientEmail: recipientEmail || null,
+          expiryDate: expiryDate || null,
+          message: message || null,
+          sendEmail: sendEmail && !!recipientEmail,
+        };
+        sessionStorage.setItem("pending_voucher_create", JSON.stringify(config));
+
+        // Add a gift voucher line to the cart so the cashier can take payment for it
+        addLine({
+          item_id: "gift_voucher",
+          item_name: `Gift Voucher ${formatCurrency(voucherAmount)}${recipientName ? ` (${recipientName})` : ""}`,
+          variant_id: null,
+          variant_name: null,
+          quantity: 1,
+          unit_price: voucherAmount,
+          modifiers: [],
+          notes: message || "",
+          tax_rate: 0,
+        });
+
+        setShowCreate(false);
+        resetForm();
+        router.push("/payment");
+        return;
+      }
+
       const body: any = {
         voucher_type: voucherType,
         recipient_name: recipientName || null,
@@ -179,7 +212,6 @@ export default function VouchersPage() {
         send_email: sendEmail && !!recipientEmail,
       };
 
-      if (voucherType === "amount") body.amount = parseFloat(amount);
       if (voucherType === "percent") body.percent_discount = parseFloat(percentDiscount);
       if (voucherType === "item") {
         body.item_id = selectedItemId;
@@ -274,38 +306,29 @@ export default function VouchersPage() {
         const data = await res.json();
         const voucherData = data.voucher;
 
-        // Apply voucher to cart
-        if (lines.length === 0) {
-          alert("Cart is empty. Add items before applying voucher.");
-          return;
-        }
-
         const voucherForCart = {
           id: voucherData.id,
           name: voucherData.name,
-          discountType: voucherData.discountType,
+          discountType: voucherData.discountType as any,
           discountValue: voucherData.discountValue,
           beanCost: 0,
           itemType: voucherData.voucher_type === "item" ? "item" : undefined,
           category: undefined,
         };
 
-        // For percentage/fixed discounts, apply to all lines (basket-level)
-        // For free item, find matching line
         if (voucherData.discountType === "free_item") {
+          // Free item vouchers require the matching item to already be in the cart
           const matchingLine = lines.find((line: any) =>
             line.item_name.toLowerCase().includes(voucherData.item_name?.toLowerCase() || "")
           );
           if (!matchingLine) {
-            alert(`No matching item "${voucherData.item_name}" in cart.`);
+            alert(`Add "${voucherData.item_name}" to the cart first, then redeem this voucher.`);
             return;
           }
           applyVoucher(matchingLine.id, voucherForCart);
         } else {
-          // Apply to all lines for percentage/fixed discounts
-          lines.forEach((line: any) => {
-            applyVoucher(line.id, voucherForCart);
-          });
+          // Fixed/percent vouchers apply at basket level — works even with an empty cart
+          setBasketVoucher(voucherForCart);
         }
 
         setShowDetail(false);

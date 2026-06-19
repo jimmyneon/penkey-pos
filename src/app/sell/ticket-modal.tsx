@@ -39,6 +39,7 @@ interface TicketModalProps {
   getSubtotal: () => number;
   getTaxTotal: () => number;
   getTotal: () => number;
+  getBasketVoucherDiscount?: () => number;
   onCheckout: () => void;
   onSave: () => void;
   onClearAll: () => void;
@@ -46,6 +47,7 @@ interface TicketModalProps {
   onRedeemVoucher?: () => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
   onCustomerClick?: (customer: any) => void;
+  basketVoucher?: { id: string; name: string; discountType: string; discountValue: number } | null;
 }
 
 export function TicketModal({
@@ -57,6 +59,7 @@ export function TicketModal({
   getSubtotal,
   getTaxTotal,
   getTotal,
+  getBasketVoucherDiscount,
   onCheckout,
   onSave,
   onClearAll,
@@ -64,6 +67,7 @@ export function TicketModal({
   onRedeemVoucher,
   ticketAssignment,
   onCustomerClick,
+  basketVoucher,
 }: TicketModalProps) {
   // Use scroll lock hook to manage scroll state
   useScrollLock(open);
@@ -236,7 +240,7 @@ export function TicketModal({
         )}
 
         {/* Fixed Totals - Always Visible */}
-        {lines.length > 0 && (
+        {(lines.length > 0 || basketVoucher) && (
           <div className="border-t border-gray-700 pt-4 mt-4 space-y-2">
               <div className="flex justify-between text-base">
                 <span className="text-gray-400">Subtotal</span>
@@ -246,6 +250,12 @@ export function TicketModal({
                 <span className="text-gray-400">Tax (20%)</span>
                 <span className="font-semibold text-white">{formatCurrency(getTaxTotal())}</span>
               </div>
+              {basketVoucher && getBasketVoucherDiscount && (
+                <div className="flex justify-between text-base">
+                  <span className="text-green-400">{basketVoucher.name}</span>
+                  <span className="font-semibold text-green-400">-{formatCurrency(getBasketVoucherDiscount())}</span>
+                </div>
+              )}
               <div className="flex justify-between text-2xl font-bold border-t border-gray-700 pt-3">
                 <span className="text-white">Total</span>
                 <span className="text-penkey-orange">{formatCurrency(getTotal())}</span>

@@ -223,7 +223,7 @@ export default function SellPage() {
     }
   };
 
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines, applyVoucher, removeVoucher } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines, applyVoucher, removeVoucher, setBasketVoucher, basketVoucher } = useCartStore();
 
   // Only call data hooks when session is loaded to prevent "skip" issues
   const shouldLoadData = session && session.org_id && session.user_id;
@@ -1909,7 +1909,7 @@ export default function SellPage() {
         }}
         onOpenTicketsClick={() => setOpenTicketsOpen(true)}
         onChargeClick={() => {
-          if (lines.length === 0) {
+          if (lines.length === 0 && !basketVoucher) {
             showToast('Add items to ticket first', 'error');
             return;
           }
@@ -2121,6 +2121,8 @@ export default function SellPage() {
         getSubtotal={getSubtotal}
         getTaxTotal={getTaxTotal}
         getTotal={getTotal}
+        getBasketVoucherDiscount={useCartStore.getState().getBasketVoucherDiscount}
+        basketVoucher={basketVoucher}
         onCheckout={() => {
           // Store ticket assignment for payment page
           if (ticketAssignment) {
@@ -2159,16 +2161,13 @@ export default function SellPage() {
         open={voucherRedeemOpen}
         onClose={() => setVoucherRedeemOpen(false)}
         onApply={(voucher) => {
-          // Apply as basket-level discount on the first line
-          if (lines.length > 0) {
-            applyVoucher(lines[0].id, {
-              id: voucher.id,
-              name: voucher.name,
-              discountType: voucher.discountType as any,
-              discountValue: voucher.discountValue,
-              beanCost: 0,
-            });
-          }
+          setBasketVoucher({
+            id: voucher.id,
+            name: voucher.name,
+            discountType: voucher.discountType as any,
+            discountValue: voucher.discountValue,
+            beanCost: 0,
+          });
           showToast(`Voucher applied: ${voucher.name}`, 'success');
         }}
       />

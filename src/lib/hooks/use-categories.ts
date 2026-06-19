@@ -28,6 +28,7 @@ export function useCategories(orgId: string, forceRefresh: boolean = false) {
   }, [orgId, forceRefresh]);
 
   const loadCategories = async (skipCache: boolean = false) => {
+    let loadedFromCache = false;
     try {
       setLoading(true);
       setFromCache(false);
@@ -39,6 +40,7 @@ export function useCategories(orgId: string, forceRefresh: boolean = false) {
         if (filtered.length) {
           console.log("[useCategories] IDB hit:", filtered.length);
           setCategories(filtered);
+          loadedFromCache = true;
           setFromCache(true);
           setLoading(false);
         }
@@ -78,8 +80,8 @@ export function useCategories(orgId: string, forceRefresh: boolean = false) {
         }
       };
 
-      if (fromCache) {
-        // Fire-and-forget background refresh
+      if (loadedFromCache) {
+        // Fire-and-forget background refresh — data already showing from IDB
         doFetch().catch(() => {});
       } else {
         await doFetch();
