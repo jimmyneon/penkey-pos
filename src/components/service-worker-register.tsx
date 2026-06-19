@@ -43,15 +43,9 @@ export function ServiceWorkerRegister() {
 
         console.log("[SW] Service worker registered successfully:", registration);
 
-        // Check if there's a waiting worker from a previous session
-        // If so, force it to activate immediately to prevent serving stale cached versions
-        if (registration.waiting) {
-          console.log("[SW] Found waiting service worker, activating immediately");
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-
-        // Don't notify on mount - only notify when a NEW update is found via updatefound
-        // This prevents false positives when a waiting worker from a previous session is still there
+        // Do NOT aggressively send SKIP_WAITING on registration startup.
+        // A waiting SW will be activated when the user explicitly requests an update
+        // (via PWAUpdateNotifier). Activating immediately kills in-flight requests.
 
         // Listen for new service worker installing
         registration.addEventListener("updatefound", () => {
@@ -71,19 +65,12 @@ export function ServiceWorkerRegister() {
           });
         });
 
-        // Check for updates periodically (every 5 minutes)
+        // Check for updates periodically (every 30 minutes, not 5)
+        // Frequent update checks can trigger SW activation mid-request
         setInterval(() => {
           console.log("[SW] Checking for updates...");
           registration.update();
-        }, 5 * 60 * 1000);
-
-        // Also check for updates when page becomes visible
-        document.addEventListener("visibilitychange", () => {
-          if (!document.hidden) {
-            console.log("[SW] Page visible, checking for updates...");
-            registration.update();
-          }
-        });
+        }, 30 * 60 * 1000);
       } catch (error) {
         console.error("[SW] Service worker registration failed:", error);
       }

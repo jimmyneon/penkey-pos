@@ -9,19 +9,18 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// When activated, immediately claim all clients
+// When activated, notify clients (but do NOT call clients.claim() here)
+// clients.claim() is already handled by workbox in the compiled sw.js.
+// Calling it again here kills in-flight fetch requests on all open pages.
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service worker activated');
+  // Notify clients that the new service worker has taken control
   event.waitUntil(
-    self.clients.claim().then(() => {
-      console.log('[SW] All clients claimed');
-      // Notify all clients that the new service worker has taken control
-      return self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({
-            type: 'SW_ACTIVATED',
-            message: 'New service worker activated'
-          });
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({
+          type: 'SW_ACTIVATED',
+          message: 'New service worker activated'
         });
       });
     })

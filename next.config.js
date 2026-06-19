@@ -6,6 +6,9 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   scope: '/',
   sw: 'sw.js',
+  // Do NOT auto-claim clients on SW activation - this kills in-flight requests on all open pages.
+  // We rely on normal browser behaviour: the new SW takes over on next page load.
+  clientsClaim: false,
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic file from precaching
   runtimeCaching: [
     // HTML documents - always use NetworkFirst to avoid serving stale/broken cached versions
