@@ -29,7 +29,9 @@ export function useDataSync(orgId: string) {
 
     try {
       // Fetch categories
-      const categoriesResponse = await fetch(`/api/categories?org_id=${orgId}`);
+      const categoriesResponse = await fetch(`/api/categories?org_id=${orgId}`, {
+        credentials: 'include',
+      });
       if (categoriesResponse.ok) {
         const categories = await categoriesResponse.json();
         dataCache.set(orgId, "categories", categories);
