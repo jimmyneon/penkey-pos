@@ -20,7 +20,9 @@ export function useUserPreferences(userId: string | undefined, orgId: string | u
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    console.log("[useUserPreferences] useEffect called with userId:", userId, "orgId:", orgId);
     if (!userId || !orgId) {
+      console.log("[useUserPreferences] Skipping load - missing userId or orgId");
       setLoading(false);
       return;
     }
@@ -30,7 +32,9 @@ export function useUserPreferences(userId: string | undefined, orgId: string | u
     const loadPreferences = async () => {
       try {
         setLoading(true);
+        console.log("[useUserPreferences] Loading preferences for userId:", userId, "orgId:", orgId);
         const loadedPreferences = await userPreferences.get(userId, orgId);
+        console.log("[useUserPreferences] Loaded preferences:", loadedPreferences);
         setPreferences(loadedPreferences);
         setError(null);
 
