@@ -112,9 +112,10 @@ const withPWA = require('next-pwa')({
       options: {},
     },
   ],
-  fallbacks: {
-    document: '/offline.html',
-  },
+  // NOTE: No fallbacks config here intentionally.
+  // fallbacks adds handlerDidError:self.fallback to EVERY route, including NetworkOnly ones.
+  // When network hiccups, it silently serves offline.html and snaps the page.
+  // HTML is never actually cached (maxAgeSeconds:0) so fallbacks never helped offline either.
 });
 
 const path = require('path');
