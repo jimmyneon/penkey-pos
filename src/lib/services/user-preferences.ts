@@ -114,8 +114,8 @@ export class UserPreferencesService {
     orgId: string,
     key: K,
     value: UserPreferences[K]
-  ): Promise<void> {
-    await this.update(userId, orgId, { [key]: value } as Partial<UserPreferences>);
+  ): Promise<UserPreferences> {
+    return await this.update(userId, orgId, { [key]: value } as Partial<UserPreferences>);
   }
 
   /**

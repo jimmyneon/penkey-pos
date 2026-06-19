@@ -62,10 +62,17 @@ export function useUserPreferences(userId: string | undefined, orgId: string | u
   ) => {
     if (!userId || !orgId) return;
 
+    // Optimistic update: update local state immediately for instant UI feedback
+    setPreferences(prev => ({ ...prev, [key]: value }));
+
     try {
-      await userPreferences.updatePreference(userId, orgId, key, value);
+      const updated = await userPreferences.updatePreference(userId, orgId, key, value);
+      // Confirm with actual returned value from DB
+      setPreferences(prev => ({ ...prev, [key]: updated[key] ?? value }));
     } catch (err) {
       console.error("[useUserPreferences] Failed to update preference:", err);
+      // Revert on error
+      setPreferences(prev => ({ ...prev, [key]: !value }));
       throw err;
     }
   };
@@ -73,10 +80,17 @@ export function useUserPreferences(userId: string | undefined, orgId: string | u
   const updatePreferences = async (updates: Partial<UserPreferences>) => {
     if (!userId || !orgId) return;
 
+    // Optimistic update
+    setPreferences(prev => ({ ...prev, ...updates }));
+
     try {
-      await userPreferences.update(userId, orgId, updates);
+      const updated = await userPreferences.update(userId, orgId, updates);
+      setPreferences(prev => ({ ...prev, ...updated }));
     } catch (err) {
       console.error("[useUserPreferences] Failed to update preferences:", err);
+      // Revert on error by reloading from service
+      const reverted = await userPreferences.get(userId, orgId);
+      setPreferences(reverted);
       throw err;
     }
   };
