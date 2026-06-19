@@ -1,6 +1,15 @@
 // Custom service worker handlers for PWA updates
 // This file extends the default next-pwa service worker
 
+// Block clients.claim() - it orphans in-flight fetch requests on all open tabs,
+// causing the page to crash (snap) when the SW activates during a page load.
+// This runs before the workbox wrapper calls e.clientsClaim(), intercepting it.
+// The SW takes control on next page navigation instead (safe behaviour).
+self.clients.claim = () => {
+  console.log('[SW] clients.claim() blocked - SW will take control on next navigation');
+  return Promise.resolve();
+};
+
 // Handle SKIP_WAITING message from the app
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {

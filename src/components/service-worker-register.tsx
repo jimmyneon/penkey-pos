@@ -21,7 +21,16 @@ export function ServiceWorkerRegister() {
     const needsOffline = offlineRoutes.some(route => pathname.startsWith(route));
 
     if (!needsOffline) {
-      console.log("[SW] Route doesn't need offline support, skipping SW registration:", pathname);
+      // Actively unregister any existing SW on non-offline pages.
+      // This prevents the SW from intercepting requests and calling clients.claim()
+      // which orphans in-flight fetch requests and causes the page to crash.
+      // The SW will re-register automatically when the user navigates to /sell or /payment.
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        if (registrations.length > 0) {
+          console.log("[SW] Unregistering SW on non-offline page:", pathname);
+          registrations.forEach((reg) => reg.unregister());
+        }
+      });
       return;
     }
 
