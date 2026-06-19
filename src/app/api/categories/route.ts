@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    console.log(`[API-CATEGORIES] Querying categories for org_id: ${session.org_id}`);
     const { data, error } = await supabase
       .from("categories")
       .select("id, name, color, sort_order, description, icon, icon_color, type")
@@ -89,13 +90,18 @@ export async function GET(request: NextRequest) {
       .order("sort_order")
       .order("name");
 
-    if (error) throw error;
+    if (error) {
+      console.error(`[API-CATEGORIES] Supabase error:`, error);
+      throw error;
+    }
 
+    console.log(`[API-CATEGORIES] Successfully fetched ${data?.length || 0} categories`);
     return NextResponse.json(data || []);
   } catch (error: any) {
-    console.error("Failed to fetch categories:", error);
+    console.error("[API-CATEGORIES] Failed to fetch categories:", error);
+    console.error("[API-CATEGORIES] Error details:", error.message, error.code, error.hint);
     return NextResponse.json(
-      { error: "Failed to fetch categories" },
+      { error: "Failed to fetch categories", details: error.message },
       { status: 500 }
     );
   }
