@@ -17,7 +17,8 @@ import {
   DollarSign,
   Percent,
   ChevronDown,
-  ShoppingCart,
+  Trash2,
+  Ticket,
 } from "lucide-react";
 
 type VoucherType = "amount" | "item" | "percent";
@@ -45,7 +46,11 @@ export default function VouchersPage() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [emailingId, setEmailingId] = useState<string | null>(null);
-  const [showSell, setShowSell] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmStep, setDeleteConfirmStep] = useState(0);
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
 
   // Create form state
   const [voucherType, setVoucherType] = useState<VoucherType>("amount");
@@ -224,6 +229,60 @@ export default function VouchersPage() {
     window.open(`/api/vouchers/${voucher.id}/print?autoprint=1`, "_blank");
   };
 
+  const handleDelete = async (voucher: any) => {
+    if (deleteConfirmStep < 2) {
+      setDeleteConfirmStep(deleteConfirmStep + 1);
+      return;
+    }
+
+    setDeletingId(voucher.id);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const res = await fetch(`/api/vouchers/${voucher.id}`, {
+        method: "DELETE",
+        headers: {
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
+      });
+
+      if (res.ok) {
+        setVouchers((prev) => prev.filter((v) => v.id !== voucher.id));
+        setShowDetail(false);
+        setSelectedVoucher(null);
+        setDeleteConfirmStep(0);
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleRedeem = async (voucher: any) => {
+    setRedeemingId(voucher.id);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const res = await fetch("/api/vouchers/redeem", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
+        body: JSON.stringify({ id: voucher.id, confirm: true }),
+      });
+
+      if (res.ok) {
+        setVouchers((prev) =>
+          prev.map((v) =>
+            v.id === voucher.id ? { ...v, status: "redeemed", redeemed_at: new Date().toISOString() } : v
+          )
+        );
+        setShowDetail(false);
+        setSelectedVoucher(null);
+      }
+    } finally {
+      setRedeemingId(null);
+    }
+  };
+
   const resetForm = () => {
     setVoucherType("amount");
     setAmount("");
@@ -277,13 +336,6 @@ export default function VouchersPage() {
           </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowSell(true)}
-            className="flex items-center gap-2 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white px-4 py-2 rounded-lg font-semibold transition-colors border border-gray-600"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            Sell
-          </button>
-          <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 bg-penkey-orange hover:bg-penkey-orange/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
           >
@@ -327,7 +379,11 @@ export default function VouchersPage() {
         ) : (
           <div className="divide-y divide-gray-700">
             {filtered.map((voucher) => (
-              <div key={voucher.id} className="px-4 py-4">
+              <div
+                key={voucher.id}
+                onClick={() => { setSelectedVoucher(voucher); setShowDetail(true); }}
+                className="px-4 py-4 cursor-pointer hover:bg-white/5 transition-colors"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -346,29 +402,9 @@ export default function VouchersPage() {
                       </div>
                     )}
                   </div>
-                  {voucher.status === "active" && (
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleEmail(voucher)}
-                        disabled={emailingId === voucher.id}
-                        className="p-2 bg-[#4d4d4d] hover:bg-[#5d5d5d] rounded-lg transition-colors disabled:opacity-50"
-                        title="Email voucher"
-                      >
-                        {emailingId === voucher.id ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
-                        ) : (
-                          <Mail className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handlePrint(voucher)}
-                        className="p-2 bg-[#4d4d4d] hover:bg-[#5d5d5d] rounded-lg transition-colors"
-                        title="Print voucher"
-                      >
-                        <Printer className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+                  <div className="text-gray-500">
+                    <ChevronDown className="h-5 w-5" />
+                  </div>
                 </div>
               </div>
             ))}
@@ -376,18 +412,134 @@ export default function VouchersPage() {
         )}
       </div>
 
-      {/* Sell Voucher Dialog */}
-      <SellVoucherDialog
-        open={showSell}
-        onClose={() => setShowSell(false)}
-        onAddToBasket={(val, name) => {
-          sessionStorage.setItem("pending_gift_voucher", JSON.stringify({
-            amount: val,
-            recipientName: name,
-          }));
-          router.push("/sell");
-        }}
-      />
+      {/* Voucher Detail Modal */}
+      {showDetail && selectedVoucher && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#3d3d3d] w-full sm:max-w-lg sm:rounded-xl overflow-hidden flex flex-col max-h-[95vh]">
+            {/* Modal header */}
+            <div className="px-4 py-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-xl font-bold">Voucher Details</h2>
+              <button onClick={() => { setShowDetail(false); setSelectedVoucher(null); setDeleteConfirmStep(0); }} className="p-2 hover:bg-white/10 rounded-lg">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              {/* Voucher code and status */}
+              <div className="bg-[#2d2d2d] rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-2xl font-bold text-penkey-orange">{selectedVoucher.code}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_COLOURS[selectedVoucher.status] || ""}`}>
+                    {selectedVoucher.status}
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-white">{voucherLabel(selectedVoucher)}</div>
+              </div>
+
+              {/* Recipient info */}
+              {selectedVoucher.recipient_name && (
+                <div className="bg-[#2d2d2d] rounded-lg p-4">
+                  <div className="text-sm text-gray-400 mb-1">Recipient</div>
+                  <div className="text-lg font-semibold">{selectedVoucher.recipient_name}</div>
+                  {selectedVoucher.recipient_email && (
+                    <div className="text-sm text-gray-400 mt-1">{selectedVoucher.recipient_email}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Expiry */}
+              {selectedVoucher.expires_at && (
+                <div className="bg-[#2d2d2d] rounded-lg p-4">
+                  <div className="text-sm text-gray-400 mb-1">Valid Until</div>
+                  <div className="text-lg font-semibold">
+                    {new Date(selectedVoucher.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                  </div>
+                </div>
+              )}
+
+              {/* Message */}
+              {selectedVoucher.message && (
+                <div className="bg-[#2d2d2d] rounded-lg p-4">
+                  <div className="text-sm text-gray-400 mb-1">Message</div>
+                  <div className="text-lg italic text-gray-300">&ldquo;{selectedVoucher.message}&rdquo;</div>
+                </div>
+              )}
+
+              {/* QR Code */}
+              <div className="bg-[#2d2d2d] rounded-lg p-4 flex flex-col items-center">
+                <div className="text-sm text-gray-400 mb-3">Scan to Redeem</div>
+                <div className="bg-white p-3 rounded-lg">
+                  <QrCode className="h-32 w-32 text-black" />
+                </div>
+                <div className="text-xs text-gray-500 mt-2">Code: {selectedVoucher.code}</div>
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="p-4 border-t border-gray-700 flex-shrink-0 space-y-2">
+              {selectedVoucher.status === "active" && (
+                <>
+                  <button
+                    onClick={() => handleEmail(selectedVoucher)}
+                    disabled={emailingId === selectedVoucher.id}
+                    className="w-full py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    {emailingId === selectedVoucher.id ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4" />
+                        Email Voucher
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handlePrint(selectedVoucher)}
+                    className="w-full py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print Voucher
+                  </button>
+                  <button
+                    onClick={() => handleRedeem(selectedVoucher)}
+                    disabled={redeemingId === selectedVoucher.id}
+                    className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    {redeemingId === selectedVoucher.id ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                    ) : (
+                      <>
+                        <Ticket className="h-4 w-4" />
+                        Redeem Voucher
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => handleDelete(selectedVoucher)}
+                disabled={deletingId === selectedVoucher.id}
+                className={`w-full py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 ${
+                  deleteConfirmStep === 0
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : deleteConfirmStep === 1
+                    ? "bg-red-700 hover:bg-red-800 text-white"
+                    : "bg-red-800 text-white"
+                }`}
+              >
+                {deletingId === selectedVoucher.id ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    {deleteConfirmStep === 0 ? "Delete Voucher" : deleteConfirmStep === 1 ? "Confirm Delete?" : "FINAL CONFIRM - This cannot be undone"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Voucher Modal */}
       {showCreate && (
@@ -625,36 +777,6 @@ export default function VouchersPage() {
                   </>
                 )}
               </button>
-              {voucherType === "amount" && (
-                <button
-                  onClick={() => {
-                    if (!isFormValid()) return;
-                    const config = {
-                      voucherType,
-                      amount,
-                      percentDiscount,
-                      selectedItemId,
-                      selectedItemName,
-                      recipientName,
-                      recipientEmail,
-                      expiryDate,
-                      message,
-                      sendEmail,
-                    };
-                    sessionStorage.setItem("pending_voucher_create", JSON.stringify(config));
-                    sessionStorage.setItem("pending_gift_voucher", JSON.stringify({
-                      amount: parseFloat(amount),
-                      recipientName: recipientName || undefined,
-                    }));
-                    router.push("/sell");
-                  }}
-                  disabled={!isFormValid()}
-                  className="w-full py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-40 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  Charge & Create
-                </button>
-              )}
             </div>
           </div>
         </div>
