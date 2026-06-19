@@ -51,6 +51,18 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
       page-break-inside: avoid;
       display: flex;
       flex-direction: column;
+      border: 3px solid #e97c2c;
+      position: relative;
+    }
+    .voucher::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      border: 1px solid #e97c2c;
+      pointer-events: none;
     }
 
     .logo {
