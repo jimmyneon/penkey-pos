@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 
 export function PWAUpdateNotifier() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  // Tracks whether the user explicitly clicked "Update"
+  // Only reload on controllerchange if this is true to prevent unexpected snaps
+  const updateRequestedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
@@ -27,9 +30,15 @@ export function PWAUpdateNotifier() {
     navigator.serviceWorker.ready
       .then((reg) => {
         // Listen for controller change (when new SW takes over)
+        // ONLY reload if the user explicitly clicked Update — not on any random controller change
+        // (e.g. SW first claiming an uncontrolled page also fires controllerchange)
         const handleControllerChange = () => {
-          console.log("[PWA Update] Controller changed, reloading page");
-          window.location.reload();
+          if (updateRequestedRef.current) {
+            console.log("[PWA Update] Controller changed after user update request, reloading page");
+            window.location.reload();
+          } else {
+            console.log("[PWA Update] Controller changed (not user-requested, skipping reload)");
+          }
         };
 
         navigator.serviceWorker.addEventListener(
@@ -60,6 +69,7 @@ export function PWAUpdateNotifier() {
   const handleUpdate = () => {
     if (waitingWorker) {
       console.log("[PWA Update] Sending SKIP_WAITING message to service worker");
+      updateRequestedRef.current = true;
       waitingWorker.postMessage({ type: "SKIP_WAITING" });
       setShowUpdate(false);
     }

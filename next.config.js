@@ -11,13 +11,24 @@ const withPWA = require('next-pwa')({
   clientsClaim: false,
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic file from precaching
   runtimeCaching: [
-    // HTML documents - always use NetworkFirst to avoid serving stale/broken cached versions
+    // Non-offline pages (vouchers, items, reports, settings etc) - pass documents straight to network.
+    // Do NOT apply a timeout or fall back to offline.html for these pages.
+    {
+      urlPattern: ({ request, url }) =>
+        request.destination === 'document' &&
+        !url.pathname.startsWith('/sell') &&
+        !url.pathname.startsWith('/payment') &&
+        url.pathname !== '/',
+      handler: 'NetworkOnly',
+      options: {},
+    },
+    // Sell/payment HTML documents - NetworkFirst so the app shell can open offline
     {
       urlPattern: ({ request }) => request.destination === 'document',
       handler: 'NetworkFirst',
       options: {
         cacheName: 'html-cache',
-        networkTimeoutSeconds: 3,
+        networkTimeoutSeconds: 10,
         expiration: { maxAgeSeconds: 0 }, // Don't cache HTML at all
       },
     },
