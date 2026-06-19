@@ -280,22 +280,6 @@ export default function VouchersPage() {
           return;
         }
 
-        // For percentage/fixed discounts, apply to first line or create logic
-        // For free item, find matching line
-        let targetLineId = lines[0].id;
-
-        if (voucherData.discountType === "free_item") {
-          // Find line with matching item name
-          const matchingLine = lines.find((line: any) =>
-            line.item_name.toLowerCase().includes(voucherData.item_name?.toLowerCase() || "")
-          );
-          if (!matchingLine) {
-            alert(`No matching item "${voucherData.item_name}" in cart.`);
-            return;
-          }
-          targetLineId = matchingLine.id;
-        }
-
         const voucherForCart = {
           id: voucherData.id,
           name: voucherData.name,
@@ -306,7 +290,24 @@ export default function VouchersPage() {
           category: undefined,
         };
 
-        applyVoucher(targetLineId, voucherForCart);
+        // For percentage/fixed discounts, apply to all lines (basket-level)
+        // For free item, find matching line
+        if (voucherData.discountType === "free_item") {
+          const matchingLine = lines.find((line: any) =>
+            line.item_name.toLowerCase().includes(voucherData.item_name?.toLowerCase() || "")
+          );
+          if (!matchingLine) {
+            alert(`No matching item "${voucherData.item_name}" in cart.`);
+            return;
+          }
+          applyVoucher(matchingLine.id, voucherForCart);
+        } else {
+          // Apply to all lines for percentage/fixed discounts
+          lines.forEach((line: any) => {
+            applyVoucher(line.id, voucherForCart);
+          });
+        }
+
         setShowDetail(false);
         setSelectedVoucher(null);
         router.push("/sell");
