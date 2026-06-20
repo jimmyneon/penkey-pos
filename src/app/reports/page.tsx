@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
-import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon, Download, Coffee, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon, Download, Coffee, UtensilsCrossed, Cookie, IceCream } from "lucide-react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useSalesSummary } from "@/lib/hooks/use-sales-summary";
 import { useSalesByItems } from "@/lib/hooks/use-sales-by-items";
@@ -635,7 +635,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Drink vs Food Split - Wet vs Dry Mix */}
+            {/* Customer Ordering Mix */}
             <button
               onClick={() => openModal('drink-food-split')}
               className="w-full bg-[#3d3d3d] rounded-xl p-6 shadow-lg hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
@@ -643,41 +643,48 @@ export default function ReportsPage() {
               <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
                 <Coffee className="h-5 w-5 text-penkey-orange" />
                 <UtensilsCrossed className="h-5 w-5 text-penkey-orange" />
-                Wet vs Dry Mix
+                Ordering Mix
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Coffee className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm text-gray-300">Dry (drinks only)</span>
+                    <span className="text-sm text-gray-300">Drinks only</span>
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {(drinkFoodData?.summary?.drinks_only?.count || 0)} ({(drinkFoodData?.summary?.drinks_only?.percentage || 0).toFixed(0)}%)
+                    {drinkFoodData?.summary?.breakdown?.drinks_only?.count || 0} ({(drinkFoodData?.summary?.breakdown?.drinks_only?.percentage || 0).toFixed(0)}%)
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <Coffee className="h-4 w-4 text-blue-400" />
-                      <UtensilsCrossed className="h-4 w-4 text-orange-400" />
-                    </div>
-                    <span className="text-sm text-gray-300">Wet (food or mixed)</span>
+                    <Coffee className="h-4 w-4 text-blue-400" />
+                    <Cookie className="h-4 w-4 text-pink-400" />
+                    <span className="text-sm text-gray-300">Drink + treat</span>
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {((drinkFoodData?.summary?.food_only?.count || 0) + (drinkFoodData?.summary?.both?.count || 0))} ({(((drinkFoodData?.summary?.food_only?.count || 0) + (drinkFoodData?.summary?.both?.count || 0)) / (drinkFoodData?.summary?.total_receipts || 1) * 100).toFixed(0)}%)
+                    {drinkFoodData?.summary?.breakdown?.drinks_sweet?.count || 0} ({(drinkFoodData?.summary?.breakdown?.drinks_sweet?.percentage || 0).toFixed(0)}%)
                   </span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2 mt-3 overflow-hidden flex">
-                  <div 
-                    className="bg-blue-400 h-full transition-all duration-500" 
-                    style={{ width: `${drinkFoodData?.summary?.drinks_only?.percentage || 0}%` }}
-                  />
-                  <div 
-                    className="bg-orange-400 h-full transition-all duration-500" 
-                    style={{ width: `${((drinkFoodData?.summary?.food_only?.percentage || 0) + (drinkFoodData?.summary?.both?.percentage || 0))}%` }}
-                  />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coffee className="h-4 w-4 text-blue-400" />
+                    <UtensilsCrossed className="h-4 w-4 text-orange-400" />
+                    <span className="text-sm text-gray-300">Drink + lunch</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {(drinkFoodData?.summary?.breakdown?.drinks_lunch?.count || 0) + (drinkFoodData?.summary?.breakdown?.drinks_both_food?.count || 0)} ({((drinkFoodData?.summary?.breakdown?.drinks_lunch?.percentage || 0) + (drinkFoodData?.summary?.breakdown?.drinks_both_food?.percentage || 0)).toFixed(0)}%)
+                  </span>
                 </div>
-                <p className="text-xs text-gray-400 text-center">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UtensilsCrossed className="h-4 w-4 text-orange-400" />
+                    <span className="text-sm text-gray-300">Food only (no drink)</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {(drinkFoodData?.summary?.breakdown?.sweet_only?.count || 0) + (drinkFoodData?.summary?.breakdown?.lunch_only?.count || 0) + (drinkFoodData?.summary?.breakdown?.both_food_only?.count || 0)} ({((drinkFoodData?.summary?.breakdown?.sweet_only?.percentage || 0) + (drinkFoodData?.summary?.breakdown?.lunch_only?.percentage || 0) + (drinkFoodData?.summary?.breakdown?.both_food_only?.percentage || 0)).toFixed(0)}%)
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 text-center pt-1">
                   {drinkFoodData?.summary?.total_receipts || 0} total orders
                 </p>
               </div>
@@ -1423,7 +1430,7 @@ export default function ReportsPage() {
               <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                 <Coffee className="h-6 w-6 text-penkey-orange" />
                 <UtensilsCrossed className="h-6 w-6 text-penkey-orange" />
-                Wet vs Dry Mix
+                Ordering Mix
               </h3>
               <button
                 onClick={closeModal}
@@ -1456,87 +1463,127 @@ export default function ReportsPage() {
                 </div>
 
                 <div className="space-y-3">
+                  {/* Drinks Only */}
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Coffee className="h-5 w-5 text-blue-400" />
-                        <span className="font-semibold text-white">Dry (drinks only)</span>
+                        <span className="font-semibold text-white">Drinks only</span>
                       </div>
-                      <span className="text-sm text-gray-400">{drinkFoodData.summary.drinks_only.percentage.toFixed(1)}%</span>
+                      <span className="text-sm text-gray-400">{drinkFoodData.summary.breakdown.drinks_only.percentage.toFixed(1)}%</span>
                     </div>
-                    <p className="text-2xl font-bold text-blue-400">{drinkFoodData.summary.drinks_only.count} orders</p>
-                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.drinks_only.revenue.toFixed(2)} revenue</p>
+                    <p className="text-2xl font-bold text-blue-400">{drinkFoodData.summary.breakdown.drinks_only.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.breakdown.drinks_only.revenue.toFixed(2)} revenue</p>
                   </div>
 
+                  {/* Drink + Sweet Treat */}
+                  <div className="bg-pink-500/10 border border-pink-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Coffee className="h-5 w-5 text-blue-400" />
+                        <Cookie className="h-5 w-5 text-pink-400" />
+                        <span className="font-semibold text-white">Drink + sweet treat</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{drinkFoodData.summary.breakdown.drinks_sweet.percentage.toFixed(1)}%</span>
+                    </div>
+                    <p className="text-2xl font-bold text-pink-400">{drinkFoodData.summary.breakdown.drinks_sweet.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.breakdown.drinks_sweet.revenue.toFixed(2)} revenue</p>
+                  </div>
+
+                  {/* Drink + Lunch */}
                   <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
+                        <Coffee className="h-5 w-5 text-blue-400" />
                         <UtensilsCrossed className="h-5 w-5 text-orange-400" />
-                        <span className="font-semibold text-white">Wet (food only)</span>
+                        <span className="font-semibold text-white">Drink + lunch</span>
                       </div>
-                      <span className="text-sm text-gray-400">{drinkFoodData.summary.food_only.percentage.toFixed(1)}%</span>
+                      <span className="text-sm text-gray-400">{(drinkFoodData.summary.breakdown.drinks_lunch.percentage + drinkFoodData.summary.breakdown.drinks_both_food.percentage).toFixed(1)}%</span>
                     </div>
-                    <p className="text-2xl font-bold text-orange-400">{drinkFoodData.summary.food_only.count} orders</p>
-                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.food_only.revenue.toFixed(2)} revenue</p>
+                    <p className="text-2xl font-bold text-orange-400">{drinkFoodData.summary.breakdown.drinks_lunch.count + drinkFoodData.summary.breakdown.drinks_both_food.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{(drinkFoodData.summary.breakdown.drinks_lunch.revenue + drinkFoodData.summary.breakdown.drinks_both_food.revenue).toFixed(2)} revenue</p>
+                    {drinkFoodData.summary.breakdown.drinks_both_food.count > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        ({drinkFoodData.summary.breakdown.drinks_lunch.count} lunch only + {drinkFoodData.summary.breakdown.drinks_both_food.count} lunch + treat)
+                      </p>
+                    )}
                   </div>
 
+                  {/* Sweet Treat Only */}
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="flex gap-1">
-                          <Coffee className="h-5 w-5 text-blue-400" />
-                          <UtensilsCrossed className="h-5 w-5 text-orange-400" />
-                        </div>
-                        <span className="font-semibold text-white">Both</span>
+                        <Cookie className="h-5 w-5 text-purple-400" />
+                        <span className="font-semibold text-white">Sweet treat only</span>
                       </div>
-                      <span className="text-sm text-gray-400">{drinkFoodData.summary.both.percentage.toFixed(1)}%</span>
+                      <span className="text-sm text-gray-400">{drinkFoodData.summary.breakdown.sweet_only.percentage.toFixed(1)}%</span>
                     </div>
-                    <p className="text-2xl font-bold text-purple-400">{drinkFoodData.summary.both.count} orders</p>
-                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.both.revenue.toFixed(2)} revenue</p>
+                    <p className="text-2xl font-bold text-purple-400">{drinkFoodData.summary.breakdown.sweet_only.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.breakdown.sweet_only.revenue.toFixed(2)} revenue</p>
                   </div>
 
-                  {drinkFoodData.summary.other_only.count > 0 && (
+                  {/* Lunch Only */}
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <UtensilsCrossed className="h-5 w-5 text-green-400" />
+                        <span className="font-semibold text-white">Lunch only (no drink)</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{(drinkFoodData.summary.breakdown.lunch_only.percentage + drinkFoodData.summary.breakdown.both_food_only.percentage).toFixed(1)}%</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-400">{drinkFoodData.summary.breakdown.lunch_only.count + drinkFoodData.summary.breakdown.both_food_only.count} orders</p>
+                    <p className="text-sm text-gray-400 mt-1">£{(drinkFoodData.summary.breakdown.lunch_only.revenue + drinkFoodData.summary.breakdown.both_food_only.revenue).toFixed(2)} revenue</p>
+                  </div>
+
+                  {/* Other */}
+                  {drinkFoodData.summary.breakdown.other.count > 0 && (
                     <div className="bg-gray-500/10 border border-gray-500/30 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Circle className="h-5 w-5 text-gray-400" />
                           <span className="font-semibold text-white">Other</span>
                         </div>
-                        <span className="text-sm text-gray-400">{drinkFoodData.summary.other_only.percentage.toFixed(1)}%</span>
+                        <span className="text-sm text-gray-400">{drinkFoodData.summary.breakdown.other.percentage.toFixed(1)}%</span>
                       </div>
-                      <p className="text-2xl font-bold text-gray-400">{drinkFoodData.summary.other_only.count} orders</p>
-                      <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.other_only.revenue.toFixed(2)} revenue</p>
+                      <p className="text-2xl font-bold text-gray-400">{drinkFoodData.summary.breakdown.other.count} orders</p>
+                      <p className="text-sm text-gray-400 mt-1">£{drinkFoodData.summary.breakdown.other.revenue.toFixed(2)} revenue</p>
                     </div>
                   )}
                 </div>
 
+                {/* Summary bar */}
                 <div className="bg-[#2d2d2d] rounded-lg p-4">
-                  <p className="text-sm text-gray-400 mb-3">Wet vs Dry Mix</p>
+                  <p className="text-sm text-gray-400 mb-3">Customer type breakdown</p>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-24 text-xs text-gray-400">Dry</div>
+                      <div className="w-28 text-xs text-gray-400">Drinks only</div>
                       <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
-                        <div 
-                          className="bg-blue-400 h-full transition-all duration-500" 
-                          style={{ width: `${drinkFoodData.summary.drinks_only.percentage}%` }}
-                        />
+                        <div className="bg-blue-400 h-full transition-all duration-500" style={{ width: `${drinkFoodData.summary.breakdown.drinks_only.percentage}%` }} />
                       </div>
-                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.drinks_only.percentage.toFixed(0)}%</div>
+                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.breakdown.drinks_only.percentage.toFixed(0)}%</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-24 text-xs text-gray-400">Wet</div>
+                      <div className="w-28 text-xs text-gray-400">Drink + treat</div>
                       <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
-                        <div 
-                          className="bg-orange-400 h-full transition-all duration-500" 
-                          style={{ width: `${drinkFoodData.summary.food_only.percentage + drinkFoodData.summary.both.percentage}%` }}
-                        />
+                        <div className="bg-pink-400 h-full transition-all duration-500" style={{ width: `${drinkFoodData.summary.breakdown.drinks_sweet.percentage}%` }} />
                       </div>
-                      <div className="w-12 text-xs text-right text-white">{(drinkFoodData.summary.food_only.percentage + drinkFoodData.summary.both.percentage).toFixed(0)}%</div>
+                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.breakdown.drinks_sweet.percentage.toFixed(0)}%</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-28 text-xs text-gray-400">Drink + lunch</div>
+                      <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
+                        <div className="bg-orange-400 h-full transition-all duration-500" style={{ width: `${drinkFoodData.summary.breakdown.drinks_lunch.percentage + drinkFoodData.summary.breakdown.drinks_both_food.percentage}%` }} />
+                      </div>
+                      <div className="w-12 text-xs text-right text-white">{(drinkFoodData.summary.breakdown.drinks_lunch.percentage + drinkFoodData.summary.breakdown.drinks_both_food.percentage).toFixed(0)}%</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-28 text-xs text-gray-400">Food only</div>
+                      <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
+                        <div className="bg-green-400 h-full transition-all duration-500" style={{ width: `${drinkFoodData.summary.breakdown.lunch_only.percentage + drinkFoodData.summary.breakdown.sweet_only.percentage + drinkFoodData.summary.breakdown.both_food_only.percentage}%` }} />
+                      </div>
+                      <div className="w-12 text-xs text-right text-white">{(drinkFoodData.summary.breakdown.lunch_only.percentage + drinkFoodData.summary.breakdown.sweet_only.percentage + drinkFoodData.summary.breakdown.both_food_only.percentage).toFixed(0)}%</div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-3">
-                    Wet = food-only + mixed orders. Dry = drinks-only orders.
-                  </p>
                 </div>
               </div>
             ) : (

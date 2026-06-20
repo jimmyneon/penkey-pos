@@ -3,6 +3,7 @@
  * This is a shared heuristic used by import, reporting, and the POS UI.
  */
 export type CategoryType = "drink" | "food" | "retail" | "other";
+export type FoodSubtype = "sweet" | "lunch" | "other_food";
 
 const DRINK_PATTERNS = [
   "coffee",
@@ -80,6 +81,92 @@ export function classifyCategoryType(name: string): CategoryType {
   if (FOOD_PATTERNS.some((pattern) => lower.includes(pattern))) return "food";
   if (RETAIL_PATTERNS.some((pattern) => lower.includes(pattern))) return "retail";
   return "other";
+}
+
+const SWEET_TREAT_PATTERNS = [
+  "cake",
+  "brownie",
+  "cookie",
+  "muffin",
+  "croissant",
+  "pastry",
+  "bake",
+  "bakes",
+  "sweet",
+  "dessert",
+  "waffle",
+  "pancake",
+  "scone",
+  "flapjack",
+  "shortbread",
+  "donut",
+  "doughnut",
+  "tart",
+  "slice",
+  "crumble",
+  "biscuit",
+  "tray bake",
+  "fruit cake",
+  "bakery",
+  "chocolate",
+  "cinnamon",
+  "apple",
+  "lemon crumble",
+];
+
+const LUNCH_PATTERNS = [
+  "sandwich",
+  "panini",
+  "baguette",
+  "toastie",
+  "toast",
+  "salad",
+  "wrap",
+  "breakfast",
+  "lunch",
+  "burger",
+  "bap",
+  "deli",
+  "meal",
+  "bowl",
+  "pizza",
+  "pastie",
+  "pasty",
+  "soup",
+  "macaroni",
+  "pasta",
+  "quiche",
+  "pie",
+  "roll",
+  "sub",
+  "melt",
+  "sausage roll",
+  "hogs loaf",
+  "hog's loaf",
+  "cobbler",
+  "terrine",
+  "ploughman",
+  "blt",
+  "ham",
+  "egg",
+  "chicken",
+  "houmous",
+  "full penkey",
+  "pulled pork",
+  "cheese and onion",
+  "bacon",
+  "sausage bap",
+  "sausage loaf",
+  "hot food",
+  "food",
+];
+
+export function classifyFoodSubtype(name: string): FoodSubtype {
+  const lower = name.toLowerCase();
+
+  if (LUNCH_PATTERNS.some((pattern) => lower.includes(pattern))) return "lunch";
+  if (SWEET_TREAT_PATTERNS.some((pattern) => lower.includes(pattern))) return "sweet";
+  return "other_food";
 }
 
 export function getCategoryTypeLabel(type: CategoryType): string {

@@ -1,28 +1,27 @@
 import { useState, useEffect } from "react";
 
+interface BucketData {
+  count: number;
+  revenue: number;
+  percentage: number;
+}
+
 interface DrinkFoodSplitData {
   summary: {
     total_receipts: number;
     total_revenue: number;
-    drinks_only: {
-      count: number;
-      revenue: number;
-      percentage: number;
-    };
-    food_only: {
-      count: number;
-      revenue: number;
-      percentage: number;
-    };
-    both: {
-      count: number;
-      revenue: number;
-      percentage: number;
-    };
-    other_only: {
-      count: number;
-      revenue: number;
-      percentage: number;
+    drinks_only: BucketData;
+    wet: BucketData;
+    other_only: BucketData;
+    breakdown: {
+      drinks_only: BucketData;
+      drinks_sweet: BucketData;
+      drinks_lunch: BucketData;
+      drinks_both_food: BucketData;
+      sweet_only: BucketData;
+      lunch_only: BucketData;
+      both_food_only: BucketData;
+      other: BucketData;
     };
   };
 }

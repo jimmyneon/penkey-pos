@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
 import { validatePOSSession, unauthorizedResponse } from "@/lib/api/auth";
 import { ratelimit } from "@/lib/ratelimit";
-import { classifyCategoryType } from "@/lib/utils/category-classification";
+import { classifyCategoryType, classifyFoodSubtype } from "@/lib/utils/category-classification";
 
 export async function GET(request: NextRequest) {
   // ✅ SECURITY: Validate session first
@@ -117,16 +117,27 @@ export async function GET(request: NextRequest) {
 
     const receiptLines = allReceiptLines;
 
-    // Helper function to categorize item based on category type, falling back to name
-    const categorizeItem = (categoryType: string | null, categoryName: string | null): 'drink' | 'food' | 'other' => {
+    // Helper function to categorize item into drink / sweet / lunch / other
+    const categorizeItem = (categoryType: string | null, categoryName: string | null): 'drink' | 'sweet' | 'lunch' | 'other' => {
       const type = (categoryType || "other").toLowerCase();
       if (type === "drink") return "drink";
-      if (type === "food") return "food";
+      if (type === "food") {
+        // Use the name to determine if it's a sweet treat or proper lunch
+        const sub = classifyFoodSubtype(categoryName || "");
+        if (sub === "sweet") return "sweet";
+        if (sub === "lunch") return "lunch";
+        return "other";
+      }
       // Fallback to name-based classification when type is 'other' or missing
       if (type === "other" && categoryName) {
         const inferred = classifyCategoryType(categoryName);
         if (inferred === "drink") return "drink";
-        if (inferred === "food") return "food";
+        if (inferred === "food") {
+          const sub = classifyFoodSubtype(categoryName);
+          if (sub === "sweet") return "sweet";
+          if (sub === "lunch") return "lunch";
+          return "other";
+        }
       }
       return "other";
     };
@@ -134,7 +145,7 @@ export async function GET(request: NextRequest) {
     console.log(`[Drink/Food Split] Fetched ${receiptLines?.length || 0} receipt lines`);
 
     // Group by receipt and categorize
-    const receiptMap = new Map<string, { hasDrink: boolean; hasFood: boolean; total: number }>();
+    const receiptMap = new Map<string, { hasDrink: boolean; hasSweet: boolean; hasLunch: boolean; total: number }>();
 
     (receiptLines || []).forEach((line: any) => {
       const receiptId = line.receipt_id;
@@ -145,70 +156,86 @@ export async function GET(request: NextRequest) {
       const lineTotal = parseFloat(line.line_total || "0");
 
       if (!receiptMap.has(receiptId)) {
-        receiptMap.set(receiptId, { hasDrink: false, hasFood: false, total: 0 });
+        receiptMap.set(receiptId, { hasDrink: false, hasSweet: false, hasLunch: false, total: 0 });
       }
 
       const receipt = receiptMap.get(receiptId)!;
       receipt.total += lineTotal;
 
       if (category === 'drink') receipt.hasDrink = true;
-      if (category === 'food') receipt.hasFood = true;
+      if (category === 'sweet') receipt.hasSweet = true;
+      if (category === 'lunch') receipt.hasLunch = true;
     });
 
     console.log(`[Drink/Food Split] Processed ${receiptMap.size} unique receipts`);
 
-    // Calculate statistics
-    let drinksOnlyCount = 0;
-    let foodOnlyCount = 0;
-    let bothCount = 0;
-    let otherOnlyCount = 0;
-    let drinksOnlyRevenue = 0;
-    let foodOnlyRevenue = 0;
-    let bothRevenue = 0;
-    let otherOnlyRevenue = 0;
+    // Calculate statistics — track all meaningful combinations
+    const stats = {
+      drinks_only: { count: 0, revenue: 0 },
+      drinks_sweet: { count: 0, revenue: 0 },
+      drinks_lunch: { count: 0, revenue: 0 },
+      drinks_both_food: { count: 0, revenue: 0 },
+      sweet_only: { count: 0, revenue: 0 },
+      lunch_only: { count: 0, revenue: 0 },
+      both_food_only: { count: 0, revenue: 0 },
+      other: { count: 0, revenue: 0 },
+    };
 
     receiptMap.forEach((data) => {
-      if (data.hasDrink && !data.hasFood) {
-        drinksOnlyCount++;
-        drinksOnlyRevenue += data.total;
-      } else if (data.hasFood && !data.hasDrink) {
-        foodOnlyCount++;
-        foodOnlyRevenue += data.total;
-      } else if (data.hasDrink && data.hasFood) {
-        bothCount++;
-        bothRevenue += data.total;
-      } else {
-        otherOnlyCount++;
-        otherOnlyRevenue += data.total;
-      }
+      const hasFood = data.hasSweet || data.hasLunch;
+      const bucket = (() => {
+        if (data.hasDrink && !hasFood) return 'drinks_only';
+        if (data.hasDrink && data.hasSweet && !data.hasLunch) return 'drinks_sweet';
+        if (data.hasDrink && data.hasLunch && !data.hasSweet) return 'drinks_lunch';
+        if (data.hasDrink && data.hasSweet && data.hasLunch) return 'drinks_both_food';
+        if (!data.hasDrink && data.hasSweet && !data.hasLunch) return 'sweet_only';
+        if (!data.hasDrink && data.hasLunch && !data.hasSweet) return 'lunch_only';
+        if (!data.hasDrink && data.hasSweet && data.hasLunch) return 'both_food_only';
+        return 'other';
+      })();
+
+      stats[bucket].count++;
+      stats[bucket].revenue += data.total;
     });
 
     const totalReceipts = receiptMap.size;
-    const totalRevenue = drinksOnlyRevenue + foodOnlyRevenue + bothRevenue + otherOnlyRevenue;
+    const totalRevenue = Object.values(stats).reduce((sum, s) => sum + s.revenue, 0);
+    const pct = (n: number) => totalReceipts > 0 ? (n / totalReceipts) * 100 : 0;
+
+    // Also compute aggregate "wet vs dry" for the card summary
+    const drinksOnlyCount = stats.drinks_only.count;
+    const wetCount = totalReceipts - stats.drinks_only.count - stats.other.count;
 
     return NextResponse.json({
       summary: {
         total_receipts: totalReceipts,
         total_revenue: totalRevenue,
+        // Aggregate wet vs dry for the card
         drinks_only: {
           count: drinksOnlyCount,
-          revenue: drinksOnlyRevenue,
-          percentage: totalReceipts > 0 ? (drinksOnlyCount / totalReceipts) * 100 : 0,
+          revenue: stats.drinks_only.revenue,
+          percentage: pct(drinksOnlyCount),
         },
-        food_only: {
-          count: foodOnlyCount,
-          revenue: foodOnlyRevenue,
-          percentage: totalReceipts > 0 ? (foodOnlyCount / totalReceipts) * 100 : 0,
-        },
-        both: {
-          count: bothCount,
-          revenue: bothRevenue,
-          percentage: totalReceipts > 0 ? (bothCount / totalReceipts) * 100 : 0,
+        wet: {
+          count: wetCount,
+          revenue: totalRevenue - stats.drinks_only.revenue - stats.other.revenue,
+          percentage: pct(wetCount),
         },
         other_only: {
-          count: otherOnlyCount,
-          revenue: otherOnlyRevenue,
-          percentage: totalReceipts > 0 ? (otherOnlyCount / totalReceipts) * 100 : 0,
+          count: stats.other.count,
+          revenue: stats.other.revenue,
+          percentage: pct(stats.other.count),
+        },
+        // Detailed breakdown for the modal
+        breakdown: {
+          drinks_only: { count: stats.drinks_only.count, revenue: stats.drinks_only.revenue, percentage: pct(stats.drinks_only.count) },
+          drinks_sweet: { count: stats.drinks_sweet.count, revenue: stats.drinks_sweet.revenue, percentage: pct(stats.drinks_sweet.count) },
+          drinks_lunch: { count: stats.drinks_lunch.count, revenue: stats.drinks_lunch.revenue, percentage: pct(stats.drinks_lunch.count) },
+          drinks_both_food: { count: stats.drinks_both_food.count, revenue: stats.drinks_both_food.revenue, percentage: pct(stats.drinks_both_food.count) },
+          sweet_only: { count: stats.sweet_only.count, revenue: stats.sweet_only.revenue, percentage: pct(stats.sweet_only.count) },
+          lunch_only: { count: stats.lunch_only.count, revenue: stats.lunch_only.revenue, percentage: pct(stats.lunch_only.count) },
+          both_food_only: { count: stats.both_food_only.count, revenue: stats.both_food_only.revenue, percentage: pct(stats.both_food_only.count) },
+          other: { count: stats.other.count, revenue: stats.other.revenue, percentage: pct(stats.other.count) },
         },
       },
     });
