@@ -113,12 +113,11 @@ export async function POST(request: NextRequest) {
 
       let selectedPrinterId = printer_id;
 
-      // If no printer specified, try to find any active printer
+      // If no printer specified, try to find any printer (don't filter by status -
+      // the print server may have a stale heartbeat but will still pick up queued jobs)
       if (!selectedPrinterId) {
         try {
-          const printers = await getPrinters(supabaseUrl, supabaseKey, {
-            status: "online"
-          });
+          const printers = await getPrinters(supabaseUrl, supabaseKey);
 
           if (printers.length > 0) {
             selectedPrinterId = printers[0].id;
@@ -211,99 +210,50 @@ export async function POST(request: NextRequest) {
 
     const r = receipt as any;
 
-    // Fetch receipt template from print_templates table
+    // Fetch receipt template, register/store, employee, lines, and payments in parallel
     let templateHeader = "PENKEY DELICAF\n5 New Street, Lymington\nWhatsApp Pre-orders: 01590 619472";
-    
-    if (r.org_id) {
-      try {
-        const { data: template } = await supabase
-          .from("print_templates")
-          .select("template")
-          .eq("org_id", r.org_id)
-          .eq("type", "receipt")
-          .eq("is_default", true)
-          .maybeSingle();
-        
-        if (template && template.template) {
-          templateHeader = template.template;
-          console.log("[Print] Using custom receipt template for org:", r.org_id);
-        }
-      } catch (err) {
-        console.warn("[Print] Failed to fetch receipt template, using defaults:", err);
-      }
-    }
-
-    // Parse header to extract store info
-    const headerLines = templateHeader.split('\n');
-    const storeName = headerLines[0] || "Penkey Delicaf & Gifts";
-    const storeAddress = headerLines[1] || undefined;
-    const storePhone = headerLines[2] || undefined;
-    
-    // Fetch related data separately to avoid complex nested selects
     let registerName = "Main Till";
     let employeeName = "Staff";
-
-    try {
-      if (r.register_id) {
-        const { data: register } = await supabase
-          .from("registers")
-          .select("name, stores(name, address, phone)")
-          .eq("id", r.register_id)
-          .maybeSingle();
-        if (register) {
-          registerName = (register as any).name || "Main Till";
-          if ((register as any).stores) {
-            storeName = (register as any).stores.name || storeName;
-            storeAddress = (register as any).stores.address;
-            storePhone = (register as any).stores.phone;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("[Print] Failed to fetch register/store info:", e);
-    }
-
-    try {
-      if (r.member_id) {
-        const { data: member } = await supabase
-          .from("org_members")
-          .select("display_name, first_name")
-          .eq("id", r.member_id)
-          .maybeSingle();
-        if (member) {
-          employeeName = (member as any).display_name || (member as any).first_name || "Staff";
-        }
-      }
-    } catch (e) {
-      console.warn("[Print] Failed to fetch employee info:", e);
-    }
-
-    // Fetch receipt lines
+    let storeName = "Penkey Delicaf & Gifts";
+    let storeAddress: string | undefined;
+    let storePhone: string | undefined;
     let lines: any[] = [];
-    try {
-      const { data: receiptLines } = await supabase
-        .from("receipt_lines")
-        .select("quantity, unit_price, line_total, name, modifiers")
-        .eq("receipt_id", receipt_id)
-        .order("sort_order", { ascending: true });
-      lines = receiptLines || [];
-    } catch (e) {
-      console.warn("[Print] Failed to fetch receipt lines:", e);
+    let paymentMethod = "cash";
+
+    const [templateResult, registerResult, memberResult, linesResult, paymentsResult] = await Promise.all([
+      // Fetch receipt template
+      r.org_id ? supabase.from("print_templates").select("template").eq("org_id", r.org_id).eq("type", "receipt").eq("is_default", true).maybeSingle() : Promise.resolve({ data: null }),
+      // Fetch register/store info
+      r.register_id ? supabase.from("registers").select("name, stores(name, address, phone)").eq("id", r.register_id).maybeSingle() : Promise.resolve({ data: null }),
+      // Fetch employee info
+      r.member_id ? supabase.from("org_members").select("display_name, first_name").eq("id", r.member_id).maybeSingle() : Promise.resolve({ data: null }),
+      // Fetch receipt lines
+      supabase.from("receipt_lines").select("quantity, unit_price, line_total, name, modifiers").eq("receipt_id", receipt_id).order("sort_order", { ascending: true }),
+      // Fetch payment method
+      supabase.from("payments").select("method").eq("receipt_id", receipt_id).limit(1),
+    ]);
+
+    if (templateResult?.data?.template) {
+      templateHeader = templateResult.data.template;
+      console.log("[Print] Using custom receipt template for org:", r.org_id);
     }
 
-    // Fetch payment method
-    let paymentMethod = "cash";
-    try {
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("method")
-        .eq("receipt_id", receipt_id)
-        .limit(1);
-      if (payments && payments.length > 0) {
-        paymentMethod = payments[0].method || "cash";
+    if (registerResult?.data) {
+      registerName = (registerResult.data as any).name || registerName;
+      if ((registerResult.data as any).stores) {
+        storeName = (registerResult.data as any).stores.name || storeName;
+        storeAddress = (registerResult.data as any).stores.address;
+        storePhone = (registerResult.data as any).stores.phone;
       }
-    } catch (e) {
-      console.warn("[Print] Failed to fetch payment method:", e);
+    }
+
+    if (memberResult?.data) {
+      employeeName = (memberResult.data as any).display_name || (memberResult.data as any).first_name || employeeName;
+    }
+
+    lines = linesResult?.data || [];
+    if (paymentsResult?.data && paymentsResult.data.length > 0) {
+      paymentMethod = paymentsResult.data[0].method || paymentMethod;
     }
 
     // Format receipt data
@@ -341,12 +291,11 @@ export async function POST(request: NextRequest) {
 
     let selectedPrinterId = printer_id;
 
-    // If no printer specified, try to find any active printer
+    // If no printer specified, try to find any printer (don't filter by status -
+    // the print server may have a stale heartbeat but will still pick up queued jobs)
     if (!selectedPrinterId) {
       try {
-        const printers = await getPrinters(supabaseUrl, supabaseKey, {
-          status: "online"
-        });
+        const printers = await getPrinters(supabaseUrl, supabaseKey);
 
         if (printers.length > 0) {
           selectedPrinterId = printers[0].id;

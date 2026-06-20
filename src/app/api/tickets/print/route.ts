@@ -82,12 +82,11 @@ export async function POST(request: NextRequest) {
 
     let selectedPrinterId = printer_id;
 
-    // If no printer specified, try to find any active printer
+    // If no printer specified, try to find any printer (don't filter by status -
+    // the print server may have a stale heartbeat but will still pick up queued jobs)
     if (!selectedPrinterId) {
       try {
-        const printers = await getPrinters(supabaseUrl, supabaseKey, {
-          status: "online"
-        });
+        const printers = await getPrinters(supabaseUrl, supabaseKey);
 
         if (printers.length > 0) {
           selectedPrinterId = printers[0].id;

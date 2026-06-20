@@ -46,7 +46,7 @@ class PrintServer:
         self.supabase_url = os.getenv('SUPABASE_URL')
         self.supabase_key = os.getenv('SUPABASE_KEY')
         self.printer_id = os.getenv('PRINTER_ID')
-        self.poll_interval = int(os.getenv('POLL_INTERVAL', '30'))  # fallback only
+        self.poll_interval = int(os.getenv('POLL_INTERVAL', '5'))  # fallback only
 
         # Serial printer settings
         self.printer_device = os.getenv('PRINTER_DEVICE', '/dev/ttyUSB0')
@@ -64,6 +64,12 @@ class PrintServer:
         # Supabase log handler
         self.supabase_log_handler: Optional[SupabaseLogHandler] = None
         self._log_flush_task: Optional[asyncio.Task] = None
+
+        # Realtime reconnection tracking
+        self._realtime_healthy = False
+        self._realtime_channel = None
+        self._cmd_channel = None
+        self._reconnect_attempts = 0
 
         if not all([self.supabase_url, self.supabase_key, self.printer_id]):
             raise ValueError(
@@ -184,6 +190,7 @@ class PrintServer:
         """
         Subscribe to INSERT events on print_jobs filtered to this printer.
         The callback fires immediately when the POS queues a new job.
+        Includes automatic reconnection on channel errors.
         """
         async def on_insert(payload):
             record = payload.get('data', {}).get('record') or payload.get('record', {})
@@ -203,8 +210,14 @@ class PrintServer:
         def on_subscribe(status, err=None):
             if status == 'SUBSCRIBED':
                 logger.info("[Realtime] Successfully subscribed to print_jobs channel")
+                self._realtime_healthy = True
+                self._reconnect_attempts = 0
             elif status in ('CHANNEL_ERROR', 'TIMED_OUT'):
                 logger.warning(f"[Realtime] Channel issue ({status}): {err} — fallback poll active")
+                self._realtime_healthy = False
+                self._reconnect_attempts += 1
+                # Schedule reconnection attempt
+                asyncio.ensure_future(self._reconnect_realtime())
             else:
                 logger.debug(f"[Realtime] Channel status: {status}")
 
@@ -280,6 +293,35 @@ class PrintServer:
         )
 
         self._cmd_channel = cmd_channel
+
+    async def _reconnect_realtime(self) -> None:
+        """Attempt to reconnect realtime channels after an error."""
+        if not self.running:
+            return
+
+        # Exponential backoff: 2s, 4s, 8s, 16s, capped at 30s
+        delay = min(2 ** self._reconnect_attempts, 30)
+        logger.info(f"[Realtime] Attempting reconnection in {delay}s (attempt {self._reconnect_attempts})")
+
+        await asyncio.sleep(delay)
+
+        if not self.running:
+            return
+
+        try:
+            # Unsubscribe old channels
+            await self._unsubscribe_realtime()
+
+            # Resubscribe
+            logger.info("[Realtime] Reconnecting realtime channels...")
+            await self._subscribe_realtime()
+            logger.info("[Realtime] Reconnection complete")
+        except Exception as e:
+            logger.error(f"[Realtime] Reconnection failed: {e}")
+            self._realtime_healthy = False
+            self._reconnect_attempts += 1
+            # Schedule another attempt
+            asyncio.ensure_future(self._reconnect_realtime())
 
     async def _unsubscribe_realtime(self) -> None:
         """Gracefully unsubscribe from all realtime channels"""
@@ -537,9 +579,12 @@ class PrintServer:
         # Main event loop
         while self.running and not self._shutdown_event.is_set():
             try:
+                # Use shorter poll interval when realtime is unhealthy
+                effective_interval = 2 if not self._realtime_healthy else self.poll_interval
+
                 # Wait for shutdown event or poll interval
                 try:
-                    await asyncio.wait_for(self._shutdown_event.wait(), timeout=self.poll_interval)
+                    await asyncio.wait_for(self._shutdown_event.wait(), timeout=effective_interval)
                 except asyncio.TimeoutError:
                     # Poll interval elapsed, do fallback poll
                     pass
@@ -548,7 +593,10 @@ class PrintServer:
                     break
 
                 # Fallback poll — catches anything missed during realtime downtime
-                logger.debug("[Fallback] Polling for missed pending jobs...")
+                if not self._realtime_healthy:
+                    logger.info("[Fallback] Realtime unhealthy — polling for pending jobs...")
+                else:
+                    logger.debug("[Fallback] Polling for missed pending jobs...")
                 for job in await self.get_pending_jobs():
                     await self._dispatch_job(job)
                 

@@ -68,19 +68,21 @@ export async function createReceiptPrintJob(
   printer_id: string,
   receiptData: ReceiptTemplateData,
   receipt_id?: string,
-  org_id?: string
+  org_id?: string,
+  printerSettings?: Record<string, any>
 ): Promise<PrintJob> {
   const receiptText = generateReceiptText(receiptData);
 
-  // Fetch printer config to include printer settings
-  const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
-  const { data: printer } = await supabase
-    .from("printers")
-    .select("config")
-    .eq("id", printer_id)
-    .single();
-
-  const printerSettings = printer?.config || {};
+  // Use provided printer settings or fetch from database
+  if (!printerSettings) {
+    const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+    const { data: printer } = await supabase
+      .from("printers")
+      .select("config")
+      .eq("id", printer_id)
+      .single();
+    printerSettings = printer?.config || {};
+  }
 
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,
@@ -103,19 +105,21 @@ export async function createTicketPrintJob(
   supabaseKey: string,
   printer_id: string,
   ticketData: TicketData,
-  org_id?: string
+  org_id?: string,
+  printerSettings?: Record<string, any>
 ): Promise<PrintJob> {
   const ticketText = generateTicketText(ticketData);
 
-  // Fetch printer config to include printer settings
-  const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
-  const { data: printer } = await supabase
-    .from("printers")
-    .select("config")
-    .eq("id", printer_id)
-    .single();
-
-  const printerSettings = printer?.config || {};
+  // Use provided printer settings or fetch from database
+  if (!printerSettings) {
+    const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+    const { data: printer } = await supabase
+      .from("printers")
+      .select("config")
+      .eq("id", printer_id)
+      .single();
+    printerSettings = printer?.config || {};
+  }
 
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,
