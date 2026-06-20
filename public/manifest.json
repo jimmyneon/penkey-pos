@@ -1,15 +1,22 @@
 {
+  "id": "/?source=pwa",
   "name": "Penkey POS",
   "short_name": "Penkey POS",
   "description": "Point of sale for Penkey Délicaf & Gifts",
-  "start_url": "/",
+  "lang": "en-GB",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#2d2d2d",
   "theme_color": "#2d2d2d",
-  "orientation": "any",
   "categories": ["business", "productivity"],
   "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
   "icons": [
     {
       "src": "/icon.svg",
