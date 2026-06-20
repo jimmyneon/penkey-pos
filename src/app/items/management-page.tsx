@@ -9,6 +9,7 @@ import { useItems } from "@/lib/hooks/use-items";
 import { useModifiers } from "@/lib/hooks/use-modifiers";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress } from "@/lib/utils/haptics";
+import { getCategoryTypeLabel } from "@/lib/utils/category-classification";
 import { QuickAddItemDialog } from "./quick-add-dialog";
 import { QuickEditItemDialog } from "./quick-edit-dialog";
 import { QuickAddCategoryDialog } from "./quick-add-category-dialog";
@@ -572,7 +573,23 @@ export default function ManagementPage() {
                       />
                       
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-white text-sm">{category.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-white text-sm">{category.name}</h3>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs px-1.5 py-0.5 ${
+                              category.type === "drink"
+                                ? "border-blue-400 text-blue-400"
+                                : category.type === "food"
+                                ? "border-orange-400 text-orange-400"
+                                : category.type === "retail"
+                                ? "border-green-400 text-green-400"
+                                : "border-gray-500 text-gray-400"
+                            }`}
+                          >
+                            {getCategoryTypeLabel(category.type || "other")}
+                          </Badge>
+                        </div>
                         {category.description && (
                           <p className="text-xs text-gray-400 truncate">{category.description}</p>
                         )}

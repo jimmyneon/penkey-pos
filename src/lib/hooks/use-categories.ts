@@ -10,6 +10,9 @@ export interface Category {
   sort_order: number;
   description: string | null;
   is_active: boolean;
+  type?: "drink" | "food" | "retail" | "other";
+  icon?: string;
+  icon_color?: string;
 }
 
 export function useCategories(orgId: string, forceRefresh: boolean = false) {

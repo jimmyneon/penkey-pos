@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
 import { unauthorizedResponse, validatePOSSession } from "@/lib/api/auth";
 import { ratelimit } from "@/lib/ratelimit";
+import { classifyCategoryType } from "@/lib/utils/category-classification";
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -360,7 +361,8 @@ export async function POST(request: NextRequest) {
                     .from("categories")
                     .update({
                       color: '#f97316',
-                      is_active: true
+                      is_active: true,
+                      type: classifyCategoryType(category)
                     } as any)
                     .eq("id", existing.id);
                   results.categories.updated++;
@@ -374,7 +376,8 @@ export async function POST(request: NextRequest) {
                     color: '#f97316',
                     sort_order: categoryMap.size,
                     description: null,
-                    is_active: true
+                    is_active: true,
+                    type: classifyCategoryType(category)
                   } as any)
                   .select()
                   .single() as { data: { id: string }; error: any };
@@ -618,7 +621,8 @@ export async function POST(request: NextRequest) {
                     color,
                     sort_order: sortOrder,
                     description,
-                    is_active: isActive
+                    is_active: isActive,
+                    type: classifyCategoryType(name)
                   } as any)
                   .eq("id", existing.id);
                 results.categories.updated++;
@@ -634,7 +638,8 @@ export async function POST(request: NextRequest) {
                 color,
                 sort_order: sortOrder,
                 description,
-                is_active: isActive
+                is_active: isActive,
+                type: classifyCategoryType(name)
               } as any)
               .select()
               .single() as { data: { id: string }; error: any };

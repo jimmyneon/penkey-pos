@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/database";
 import { validatePOSSession, unauthorizedResponse } from "@/lib/api/auth";
 import { ratelimit } from "@/lib/ratelimit";
+import { classifyCategoryType } from "@/lib/utils/category-classification";
 
 export async function GET(request: NextRequest) {
   // ✅ SECURITY: Validate session first
@@ -89,13 +90,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch receipt data" }, { status: 500 });
     }
 
-    // Helper function to categorize item based on category type
-    const categorizeItem = (categoryType: string | null): 'drink' | 'food' | 'other' => {
-      if (!categoryType) return 'other';
-      const type = categoryType.toLowerCase();
-      if (type === 'drink') return 'drink';
-      if (type === 'food') return 'food';
-      return 'other';
+    // Helper function to categorize item based on category type, falling back to name
+    const categorizeItem = (categoryType: string | null, categoryName: string | null): 'drink' | 'food' | 'other' => {
+      const type = (categoryType || "other").toLowerCase();
+      if (type === "drink") return "drink";
+      if (type === "food") return "food";
+      // Fallback to name-based classification when type is 'other' or missing
+      if (type === "other" && categoryName) {
+        const inferred = classifyCategoryType(categoryName);
+        if (inferred === "drink") return "drink";
+        if (inferred === "food") return "food";
+      }
+      return "other";
     };
 
     console.log(`[Drink/Food Split] Fetched ${receiptLines?.length || 0} receipt lines`);
@@ -106,7 +112,8 @@ export async function GET(request: NextRequest) {
     (receiptLines || []).forEach((line: any) => {
       const receiptId = line.receipt_id;
       const categoryType = line.items?.categories?.type || 'other';
-      const category = categorizeItem(categoryType);
+      const categoryName = line.items?.categories?.name || null;
+      const category = categorizeItem(categoryType, categoryName);
       const lineTotal = parseFloat(line.line_total || "0");
 
       if (!receiptMap.has(receiptId)) {
