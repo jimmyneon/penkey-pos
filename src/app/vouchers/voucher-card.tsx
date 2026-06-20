@@ -42,17 +42,15 @@ export function VoucherCard({ voucher, onClick }: VoucherCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-4 py-3.5 hover:bg-white/5 transition-all duration-200 group"
+      className="w-full text-left px-4 py-3.5 hover:bg-white/5 active:bg-white/10 transition-colors duration-150 group"
     >
       <div className="flex items-center gap-3">
-        {/* Icon badge */}
         <div
           className={`bg-gradient-to-br ${typeGradient(voucher.voucher_type)} rounded-xl p-2.5 flex-shrink-0 border border-gray-700/30`}
         >
           <Icon className="h-5 w-5 text-gray-300" />
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-0.5">
             <span className="font-mono font-bold text-penkey-orange text-sm tracking-wider">
@@ -66,16 +64,16 @@ export function VoucherCard({ voucher, onClick }: VoucherCardProps) {
               {voucher.status}
             </span>
           </div>
-          <div className="text-base font-semibold text-white">{voucherLabel(voucher)}</div>
+          <div className="text-base font-semibold text-white truncate">{voucherLabel(voucher)}</div>
           <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
             {voucher.recipient_name && (
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {voucher.recipient_name}
+              <span className="flex items-center gap-1 truncate">
+                <User className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{voucher.recipient_name}</span>
               </span>
             )}
             {voucher.expires_at && (
-              <span>
+              <span className="flex-shrink-0">
                 Exp{" "}
                 {new Date(voucher.expires_at).toLocaleDateString("en-GB", {
                   day: "numeric",
@@ -87,7 +85,6 @@ export function VoucherCard({ voucher, onClick }: VoucherCardProps) {
           </div>
         </div>
 
-        {/* Chevron */}
         <ChevronRight className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors flex-shrink-0" />
       </div>
     </button>

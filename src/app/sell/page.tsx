@@ -303,95 +303,129 @@ export default function SellPage() {
   };
 
   const handleQRScan = async (qrData: string) => {
-    console.log("[handleQRScan] Starting QR scan process");
-    console.log("[handleQRScan] QR data:", qrData);
-    console.log("[handleQRScan] Session org_id:", session?.org_id);
-    
     if (!session?.org_id) {
-      console.error("[handleQRScan] No session org_id, aborting");
+      showToast("No session found. Please log in again.", "error");
       return;
     }
-    
-    setScanningQR(true);
-    console.log("[handleQRScan] setScanningQR(true)");
-    
-    try {
-      console.log("[handleQRScan] Calling scanQRCode API...");
-      const apiResponse = await scanQRCode(session.org_id, qrData);
-      console.log("[handleQRScan] scanQRCode returned:", apiResponse);
-      
-      if (!apiResponse) {
-        console.error("[handleQRScan] API returned null response");
-        throw new Error("No customer data returned from API");
-      }
-      
-      // Transform API response to match PerksCustomer interface
-      const customer = {
-        id: apiResponse.customer?.id || '',
-        name: apiResponse.customer?.name || '',
-        email: apiResponse.customer?.email || '',
-        phone: apiResponse.customer?.phone || '',
-        beanBalance: apiResponse.bean_balance?.current_beans || 0,
-        activeVouchers: apiResponse.vouchers || [],
-        canAwardBeanToday: apiResponse.can_award_bean || false,
-      };
-      console.log("[handleQRScan] Transformed customer data:", customer);
-      
-      console.log("[handleQRScan] Setting perksCustomer state...");
-      setPerksCustomer(customer);
-      console.log("[handleQRScan] perksCustomer state set");
-      
-      // Set ticket assignment for payment processing
-      setTicketAssignment({
-        type: 'customer',
-        name: customer.name,
-        customer: customer, // Store full customer object for PerksCustomerPanel
-      });
-      console.log("[handleQRScan] Set ticketAssignment for customer:", customer.name);
 
-      // Persist assignment to sessionStorage for page refresh
-      sessionStorage.setItem("pos_ticket_assignment", JSON.stringify({
-        type: 'customer',
-        name: customer.name,
-        customer: customer,
-      }));
-      console.log("[handleQRScan] Saved assignment to sessionStorage");
-      
-      console.log("[handleQRScan] Setting qrScannerOpen to false...");
-      setQrScannerOpen(false);
-      console.log("[handleQRScan] qrScannerOpen set to false");
-      
-      console.log("[handleQRScan] QR scan process completed successfully");
-      showToast(`Customer ${customer.name} assigned to current ticket`, 'success');
+    setScanningQR(true);
+
+    try {
+      // Try Perks API first
+      let perksSuccess = false;
+      try {
+        const apiResponse = await scanQRCode(session.org_id, qrData);
+
+        if (apiResponse && apiResponse.customer) {
+          perksSuccess = true;
+          const customer = {
+            id: apiResponse.customer?.id || '',
+            name: apiResponse.customer?.name || '',
+            email: apiResponse.customer?.email || '',
+            phone: apiResponse.customer?.phone || '',
+            beanBalance: apiResponse.bean_balance?.current_beans || 0,
+            activeVouchers: apiResponse.vouchers || [],
+            canAwardBeanToday: apiResponse.can_award_bean || false,
+          };
+
+          setPerksCustomer(customer);
+          setTicketAssignment({
+            type: 'customer',
+            name: customer.name,
+            customer: customer,
+          });
+
+          sessionStorage.setItem("pos_ticket_assignment", JSON.stringify({
+            type: 'customer',
+            name: customer.name,
+            customer: customer,
+          }));
+
+          setQrScannerOpen(false);
+          showToast(`Customer ${customer.name} assigned to current ticket`, 'success');
+          return;
+        }
+      } catch (perksErr: any) {
+        // Perks scan failed — could be a gift voucher code instead
+        console.log("[handleQRScan] Perks scan failed, trying gift voucher lookup:", perksErr.message);
+      }
+
+      // If Perks didn't work, try gift voucher lookup
+      if (!perksSuccess) {
+        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+        const voucherRes = await fetch("/api/vouchers/redeem", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionData ? { "x-pos-session": sessionData } : {}),
+          },
+          body: JSON.stringify({ code: qrData.trim(), confirm: false }),
+        });
+
+        if (voucherRes.ok) {
+          const data = await voucherRes.json();
+          const v = data.voucher;
+          const voucherForCart = {
+            id: v.id,
+            name: v.name,
+            discountType: v.discountType as any,
+            discountValue: v.discountValue,
+            beanCost: 0,
+            itemType: v.voucher_type === "item" ? "item" : undefined,
+            category: undefined,
+          };
+
+          if (v.discountType === "free_item") {
+            const matchingLine = lines.find((line: any) =>
+              line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
+            );
+            if (!matchingLine) {
+              showToast(`Add "${v.item_name}" to the cart first, then scan the voucher.`, "error");
+              setQrScannerOpen(false);
+              return;
+            }
+            applyVoucher(matchingLine.id, voucherForCart);
+          } else {
+            setBasketVoucher(voucherForCart);
+          }
+
+          setQrScannerOpen(false);
+          showToast(`Gift voucher applied: ${v.name}`, "success");
+          return;
+        } else {
+          // Gift voucher lookup also failed
+          const errData = await voucherRes.json().catch(() => ({}));
+          const errMsg = errData.error || "Voucher not found";
+
+          if (errMsg.includes("already been redeemed")) {
+            showToast("This gift voucher has already been redeemed.", "error");
+          } else if (errMsg.includes("expired")) {
+            showToast("This gift voucher has expired.", "error");
+          } else if (errMsg.includes("not found")) {
+            showToast("Code not recognised — not a Perks member or gift voucher.", "error");
+          } else {
+            showToast(errMsg, "error");
+          }
+
+          // Reopen scanner for retry
+          setQrScannerOpen(false);
+          setTimeout(() => setQrScannerOpen(true), 600);
+          return;
+        }
+      }
     } catch (error: any) {
-      console.error("[handleQRScan] QR scan error:", error);
-      console.error("[handleQRScan] Error stack:", error.stack);
+      console.error("[handleQRScan] Error:", error);
       const errorMessage = error.message || "Failed to scan QR code";
-      console.error("[handleQRScan] Error message:", errorMessage);
-      
-      // Check if it's the charAt error from web worker
+
+      // Ignore web worker charAt errors
       if (errorMessage.includes('charAt') || errorMessage.includes('undefined')) {
-        console.warn("[handleQRScan] Caught web worker error, ignoring");
-        // Don't show error toast, just continue
         setQrScannerOpen(false);
         return;
       }
-      
-      console.log("[handleQRScan] Showing error toast:", errorMessage);
+
       showToast(errorMessage, "error");
-      
-      // If it's an invalid QR code format, reopen scanner to try again
-      if (errorMessage.includes("Invalid QR code") || errorMessage.includes("400")) {
-        console.log("[handleQRScan] Invalid QR code, reopening scanner...");
-        setTimeout(() => {
-          setQrScannerOpen(true);
-        }, 500);
-      } else {
-        console.log("[handleQRScan] Closing scanner due to error");
-        setQrScannerOpen(false);
-      }
+      setQrScannerOpen(false);
     } finally {
-      console.log("[handleQRScan] Finally block, setting scanningQR to false");
       setScanningQR(false);
     }
   };

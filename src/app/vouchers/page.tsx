@@ -2,38 +2,55 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Gift, Plus, Search } from "lucide-react";
+import { Button } from "@penkey/ui";
+import { ArrowLeft, Gift, Plus, Search, Loader2 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
+import { hapticButtonPress } from "@/lib/utils/haptics";
+import { useToast } from "@/lib/hooks/use-toast";
+import { ToastContainer } from "@/components/toast-container";
 import { VoucherCreateModal } from "./voucher-create-modal";
 import { VoucherDetailModal } from "./voucher-detail-modal";
 import { VoucherCard } from "./voucher-card";
 
+interface Session {
+  employee: { id: string; name: string; role: string };
+  register: { id: string; name: string; store_name: string };
+  org_id: string;
+}
+
 export default function VouchersPage() {
   const router = useRouter();
+  const { toasts, showToast, dismissToast } = useToast();
   const { lines } = useCartStore();
+  const [session, setSession] = useState<Session | null>(null);
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
 
   useEffect(() => {
+    const sessionData = sessionStorage.getItem("pos_session");
+    if (!sessionData) {
+      router.push("/lock");
+      return;
+    }
     try {
-      const session = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      fetchVouchers();
-      fetchItems();
+      const parsed = JSON.parse(sessionData);
+      setSession(parsed);
+      fetchVouchers(parsed.org_id);
+      fetchItems(parsed.org_id);
     } catch (err) {
-      router.push("/login");
+      router.push("/lock");
+    } finally {
+      setLoading(false);
     }
   }, [router]);
 
-  const fetchVouchers = async () => {
+  const fetchVouchers = async (orgId?: string) => {
     try {
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -57,7 +74,7 @@ export default function VouchersPage() {
     }
   };
 
-  const fetchItems = async () => {
+  const fetchItems = async (orgId?: string) => {
     try {
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -94,55 +111,75 @@ export default function VouchersPage() {
 
   const activeCount = filtered.filter((v) => v.status === "active").length;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-penkey-orange animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#2d2d2d] flex flex-col text-white">
-      {/* Header */}
-      <header className="bg-[#3d3d3d] px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push("/sell")}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold">Gift Vouchers</h1>
-            {!loading && (
-              <p className="text-xs text-gray-400">
-                {filtered.length} total{activeCount > 0 && ` · ${activeCount} active`}
-              </p>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-penkey-orange hover:bg-penkey-orange/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden relative">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Header - matches other pages */}
+      <header className="bg-[#3d3d3d] text-white px-4 py-3 flex items-center justify-between border-b border-gray-700">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            hapticButtonPress();
+            router.back();
+          }}
+          className="text-white hover:bg-white/10"
         >
-          <Plus className="h-4 w-4" />
-          Create
-        </button>
+          <ArrowLeft className="h-5 w-5 mr-2" />
+          Back
+        </Button>
+        <h1 className="font-semibold text-lg">Gift Vouchers</h1>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            hapticButtonPress();
+            setSearchOpen(!searchOpen);
+            if (!searchOpen) setSearch("");
+          }}
+          className="text-white hover:bg-white/10"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
       </header>
 
-      {/* Search */}
-      <div className="px-4 py-3 border-b border-gray-700">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      {/* Search Bar - matches categories page pattern */}
+      {searchOpen && (
+        <div className="bg-[#3d3d3d] border-b border-gray-700 px-4 py-3">
           <input
             type="text"
             placeholder="Search by code, name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#3d3d3d] text-white pl-10 pr-4 py-2.5 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange text-sm transition-colors"
+            className="w-full bg-[#2d2d2d] text-white px-4 py-2.5 rounded-lg border border-gray-600 focus:outline-none focus:border-penkey-orange text-sm"
+            autoFocus
           />
         </div>
-      </div>
+      )}
+
+      {/* Summary bar */}
+      {!loading && filtered.length > 0 && (
+        <div className="bg-[#3d3d3d]/50 px-4 py-2 border-b border-gray-700/50">
+          <p className="text-xs text-gray-400">
+            {filtered.length} voucher{filtered.length !== 1 ? "s" : ""}
+            {activeCount > 0 && <span className="text-green-400"> · {activeCount} active</span>}
+          </p>
+        </div>
+      )}
 
       {/* Voucher list */}
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <VoucherListSkeleton />
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4 text-gray-400 animate-in fade-in duration-300">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400">
             <div className="bg-penkey-orange/10 rounded-full p-6">
               <Gift className="h-12 w-12 text-penkey-orange/50" />
             </div>
@@ -150,33 +187,36 @@ export default function VouchersPage() {
               <p className="text-lg font-medium">No vouchers yet</p>
               <p className="text-sm text-gray-500 mt-1">Create your first gift voucher</p>
             </div>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-penkey-orange text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-penkey-orange/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Create Voucher
-            </button>
           </div>
         ) : (
           <div className="divide-y divide-gray-700/50">
-            {filtered.map((voucher, index) => (
-              <div
+            {filtered.map((voucher) => (
+              <VoucherCard
                 key={voucher.id}
-                className="animate-in fade-in slide-in-from-bottom-2 duration-200"
-                style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
-              >
-                <VoucherCard
-                  voucher={voucher}
-                  onClick={() => {
-                    setSelectedVoucher(voucher);
-                    setShowDetail(true);
-                  }}
-                />
-              </div>
+                voucher={voucher}
+                onClick={() => {
+                  hapticButtonPress();
+                  setSelectedVoucher(voucher);
+                  setShowDetail(true);
+                }}
+              />
             ))}
           </div>
         )}
+      </div>
+
+      {/* Floating Create Button - matches mobile-first design */}
+      <div className="p-4 border-t border-gray-700 bg-[#3d3d3d]">
+        <Button
+          onClick={() => {
+            hapticButtonPress();
+            setShowCreate(true);
+          }}
+          className="w-full bg-penkey-orange hover:bg-penkey-orange/90 text-white font-semibold flex items-center justify-center gap-2"
+        >
+          <Plus className="h-5 w-5" />
+          Create Voucher
+        </Button>
       </div>
 
       {/* Detail Modal */}
@@ -192,7 +232,10 @@ export default function VouchersPage() {
             setVouchers((prev) => prev.filter((v) => v.id !== id));
             setShowDetail(false);
             setSelectedVoucher(null);
+            showToast("Voucher deleted", "success");
           }}
+          onEmailed={() => showToast("Voucher email sent", "success")}
+          onRedeemed={() => showToast("Voucher applied to cart", "success")}
         />
       )}
 
@@ -203,26 +246,10 @@ export default function VouchersPage() {
           onClose={() => setShowCreate(false)}
           onCreated={(voucher) => {
             setVouchers((prev) => [voucher, ...prev]);
+            showToast("Voucher created", "success");
           }}
         />
       )}
-    </div>
-  );
-}
-
-function VoucherListSkeleton() {
-  return (
-    <div className="divide-y divide-gray-700/50">
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="px-4 py-4 flex items-center gap-3 animate-pulse">
-          <div className="bg-gray-700/30 rounded-xl p-2.5 w-12 h-12 flex-shrink-0" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 bg-gray-700/30 rounded w-32" />
-            <div className="h-3 bg-gray-700/20 rounded w-24" />
-            <div className="h-3 bg-gray-700/20 rounded w-40" />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

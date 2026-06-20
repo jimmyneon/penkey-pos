@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@penkey/ui";
 import {
   Mail,
   Printer,
@@ -10,9 +11,9 @@ import {
   Trash2,
   Ticket,
   Gift,
-  ChevronRight,
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
+import { hapticButtonPress } from "@/lib/utils/haptics";
 
 const STATUS_COLOURS: Record<string, string> = {
   active: "bg-green-500/20 text-green-400 border border-green-500/30",
@@ -36,24 +37,26 @@ interface VoucherDetailModalProps {
   lines: any[];
   onClose: () => void;
   onDeleted: (id: string) => void;
+  onEmailed?: () => void;
+  onRedeemed?: () => void;
 }
 
-export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: VoucherDetailModalProps) {
+export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmailed, onRedeemed }: VoucherDetailModalProps) {
   const router = useRouter();
   const { applyVoucher, setBasketVoucher } = useCartStore();
-  const [emailingId, setEmailingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [emailing, setEmailing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0);
-  const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
 
   const handleEmail = async () => {
     const email = voucher.recipient_email || prompt("Enter email address:");
     if (!email) return;
-    setEmailingId(voucher.id);
+    setEmailing(true);
     try {
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
-      await fetch(`/api/vouchers/${voucher.id}/email`, {
+      const res = await fetch(`/api/vouchers/${voucher.id}/email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,21 +64,24 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
         },
         body: JSON.stringify({ email }),
       });
+      if (res.ok && onEmailed) onEmailed();
     } finally {
-      setEmailingId(null);
+      setEmailing(false);
     }
   };
 
   const handlePrint = () => {
+    hapticButtonPress();
     window.open(`/api/vouchers/${voucher.id}/print?autoprint=1`, "_blank");
   };
 
   const handleDelete = async () => {
     if (deleteConfirmStep < 2) {
+      hapticButtonPress();
       setDeleteConfirmStep(deleteConfirmStep + 1);
       return;
     }
-    setDeletingId(voucher.id);
+    setDeleting(true);
     try {
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -89,12 +95,13 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
         onDeleted(voucher.id);
       }
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
   const handleRedeem = async () => {
-    setRedeemingId(voucher.id);
+    hapticButtonPress();
+    setRedeeming(true);
     try {
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -109,29 +116,30 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
 
       if (res.ok) {
         const data = await res.json();
-        const voucherData = data.voucher;
+        const v = data.voucher;
         const voucherForCart = {
-          id: voucherData.id,
-          name: voucherData.name,
-          discountType: voucherData.discountType as any,
-          discountValue: voucherData.discountValue,
+          id: v.id,
+          name: v.name,
+          discountType: v.discountType as any,
+          discountValue: v.discountValue,
           beanCost: 0,
-          itemType: voucherData.voucher_type === "item" ? "item" : undefined,
+          itemType: v.voucher_type === "item" ? "item" : undefined,
           category: undefined,
         };
 
-        if (voucherData.discountType === "free_item") {
+        if (v.discountType === "free_item") {
           const matchingLine = lines.find((line: any) =>
-            line.item_name.toLowerCase().includes(voucherData.item_name?.toLowerCase() || "")
+            line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
           );
           if (!matchingLine) {
-            alert(`Add "${voucherData.item_name}" to the cart first, then redeem this voucher.`);
+            alert(`Add "${v.item_name}" to the cart first, then redeem this voucher.`);
             return;
           }
           applyVoucher(matchingLine.id, voucherForCart);
         } else {
           setBasketVoucher(voucherForCart);
         }
+        if (onRedeemed) onRedeemed();
         onClose();
         router.push("/sell");
       }
@@ -139,7 +147,7 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
       console.error("Failed to apply voucher:", err);
       alert("Failed to apply voucher. Please try again.");
     } finally {
-      setRedeemingId(null);
+      setRedeeming(false);
     }
   };
 
@@ -149,26 +157,29 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-[#3d3d3d] w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 duration-300">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-[#3d3d3d] w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-penkey-orange/15 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="bg-penkey-orange/20 rounded-xl p-2">
-              <Gift className="h-5 w-5 text-penkey-orange" />
-            </div>
-            <h2 className="text-lg font-bold">Voucher Details</h2>
+        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Gift className="h-5 w-5 text-penkey-orange" />
+            <h2 className="text-lg font-semibold text-white">Voucher Details</h2>
           </div>
-          <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleClose}
+            className="text-white hover:bg-white/10 p-2"
+          >
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-5 space-y-4">
-          {/* Voucher code and value - hero card */}
-          <div className="bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-2xl p-5 border border-gray-700/50">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-mono text-xl font-bold text-penkey-orange tracking-wider">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+          {/* Voucher code and value */}
+          <div className="bg-[#2d2d2d] rounded-xl p-4 border border-gray-700/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-mono text-lg font-bold text-penkey-orange tracking-wider">
                 {voucher.code}
               </span>
               <span
@@ -179,24 +190,24 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
                 {voucher.status}
               </span>
             </div>
-            <div className="text-3xl font-bold text-white">{voucherLabel(voucher)}</div>
+            <div className="text-2xl font-bold text-white">{voucherLabel(voucher)}</div>
           </div>
 
-          {/* Info cards */}
+          {/* Info rows */}
           {voucher.recipient_name && (
-            <div className="bg-[#2d2d2d] rounded-xl p-4 border border-gray-700/30">
-              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Recipient</div>
-              <div className="text-base font-semibold">{voucher.recipient_name}</div>
+            <div className="bg-[#2d2d2d] rounded-xl p-3.5 border border-gray-700/30">
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Recipient</div>
+              <div className="text-sm font-semibold text-white">{voucher.recipient_name}</div>
               {voucher.recipient_email && (
-                <div className="text-sm text-gray-400 mt-0.5">{voucher.recipient_email}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{voucher.recipient_email}</div>
               )}
             </div>
           )}
 
           {voucher.expires_at && (
-            <div className="bg-[#2d2d2d] rounded-xl p-4 border border-gray-700/30">
-              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Valid Until</div>
-              <div className="text-base font-semibold">
+            <div className="bg-[#2d2d2d] rounded-xl p-3.5 border border-gray-700/30">
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Valid Until</div>
+              <div className="text-sm font-semibold text-white">
                 {new Date(voucher.expires_at).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "long",
@@ -207,35 +218,37 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
           )}
 
           {voucher.message && (
-            <div className="bg-[#2d2d2d] rounded-xl p-4 border border-gray-700/30">
-              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Message</div>
-              <div className="text-base italic text-gray-300 leading-relaxed">
+            <div className="bg-[#2d2d2d] rounded-xl p-3.5 border border-gray-700/30">
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Message</div>
+              <div className="text-sm italic text-gray-300 leading-relaxed">
                 &ldquo;{voucher.message}&rdquo;
               </div>
             </div>
           )}
 
           {/* QR Code */}
-          <div className="bg-[#2d2d2d] rounded-xl p-5 border border-gray-700/30 flex flex-col items-center">
-            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Scan to Redeem</div>
-            <div className="bg-white p-3 rounded-xl">
-              <QrCode className="h-28 w-28 text-black" />
+          <div className="bg-[#2d2d2d] rounded-xl p-4 border border-gray-700/30 flex flex-col items-center">
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Scan to Redeem</div>
+            <div className="bg-white p-2.5 rounded-lg">
+              <QrCode className="h-24 w-24 text-black" />
             </div>
             <div className="text-xs text-gray-500 mt-2 font-mono">{voucher.code}</div>
           </div>
         </div>
 
         {/* Footer actions */}
-        <div className="p-4 border-t border-gray-700 flex-shrink-0 space-y-2 bg-[#3d3d3d]">
+        <div className="p-3 border-t border-gray-700 flex-shrink-0 space-y-2">
           {voucher.status === "active" && (
             <>
               <div className="grid grid-cols-2 gap-2">
-                <button
+                <Button
+                  size="sm"
+                  variant="ghost"
                   onClick={handleEmail}
-                  disabled={emailingId === voucher.id}
-                  className="py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm"
+                  disabled={emailing}
+                  className="bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 text-white border border-gray-600 h-10 flex items-center justify-center gap-2"
                 >
-                  {emailingId === voucher.id ? (
+                  {emailing ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                   ) : (
                     <>
@@ -243,21 +256,23 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
                       Email
                     </>
                   )}
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
                   onClick={handlePrint}
-                  className="py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm"
+                  className="bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white border border-gray-600 h-10 flex items-center justify-center gap-2"
                 >
                   <Printer className="h-4 w-4" />
                   Print
-                </button>
+                </Button>
               </div>
-              <button
+              <Button
                 onClick={handleRedeem}
-                disabled={redeemingId === voucher.id}
-                className="w-full py-3.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-600/90 hover:to-green-700/90 disabled:opacity-50 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg"
+                disabled={redeeming}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold h-11 flex items-center justify-center gap-2"
               >
-                {redeemingId === voucher.id ? (
+                {redeeming ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                 ) : (
                   <>
@@ -265,13 +280,13 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
                     Redeem Voucher
                   </>
                 )}
-              </button>
+              </Button>
             </>
           )}
           <button
             onClick={handleDelete}
-            disabled={deletingId === voucher.id}
-            className={`w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 text-sm ${
+            disabled={deleting}
+            className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm ${
               deleteConfirmStep === 0
                 ? "bg-red-600/20 text-red-400 hover:bg-red-600/30"
                 : deleteConfirmStep === 1
@@ -279,7 +294,7 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted }: Vouch
                 : "bg-red-800 text-white"
             }`}
           >
-            {deletingId === voucher.id ? (
+            {deleting ? (
               <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
             ) : (
               <>

@@ -10,15 +10,22 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
     : voucher.voucher_type === 'percent' ? `${voucher.percent_discount}% OFF`
     : `Free ${voucher.item_name}`;
 
+  const voucherSubtext =
+    voucher.voucher_type === 'amount' ? 'This voucher can be redeemed for goods to the value shown.'
+    : voucher.voucher_type === 'percent' ? 'This voucher gives the stated percentage off your order.'
+    : `This voucher entitles the bearer to one free ${voucher.item_name}.`;
+
   const expiryText = voucher.expires_at
     ? new Date(voucher.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : 'No expiry';
 
   const qrDataUrl = await QRCode.toDataURL(voucher.code, {
-    width: 200,
+    width: 240,
     margin: 1,
     color: { dark: '#000000', light: '#ffffff' },
   });
+
+  const createdDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -46,108 +53,186 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
       width: 105mm;
       height: 297mm;
       background: #fff;
-      padding: 40px 30px;
+      padding: 0;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       page-break-inside: avoid;
       display: flex;
       flex-direction: column;
       border: 3px solid #e97c2c;
       position: relative;
+      overflow: hidden;
     }
     .voucher::before {
       content: '';
       position: absolute;
-      top: 8px;
-      left: 8px;
-      right: 8px;
-      bottom: 8px;
+      top: 6px;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
       border: 1px solid #e97c2c;
       pointer-events: none;
+      z-index: 1;
     }
 
+    .header-band {
+      background: linear-gradient(135deg, #e97c2c 0%, #d45f10 100%);
+      padding: 24px 30px 20px;
+      text-align: center;
+      position: relative;
+    }
+    .header-band::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      right: 0;
+      height: 20px;
+      background: #fff;
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      transform: scaleX(1.2);
+    }
     .logo {
-      max-width: 150px;
-      max-height: 60px;
+      max-width: 140px;
+      max-height: 50px;
       object-fit: contain;
-      margin: 0 auto 30px;
+      margin: 0 auto 6px;
+      display: block;
+    }
+    .brand-name {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    .brand-tagline {
+      font-size: 10px;
+      color: rgba(255,255,255,0.8);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-top: 2px;
+    }
+
+    .body {
+      padding: 30px 30px 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 2;
     }
 
     .title {
       text-align: center;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
       color: #e97c2c;
       text-transform: uppercase;
-      letter-spacing: 3px;
-      margin-bottom: 40px;
+      letter-spacing: 4px;
+      margin-bottom: 20px;
     }
 
     .recipient {
       text-align: center;
-      font-size: 18px;
-      color: #333;
-      margin-bottom: 30px;
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 16px;
     }
+    .recipient strong { color: #333; font-weight: 600; }
 
-    .value {
+    .value-box {
       text-align: center;
-      font-size: 48px;
-      font-weight: 700;
+      padding: 20px 0;
+      margin-bottom: 16px;
+    }
+    .value {
+      font-size: 52px;
+      font-weight: 800;
       color: #e97c2c;
-      margin-bottom: 40px;
+      line-height: 1;
+    }
+    .value-subtext {
+      font-size: 11px;
+      color: #888;
+      margin-top: 10px;
+      line-height: 1.5;
+      max-width: 260px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
-    .divider {
-      height: 1px;
-      background: #e0e0e0;
-      margin: 30px 0;
+    .dashed-divider {
+      border: none;
+      border-top: 2px dashed #ddd;
+      margin: 16px 0;
     }
 
     .qr-section {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
-      margin-bottom: 30px;
+      gap: 12px;
+      margin-bottom: 16px;
     }
-
     .qr-code {
       background: #fff;
-      padding: 10px;
+      padding: 8px;
       border: 1px solid #e0e0e0;
+      border-radius: 8px;
     }
-
+    .code-label {
+      font-size: 9px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
     .code {
       font-family: 'Courier New', monospace;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
       color: #333;
-      letter-spacing: 2px;
+      letter-spacing: 3px;
     }
 
     .message {
       text-align: center;
-      font-size: 14px;
+      font-size: 13px;
       color: #666;
       font-style: italic;
-      margin-bottom: 30px;
+      margin-bottom: 16px;
       line-height: 1.6;
+      padding: 0 10px;
     }
+
+    .terms {
+      margin-top: auto;
+      padding-top: 16px;
+    }
+    .terms-divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin-bottom: 12px;
+    }
+    .terms-list {
+      font-size: 9px;
+      color: #999;
+      line-height: 1.6;
+      padding: 0 5px;
+    }
+    .terms-list p { margin-bottom: 3px; }
 
     .footer {
-      margin-top: auto;
       text-align: center;
-      font-size: 12px;
-      color: #888;
-    }
-
-    .expiry {
-      margin-bottom: 8px;
-    }
-
-    .address {
       font-size: 11px;
+      color: #888;
+      padding: 12px 30px 20px;
+      background: #fafafa;
+      border-top: 1px solid #eee;
+      position: relative;
+      z-index: 2;
     }
+    .expiry { margin-bottom: 4px; font-weight: 600; color: #555; }
+    .address { font-size: 10px; color: #aaa; }
+    .issued { font-size: 9px; color: #ccc; margin-top: 4px; }
 
     .print-btn-wrap { margin-top: 24px; text-align: center; }
     .print-btn {
@@ -155,11 +240,12 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
       color: white;
       border: none;
       padding: 12px 32px;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
+      box-shadow: 0 2px 8px rgba(233,124,44,0.3);
     }
     .print-btn:hover { background: #d45f10; }
 
@@ -186,27 +272,49 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
 </head>
 <body>
   <div class="voucher">
-    <img src="/penkey-logo.png" alt="${storeName}" class="logo" onerror="this.style.display='none'" />
-    <div class="title">Gift Voucher</div>
-
-    ${voucher.recipient_name ? `<div class="recipient">For: ${voucher.recipient_name}</div>` : ''}
-
-    <div class="value">${voucherValue}</div>
-
-    <div class="divider"></div>
-
-    <div class="qr-section">
-      <div class="qr-code">
-        <img src="${qrDataUrl}" width="120" height="120" alt="QR Code" />
-      </div>
-      <div class="code">${voucher.code}</div>
+    <div class="header-band">
+      <img src="/penkey-logo.png" alt="${storeName}" class="logo" onerror="this.style.display='none'" />
+      <div class="brand-name">${storeName}</div>
+      <div class="brand-tagline">Gift Voucher</div>
     </div>
 
-    ${voucher.message ? `<div class="message">&ldquo;${voucher.message}&rdquo;</div>` : ''}
+    <div class="body">
+      <div class="title">Gift Voucher</div>
+
+      ${voucher.recipient_name ? `<div class="recipient">A gift for <strong>${voucher.recipient_name}</strong></div>` : ''}
+
+      <div class="value-box">
+        <div class="value">${voucherValue}</div>
+        <div class="value-subtext">${voucherSubtext}</div>
+      </div>
+
+      <hr class="dashed-divider" />
+
+      <div class="qr-section">
+        <div class="qr-code">
+          <img src="${qrDataUrl}" width="130" height="130" alt="QR Code" />
+        </div>
+        <div class="code-label">Voucher Code</div>
+        <div class="code">${voucher.code}</div>
+      </div>
+
+      ${voucher.message ? `<div class="message">&ldquo;${voucher.message}&rdquo;</div>` : ''}
+
+      <div class="terms">
+        <hr class="terms-divider" />
+        <div class="terms-list">
+          <p>This voucher is valid for redemption at ${storeName} only.</p>
+          <p>Present this voucher or quote the code above at the time of purchase.</p>
+          <p>Cannot be exchanged for cash. No change will be given for partial redemption.</p>
+          <p>Lost or stolen vouchers cannot be replaced.</p>
+        </div>
+      </div>
+    </div>
 
     <div class="footer">
       <div class="expiry">Valid until: ${expiryText}</div>
       ${storeAddress ? `<div class="address">${storeAddress}</div>` : ''}
+      <div class="issued">Issued: ${createdDate}</div>
     </div>
   </div>
 

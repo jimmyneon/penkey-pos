@@ -165,13 +165,18 @@ export async function sendVoucherEmail(voucher: any) {
     : voucher.voucher_type === 'percent' ? `${voucher.percent_discount}% off`
     : `Free ${voucher.item_name}`;
 
+  const voucherSubtext =
+    voucher.voucher_type === 'amount' ? 'This voucher can be redeemed for goods to the value shown.'
+    : voucher.voucher_type === 'percent' ? 'This voucher gives the stated percentage off your order.'
+    : `This voucher entitles you to one free ${voucher.item_name}.`;
+
   const expiryText = voucher.expires_at
     ? `Valid until: ${new Date(voucher.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
     : 'No expiry date';
 
   // Generate QR code as base64 data URL
   const qrDataUrl = await QRCode.toDataURL(voucher.code, {
-    width: 200,
+    width: 240,
     margin: 2,
     color: { dark: '#1a1a1a', light: '#ffffff' },
   });
@@ -185,32 +190,62 @@ export async function sendVoucherEmail(voucher: any) {
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
-  <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
-    <!-- Header -->
-    <div style="background:#e97c2c;padding:32px 24px;text-align:center;">
-      <div style="font-size:32px;font-weight:900;color:#fff;letter-spacing:-1px;">PENKEY</div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:4px;text-transform:uppercase;letter-spacing:2px;">Gift Voucher</div>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <!-- Gradient Header -->
+    <div style="background:linear-gradient(135deg,#e97c2c 0%,#d45f10 100%);padding:32px 24px;text-align:center;">
+      <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-1px;">PENKEY</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:4px;text-transform:uppercase;letter-spacing:3px;">Delicaf\u00e9 &amp; Gifts</div>
     </div>
+
+    <!-- Gift Voucher Title -->
+    <div style="padding:24px 24px 8px;text-align:center;">
+      <div style="font-size:12px;font-weight:600;color:#e97c2c;text-transform:uppercase;letter-spacing:4px;">Gift Voucher</div>
+    </div>
+
+    <!-- Recipient -->
+    ${voucher.recipient_name ? `<div style="padding:0 24px 8px;text-align:center;"><p style="margin:0;color:#666;font-size:14px;">A gift for <strong style="color:#333;">${voucher.recipient_name}</strong></p></div>` : ''}
+
     <!-- Value -->
-    <div style="padding:32px 24px;text-align:center;border-bottom:1px solid #f0f0f0;">
-      ${voucher.recipient_name ? `<p style="margin:0 0 8px;color:#666;font-size:14px;">For ${voucher.recipient_name}</p>` : ''}
-      <div style="font-size:48px;font-weight:900;color:#e97c2c;">${valueText}</div>
-      <!-- QR Code -->
-      <div style="margin:20px auto;display:inline-block;background:#f9f9f9;border-radius:12px;padding:16px;">
+    <div style="padding:16px 24px 24px;text-align:center;">
+      <div style="font-size:52px;font-weight:900;color:#e97c2c;line-height:1;">${valueText}</div>
+      <p style="margin:12px 0 0;color:#888;font-size:12px;line-height:1.5;">${voucherSubtext}</p>
+    </div>
+
+    <!-- Dashed Divider -->
+    <div style="padding:0 24px;">
+      <div style="border-top:2px dashed #e0e0e0;"></div>
+    </div>
+
+    <!-- QR Code + Code -->
+    <div style="padding:24px;text-align:center;">
+      <div style="display:inline-block;background:#f9f9f9;border-radius:12px;padding:12px;margin-bottom:12px;">
         <img src="${qrDataUrl}" width="160" height="160" alt="Voucher QR Code" style="display:block;" />
       </div>
-      <div style="background:#f9f9f9;border-radius:12px;padding:16px;margin-top:0;">
-        <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Voucher Code</div>
-        <div style="font-size:26px;font-weight:700;color:#1a1a1a;letter-spacing:4px;">${voucher.code}</div>
+      <div style="background:#f9f9f9;border-radius:10px;padding:12px 16px;display:inline-block;">
+        <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">Voucher Code</div>
+        <div style="font-size:24px;font-weight:700;color:#1a1a1a;letter-spacing:4px;">${voucher.code}</div>
       </div>
-      ${voucher.message ? `<p style="margin:16px 0 0;color:#555;font-style:italic;">"${voucher.message}"</p>` : ''}
     </div>
+
+    <!-- Message -->
+    ${voucher.message ? `<div style="padding:0 24px 16px;text-align:center;"><p style="margin:0;color:#555;font-style:italic;font-size:14px;line-height:1.6;">&ldquo;${voucher.message}&rdquo;</p></div>` : ''}
+
+    <!-- Terms -->
+    <div style="padding:16px 24px;border-top:1px solid #f0f0f0;">
+      <div style="font-size:10px;color:#aaa;line-height:1.6;">
+        <p style="margin:0 0 3px;">This voucher is valid for redemption at Penkey Delicaf\u00e9 &amp; Gifts only.</p>
+        <p style="margin:0 0 3px;">Present this voucher or quote the code above at the time of purchase.</p>
+        <p style="margin:0 0 3px;">Cannot be exchanged for cash. No change will be given for partial redemption.</p>
+        <p style="margin:0;">Lost or stolen vouchers cannot be replaced.</p>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div style="padding:20px 24px;text-align:center;background:#fafafa;">
-      <p style="margin:0;color:#999;font-size:12px;">${expiryText}</p>
-      <p style="margin:8px 0 0;color:#999;font-size:12px;">Scan the QR code or present this code in-store to redeem.</p>
-      <p style="margin:16px 0 0;color:#ccc;font-size:11px;">Penkey Delicaf\u00e9 &amp; Gifts &middot; Lymington</p>
+      <p style="margin:0;color:#555;font-size:12px;font-weight:600;">${expiryText}</p>
+      <p style="margin:8px 0 0;color:#999;font-size:11px;">Scan the QR code or present this code in-store to redeem.</p>
+      <p style="margin:16px 0 0;color:#ccc;font-size:10px;">Penkey Delicaf\u00e9 &amp; Gifts &middot; Lymington</p>
     </div>
   </div>
 </body>
