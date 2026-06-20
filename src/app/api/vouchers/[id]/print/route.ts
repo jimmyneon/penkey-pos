@@ -22,7 +22,7 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
   const qrDataUrl = await QRCode.toDataURL(voucher.code, {
     width: 240,
     margin: 1,
-    color: { dark: '#000000', light: '#ffffff' },
+    color: { dark: '#1a2847', light: '#ffffff' },
   });
 
   const createdDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -37,8 +37,8 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f0f0;
+      font-family: Georgia, serif;
+      background: #e8e4dc;
     }
     body {
       display: flex;
@@ -52,191 +52,210 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
     .voucher {
       width: 105mm;
       height: 297mm;
-      background: #fff;
-      padding: 0;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      background: #1a2847;
+      padding: 4mm;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       page-break-inside: avoid;
       display: flex;
       flex-direction: column;
-      border: 3px solid #e97c2c;
+      border-radius: 6px;
       position: relative;
       overflow: hidden;
     }
-    .voucher::before {
+
+    /* Navy top section */
+    .header-band {
+      background: linear-gradient(135deg, #1a2847 0%, #243556 100%);
+      padding: 20mm 12mm 16mm;
+      text-align: center;
+      border-radius: 4px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .header-band::before {
       content: '';
       position: absolute;
-      top: 6px;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
-      border: 1px solid #e97c2c;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .header-band {
-      background: linear-gradient(135deg, #e97c2c 0%, #d45f10 100%);
-      padding: 24px 30px 20px;
-      text-align: center;
-      position: relative;
+      top: 4mm;
+      left: 8mm;
+      right: 8mm;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c9a96e, transparent);
     }
     .header-band::after {
       content: '';
       position: absolute;
-      bottom: -10px;
-      left: 0;
-      right: 0;
-      height: 20px;
-      background: #fff;
-      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-      transform: scaleX(1.2);
-    }
-    .logo {
-      max-width: 140px;
-      max-height: 50px;
-      object-fit: contain;
-      margin: 0 auto 6px;
-      display: block;
+      bottom: 4mm;
+      left: 8mm;
+      right: 8mm;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c9a96e, transparent);
     }
     .brand-name {
-      font-size: 22px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -0.5px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 2px;
+      font-family: Georgia, serif;
+    }
+    .gold-divider {
+      width: 40px;
+      height: 2px;
+      background: #c9a96e;
+      margin: 8px auto;
     }
     .brand-tagline {
       font-size: 10px;
-      color: rgba(255,255,255,0.8);
+      color: #c9a96e;
       text-transform: uppercase;
-      letter-spacing: 3px;
-      margin-top: 2px;
+      letter-spacing: 6px;
+      font-family: Arial, sans-serif;
+      font-weight: 600;
+    }
+    .recipient-wrap {
+      margin-top: 16px;
+    }
+    .recipient-label {
+      font-size: 12px;
+      color: #f5ebd6;
+      opacity: 0.7;
+      font-family: Georgia, serif;
+    }
+    .recipient-name {
+      font-size: 20px;
+      color: #ffffff;
+      font-weight: 600;
+      font-family: Georgia, serif;
+      margin-top: 4px;
+    }
+    .value {
+      font-size: ${voucherValue.length > 10 ? '40px' : '56px'};
+      font-weight: 700;
+      color: #c9a96e;
+      font-family: Georgia, serif;
+      line-height: 1;
+      margin-top: ${voucher.recipient_name ? '12px' : '24px'};
     }
 
+    /* Cream middle section */
     .body {
-      padding: 30px 30px 20px;
+      background: #f5ebd6;
+      padding: 16mm 12mm;
       flex: 1;
       display: flex;
       flex-direction: column;
+      align-items: center;
       position: relative;
-      z-index: 2;
     }
 
-    .title {
-      text-align: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: #e97c2c;
-      text-transform: uppercase;
-      letter-spacing: 4px;
-      margin-bottom: 20px;
-    }
-
-    .recipient {
-      text-align: center;
-      font-size: 15px;
-      color: #555;
-      margin-bottom: 16px;
-    }
-    .recipient strong { color: #333; font-weight: 600; }
-
-    .value-box {
-      text-align: center;
-      padding: 20px 0;
-      margin-bottom: 16px;
-    }
-    .value {
-      font-size: 52px;
-      font-weight: 800;
-      color: #e97c2c;
-      line-height: 1;
-    }
     .value-subtext {
       font-size: 11px;
-      color: #888;
-      margin-top: 10px;
+      color: #8a8a8a;
+      margin-top: 0;
+      margin-bottom: 16px;
       line-height: 1.5;
       max-width: 260px;
-      margin-left: auto;
-      margin-right: auto;
+      text-align: center;
+      font-family: Arial, sans-serif;
     }
 
     .dashed-divider {
       border: none;
-      border-top: 2px dashed #ddd;
-      margin: 16px 0;
+      border-top: 2px dashed #e8dcc0;
+      width: calc(100% - 20mm);
+      margin: 0 0 16px;
     }
 
     .qr-section {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 16px;
     }
     .qr-code {
       background: #fff;
-      padding: 8px;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
+      padding: 6px;
+      border: 1px solid #e8dcc0;
+      border-radius: 10px;
     }
     .code-label {
       font-size: 9px;
-      color: #aaa;
+      color: #8a8a8a;
       text-transform: uppercase;
-      letter-spacing: 2px;
+      letter-spacing: 3px;
+      font-family: Arial, sans-serif;
     }
     .code {
       font-family: 'Courier New', monospace;
       font-size: 22px;
       font-weight: 700;
-      color: #333;
-      letter-spacing: 3px;
+      color: #1a2847;
+      letter-spacing: 4px;
     }
 
     .message {
       text-align: center;
       font-size: 13px;
-      color: #666;
+      color: #2a2a2a;
       font-style: italic;
       margin-bottom: 16px;
       line-height: 1.6;
       padding: 0 10px;
+      font-family: Georgia, serif;
     }
 
     .terms {
       margin-top: auto;
-      padding-top: 16px;
+      width: 100%;
     }
     .terms-divider {
       border: none;
-      border-top: 1px solid #eee;
+      border-top: 1px solid #e8dcc0;
       margin-bottom: 12px;
     }
     .terms-list {
       font-size: 9px;
-      color: #999;
-      line-height: 1.6;
+      color: #8a8a8a;
+      line-height: 1.7;
       padding: 0 5px;
+      font-family: Arial, sans-serif;
     }
     .terms-list p { margin-bottom: 3px; }
 
+    /* Navy bottom section */
     .footer {
       text-align: center;
-      font-size: 11px;
-      color: #888;
-      padding: 12px 30px 20px;
-      background: #fafafa;
-      border-top: 1px solid #eee;
+      padding: 12mm 12mm 16mm;
+      background: linear-gradient(135deg, #243556 0%, #1a2847 100%);
+      border-radius: 4px;
       position: relative;
-      z-index: 2;
+      flex-shrink: 0;
     }
-    .expiry { margin-bottom: 4px; font-weight: 600; color: #555; }
-    .address { font-size: 10px; color: #aaa; }
-    .issued { font-size: 9px; color: #ccc; margin-top: 4px; }
+    .footer::before {
+      content: '';
+      position: absolute;
+      top: 4mm;
+      left: 8mm;
+      right: 8mm;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c9a96e, transparent);
+      opacity: 0.5;
+    }
+    .footer-flourish {
+      width: 40px;
+      height: 1px;
+      background: #c9a96e;
+      opacity: 0.5;
+      margin: 0 auto 12px;
+    }
+    .expiry { margin-bottom: 4px; font-weight: 600; color: #ffffff; font-size: 13px; font-family: Arial, sans-serif; }
+    .address { font-size: 11px; color: #f5ebd6; opacity: 0.6; font-family: Arial, sans-serif; }
+    .scan-text { font-size: 10px; color: #f5ebd6; opacity: 0.4; margin-top: 8px; font-family: Arial, sans-serif; }
+    .issued { font-size: 9px; color: #f5ebd6; opacity: 0.3; margin-top: 4px; font-family: Arial, sans-serif; }
 
     .print-btn-wrap { margin-top: 24px; text-align: center; }
     .print-btn {
-      background: #e97c2c;
+      background: #1a2847;
       color: white;
       border: none;
       padding: 12px 32px;
@@ -245,9 +264,9 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
-      box-shadow: 0 2px 8px rgba(233,124,44,0.3);
+      box-shadow: 0 2px 8px rgba(26,40,71,0.3);
     }
-    .print-btn:hover { background: #d45f10; }
+    .print-btn:hover { background: #243556; }
 
     @media print {
       html, body {
@@ -264,6 +283,7 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
         height: 297mm;
         page-break-inside: avoid;
         break-inside: avoid;
+        border-radius: 0;
       }
       .print-btn-wrap { display: none !important; }
       @page { margin: 0; size: 105mm 297mm; }
@@ -273,20 +293,20 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
 <body>
   <div class="voucher">
     <div class="header-band">
-      <img src="/penkey-logo.png" alt="${storeName}" class="logo" onerror="this.style.display='none'" />
       <div class="brand-name">${storeName}</div>
+      <div class="gold-divider"></div>
       <div class="brand-tagline">Gift Voucher</div>
+      ${voucher.recipient_name ? `
+      <div class="recipient-wrap">
+        <div class="recipient-label">A gift for</div>
+        <div class="recipient-name">${voucher.recipient_name}</div>
+      </div>
+      ` : ''}
+      <div class="value">${voucherValue}</div>
     </div>
 
     <div class="body">
-      <div class="title">Gift Voucher</div>
-
-      ${voucher.recipient_name ? `<div class="recipient">A gift for <strong>${voucher.recipient_name}</strong></div>` : ''}
-
-      <div class="value-box">
-        <div class="value">${voucherValue}</div>
-        <div class="value-subtext">${voucherSubtext}</div>
-      </div>
+      <div class="value-subtext">${voucherSubtext}</div>
 
       <hr class="dashed-divider" />
 
@@ -312,8 +332,10 @@ async function buildVoucherHtml(voucher: any, storeName: string, storeAddress?: 
     </div>
 
     <div class="footer">
+      <div class="footer-flourish"></div>
       <div class="expiry">Valid until: ${expiryText}</div>
       ${storeAddress ? `<div class="address">${storeAddress}</div>` : ''}
+      <div class="scan-text">Scan the QR code or present this code in-store to redeem</div>
       <div class="issued">Issued: ${createdDate}</div>
     </div>
   </div>

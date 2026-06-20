@@ -25,11 +25,26 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   if (error || !voucher) return NextResponse.json({ error: 'Voucher not found' }, { status: 404 });
 
-  const targetEmail = emailOverride || voucher.recipient_email;
+  const targetEmail = emailOverride || (voucher as any).recipient_email;
   if (!targetEmail) return NextResponse.json({ error: 'No email address' }, { status: 400 });
 
+  let storeName = 'Penkey';
+  let storeAddress: string | undefined;
   try {
-    await sendVoucherEmail({ ...voucher, recipient_email: targetEmail });
+    const { data: store } = await supabase
+      .from('stores')
+      .select('name, address')
+      .eq('org_id', session.org_id)
+      .limit(1)
+      .maybeSingle();
+    if ((store as any)?.name) {
+      storeName = (store as any).name;
+      storeAddress = (store as any).address || undefined;
+    }
+  } catch {}
+
+  try {
+    await sendVoucherEmail({ ...(voucher as any), recipient_email: targetEmail, storeName, storeAddress });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('[Voucher email]', err);

@@ -6,6 +6,7 @@ import { Button } from "@penkey/ui";
 import {
   Mail,
   Printer,
+  Download,
   QrCode,
   X,
   Trash2,
@@ -73,6 +74,11 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
   const handlePrint = () => {
     hapticButtonPress();
     window.open(`/api/vouchers/${voucher.id}/print?autoprint=1`, "_blank");
+  };
+
+  const handleDownload = () => {
+    hapticButtonPress();
+    window.open(`/api/vouchers/${voucher.id}/image`, "_blank");
   };
 
   const handleDelete = async () => {
@@ -265,6 +271,15 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
                 >
                   <Printer className="h-4 w-4" />
                   Print
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleDownload}
+                  className="bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white border border-gray-600 h-10 flex items-center justify-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  PNG
                 </Button>
               </div>
               <Button
