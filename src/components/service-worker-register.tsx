@@ -15,24 +15,12 @@ export function ServiceWorkerRegister() {
       return;
     }
 
-    // Only register on pages that need offline support
-    // Vouchers, items, reports, settings, etc. don't need offline support
-    const offlineRoutes = ['/sell', '/payment'];
-    const needsOffline = offlineRoutes.some(route => pathname.startsWith(route));
-
-    if (!needsOffline) {
-      // Actively unregister any existing SW on non-offline pages.
-      // This prevents the SW from intercepting requests and calling clients.claim()
-      // which orphans in-flight fetch requests and causes the page to crash.
-      // The SW will re-register automatically when the user navigates to /sell or /payment.
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        if (registrations.length > 0) {
-          console.log("[SW] Unregistering SW on non-offline page:", pathname);
-          registrations.forEach((reg) => reg.unregister());
-        }
-      });
-      return;
-    }
+    // Register the SW on all pages. The runtime caching config in next.config.js
+    // already handles non-offline pages with NetworkOnly (passes straight to network).
+    // Unregistering the SW on non-offline pages caused a zombie state where the SW
+    // was still controlling the page but unregistered, causing fetch errors and
+    // page snaps. The clients.claim() block in worker/index.js and clientsClaim:false
+    // in next.config.js already prevent the original in-flight request orphaning issue.
 
     const registerServiceWorker = async () => {
       try {

@@ -20,6 +20,7 @@ export interface OutboxItem {
 export class OutboxSyncService {
   private static syncInProgress = false;
   private static maxRetries = 10; // Increased from 3 to 10 attempts
+  private static cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Add item to outbox for later sync
@@ -454,14 +455,14 @@ export class OutboxSyncService {
   }
 
   /**
-   * Setup automatic sync on network reconnection
+   * Setup automatic sync on network reconnection + periodic check
    */
   static setupAutoSync(): void {
     if (typeof window === 'undefined') return;
 
+    // Sync on reconnect
     window.addEventListener('online', async () => {
       console.log('[Outbox] Network reconnected - syncing pending and retrying failed items...');
-      // Reset any failed items back to pending so they get another chance
       try {
         const failed = await this.getFailedItems();
         if (failed.length > 0) {
@@ -474,5 +475,35 @@ export class OutboxSyncService {
         console.error('[Outbox] Reconnect sync error:', err);
       }
     });
+
+    // Periodic check for pending items (every 60 seconds)
+    // Catches items that failed initial sync but didn't trigger a reconnect
+    this.cleanupInterval = setInterval(async () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const counts = await this.getOutboxCount();
+          if (counts.pending > 0) {
+            console.log(`[Outbox] Periodic check found ${counts.pending} pending items, syncing...`);
+            await this.syncOutbox();
+          }
+          // Auto-clean synced items older than 1 hour
+          if (counts.total > 50) {
+            await this.clearSynced();
+          }
+        } catch (err) {
+          // Silently fail — periodic check shouldn't disrupt the app
+        }
+      }
+    }, 60 * 1000);
+  }
+
+  /**
+   * Stop periodic sync (called on app unmount if needed)
+   */
+  static teardownAutoSync(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
   }
 }
