@@ -74,13 +74,14 @@ export default function ReportsPage() {
     return null;
   };
   
-  const dateRangeParams = getDateRangeParams();
-  const { data, loading, error, refetch } = useSalesSummary(getDaysForPeriod(), dateRangeParams);
-  const { data: itemsData, loading: itemsLoading } = useSalesByItems(getDaysForPeriod(), dateRangeParams);
-  const { data: transactionTypeData, loading: transactionTypeLoading } = useSalesByTransactionType(getDaysForPeriod(), dateRangeParams);
-  const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(getDaysForPeriod(), dateRangeParams);
-  const { data: hourlyData, loading: hourlyLoading } = useHourlySales(getDaysForPeriod(), dateRangeParams);
-  const { data: drinkFoodData, loading: drinkFoodLoading } = useDrinkFoodSplit(getDaysForPeriod(), dateRangeParams);
+  const dateRangeParams = useMemo(() => getDateRangeParams(), [selectedPeriod, customStartDate, customEndDate, customDays]);
+  const daysForPeriod = getDaysForPeriod();
+  const { data, loading, error, refetch } = useSalesSummary(daysForPeriod, dateRangeParams);
+  const { data: itemsData, loading: itemsLoading } = useSalesByItems(daysForPeriod, dateRangeParams);
+  const { data: transactionTypeData, loading: transactionTypeLoading } = useSalesByTransactionType(daysForPeriod, dateRangeParams);
+  const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(daysForPeriod, dateRangeParams);
+  const { data: hourlyData, loading: hourlyLoading } = useHourlySales(daysForPeriod, dateRangeParams);
+  const { data: drinkFoodData, loading: drinkFoodLoading, error: drinkFoodError, refetch: drinkFoodDataRefetch } = useDrinkFoodSplit(daysForPeriod, dateRangeParams);
 
   // Use all receipts from the selected period (already filtered by API)
   const periodReceipts = useMemo(() => {
@@ -634,7 +635,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Drink vs Food Split */}
+            {/* Drink vs Food Split - Wet vs Dry Mix */}
             <button
               onClick={() => openModal('drink-food-split')}
               className="w-full bg-[#3d3d3d] rounded-xl p-6 shadow-lg hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
@@ -642,25 +643,16 @@ export default function ReportsPage() {
               <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
                 <Coffee className="h-5 w-5 text-penkey-orange" />
                 <UtensilsCrossed className="h-5 w-5 text-penkey-orange" />
-                Drinks vs Food Split
+                Wet vs Dry Mix
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Coffee className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm text-gray-300">Drinks Only</span>
+                    <span className="text-sm text-gray-300">Dry (drinks only)</span>
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {drinkFoodData?.summary?.drinks_only?.count || 0} ({drinkFoodData?.summary?.drinks_only?.percentage?.toFixed(0) || 0}%)
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <UtensilsCrossed className="h-4 w-4 text-orange-400" />
-                    <span className="text-sm text-gray-300">Food Only</span>
-                  </div>
-                  <span className="text-sm font-semibold text-white">
-                    {drinkFoodData?.summary?.food_only?.count || 0} ({drinkFoodData?.summary?.food_only?.percentage?.toFixed(0) || 0}%)
+                    {(drinkFoodData?.summary?.drinks_only?.count || 0)} ({(drinkFoodData?.summary?.drinks_only?.percentage || 0).toFixed(0)}%)
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -669,16 +661,20 @@ export default function ReportsPage() {
                       <Coffee className="h-4 w-4 text-blue-400" />
                       <UtensilsCrossed className="h-4 w-4 text-orange-400" />
                     </div>
-                    <span className="text-sm text-gray-300">Both</span>
+                    <span className="text-sm text-gray-300">Wet (food or mixed)</span>
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {drinkFoodData?.summary?.both?.count || 0} ({drinkFoodData?.summary?.both?.percentage?.toFixed(0) || 0}%)
+                    {((drinkFoodData?.summary?.food_only?.count || 0) + (drinkFoodData?.summary?.both?.count || 0))} ({(((drinkFoodData?.summary?.food_only?.count || 0) + (drinkFoodData?.summary?.both?.count || 0)) / (drinkFoodData?.summary?.total_receipts || 1) * 100).toFixed(0)}%)
                   </span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2 mt-3 overflow-hidden">
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-3 overflow-hidden flex">
                   <div 
                     className="bg-blue-400 h-full transition-all duration-500" 
                     style={{ width: `${drinkFoodData?.summary?.drinks_only?.percentage || 0}%` }}
+                  />
+                  <div 
+                    className="bg-orange-400 h-full transition-all duration-500" 
+                    style={{ width: `${((drinkFoodData?.summary?.food_only?.percentage || 0) + (drinkFoodData?.summary?.both?.percentage || 0))}%` }}
                   />
                 </div>
                 <p className="text-xs text-gray-400 text-center">
@@ -1427,7 +1423,7 @@ export default function ReportsPage() {
               <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                 <Coffee className="h-6 w-6 text-penkey-orange" />
                 <UtensilsCrossed className="h-6 w-6 text-penkey-orange" />
-                Drinks vs Food Split
+                Wet vs Dry Mix
               </h3>
               <button
                 onClick={closeModal}
@@ -1440,6 +1436,16 @@ export default function ReportsPage() {
             {drinkFoodLoading ? (
               <div className="flex items-center justify-center h-32">
                 <RefreshCw className="h-6 w-6 text-penkey-orange animate-spin" />
+              </div>
+            ) : drinkFoodError ? (
+              <div className="text-center py-8 space-y-3">
+                <p className="text-red-400">{drinkFoodError}</p>
+                <button
+                  onClick={() => drinkFoodDataRefetch?.()}
+                  className="px-4 py-2 bg-penkey-orange text-white rounded-lg text-sm font-semibold hover:bg-orange-600 transition-colors"
+                >
+                  Retry
+                </button>
               </div>
             ) : drinkFoodData ? (
               <div className="space-y-4">
@@ -1454,7 +1460,7 @@ export default function ReportsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Coffee className="h-5 w-5 text-blue-400" />
-                        <span className="font-semibold text-white">Drinks Only</span>
+                        <span className="font-semibold text-white">Dry (drinks only)</span>
                       </div>
                       <span className="text-sm text-gray-400">{drinkFoodData.summary.drinks_only.percentage.toFixed(1)}%</span>
                     </div>
@@ -1466,7 +1472,7 @@ export default function ReportsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <UtensilsCrossed className="h-5 w-5 text-orange-400" />
-                        <span className="font-semibold text-white">Food Only</span>
+                        <span className="font-semibold text-white">Wet (food only)</span>
                       </div>
                       <span className="text-sm text-gray-400">{drinkFoodData.summary.food_only.percentage.toFixed(1)}%</span>
                     </div>
@@ -1505,10 +1511,10 @@ export default function ReportsPage() {
                 </div>
 
                 <div className="bg-[#2d2d2d] rounded-lg p-4">
-                  <p className="text-sm text-gray-400 mb-3">Order Mix</p>
+                  <p className="text-sm text-gray-400 mb-3">Wet vs Dry Mix</p>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-24 text-xs text-gray-400">Drinks Only</div>
+                      <div className="w-24 text-xs text-gray-400">Dry</div>
                       <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
                         <div 
                           className="bg-blue-400 h-full transition-all duration-500" 
@@ -1518,26 +1524,19 @@ export default function ReportsPage() {
                       <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.drinks_only.percentage.toFixed(0)}%</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-24 text-xs text-gray-400">Food Only</div>
+                      <div className="w-24 text-xs text-gray-400">Wet</div>
                       <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
                         <div 
                           className="bg-orange-400 h-full transition-all duration-500" 
-                          style={{ width: `${drinkFoodData.summary.food_only.percentage}%` }}
+                          style={{ width: `${drinkFoodData.summary.food_only.percentage + drinkFoodData.summary.both.percentage}%` }}
                         />
                       </div>
-                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.food_only.percentage.toFixed(0)}%</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 text-xs text-gray-400">Both</div>
-                      <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
-                        <div 
-                          className="bg-purple-400 h-full transition-all duration-500" 
-                          style={{ width: `${drinkFoodData.summary.both.percentage}%` }}
-                        />
-                      </div>
-                      <div className="w-12 text-xs text-right text-white">{drinkFoodData.summary.both.percentage.toFixed(0)}%</div>
+                      <div className="w-12 text-xs text-right text-white">{(drinkFoodData.summary.food_only.percentage + drinkFoodData.summary.both.percentage).toFixed(0)}%</div>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-400 mt-3">
+                    Wet = food-only + mixed orders. Dry = drinks-only orders.
+                  </p>
                 </div>
               </div>
             ) : (

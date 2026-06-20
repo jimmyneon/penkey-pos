@@ -31,12 +31,17 @@ export function useDrinkFoodSplit(days: number, dateRangeParams?: { startDate: s
   const [data, setData] = useState<DrinkFoodSplitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refetchKey, setRefetchKey] = useState(0);
 
   useEffect(() => {
+    const abortController = new AbortController();
+    const requestId = Date.now();
+
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
+        setData(null);
 
         const sessionData = sessionStorage.getItem('pos_session');
         if (!sessionData) {
@@ -52,29 +57,48 @@ export function useDrinkFoodSplit(days: number, dateRangeParams?: { startDate: s
           url += `&start_date=${dateRangeParams.startDate}&end_date=${dateRangeParams.endDate}`;
         }
 
+        // Add cache buster to prevent any browser/CDN caching
+        url += `&_t=${requestId}`;
+
+        console.log('[useDrinkFoodSplit] Fetching:', url);
+
         const response = await fetch(url, {
-          credentials: 'same-origin',
-          headers: {
-            'x-pos-session': sessionData,
-          },
+          cache: 'no-store',
+          credentials: 'include',
+          signal: abortController.signal,
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch drink/food split data');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to fetch drink/food split data: ${response.status}`);
         }
 
         const result = await response.json();
+        console.log('[useDrinkFoodSplit] Result:', result);
         setData(result);
       } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.log('[useDrinkFoodSplit] Request aborted:', requestId);
+          return;
+        }
         console.error('[useDrinkFoodSplit] Error:', err);
         setError(err.message || 'Failed to load data');
+        setData(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [days, dateRangeParams]);
 
-  return { data, loading, error };
+    return () => {
+      abortController.abort();
+    };
+  }, [days, dateRangeParams?.startDate, dateRangeParams?.endDate, refetchKey]);
+
+  const refetch = () => {
+    setRefetchKey(prev => prev + 1);
+  };
+
+  return { data, loading, error, refetch };
 }

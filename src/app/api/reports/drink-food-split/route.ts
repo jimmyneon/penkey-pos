@@ -55,40 +55,67 @@ export async function GET(request: NextRequest) {
       console.log(`[Drink/Food Split] Fetching for last ${days} days, from ${startDate.toISOString()}`);
     }
 
-    // Fetch receipt lines with item and category details (including type)
-    const { data: receiptLines, error: linesError } = await supabase
-      .from("receipt_lines")
-      .select(`
-        id,
-        item_id,
-        name,
-        quantity,
-        unit_price,
-        line_total,
-        receipt_id,
-        items!inner (
-          category_id,
-          categories!inner (
-            name,
-            type
-          )
-        ),
-        receipts!inner (
-          created_at,
-          org_id,
-          status
-        )
-      `)
-      .eq("receipts.org_id", orgId)
-      .gte("receipts.created_at", startDate.toISOString())
-      .lte("receipts.created_at", endDate.toISOString())
-      .neq("receipts.status", "fully_refunded")
-      .neq("receipts.status", "voided");
+    // Fetch receipt lines with item and category details (left join so we keep all lines)
+    // Paginate because Supabase REST API caps at 1000 rows per request.
+    const pageSize = 1000;
+    let allReceiptLines: any[] = [];
+    let page = 0;
+    let fetchedPageSize = pageSize;
 
-    if (linesError) {
-      console.error("[Drink/Food Split] Error fetching receipt lines:", linesError);
-      return NextResponse.json({ error: "Failed to fetch receipt data" }, { status: 500 });
+    while (fetchedPageSize === pageSize) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data: receiptLinesPage, error: linesError } = await supabase
+        .from("receipt_lines")
+        .select(`
+          id,
+          item_id,
+          name,
+          quantity,
+          unit_price,
+          line_total,
+          receipt_id,
+          items!left (
+            category_id,
+            categories!left (
+              name,
+              type
+            )
+          ),
+          receipts!inner (
+            created_at,
+            org_id,
+            status
+          )
+        `)
+        .eq("receipts.org_id", orgId)
+        .gte("receipts.created_at", startDate.toISOString())
+        .lte("receipts.created_at", endDate.toISOString())
+        .neq("receipts.status", "fully_refunded")
+        .neq("receipts.status", "voided")
+        .order("receipt_id")
+        .range(from, to);
+
+      if (linesError) {
+        console.error("[Drink/Food Split] Error fetching receipt lines:", linesError);
+        return NextResponse.json({ error: "Failed to fetch receipt data" }, { status: 500 });
+      }
+
+      fetchedPageSize = receiptLinesPage?.length || 0;
+      if (fetchedPageSize > 0) {
+        allReceiptLines = allReceiptLines.concat(receiptLinesPage);
+      }
+      page++;
+
+      // Safety guard: never exceed 100 pages (100k lines)
+      if (page > 100) {
+        console.warn("[Drink/Food Split] Hit pagination safety limit");
+        break;
+      }
     }
+
+    const receiptLines = allReceiptLines;
 
     // Helper function to categorize item based on category type, falling back to name
     const categorizeItem = (categoryType: string | null, categoryName: string | null): 'drink' | 'food' | 'other' => {
@@ -112,7 +139,8 @@ export async function GET(request: NextRequest) {
     (receiptLines || []).forEach((line: any) => {
       const receiptId = line.receipt_id;
       const categoryType = line.items?.categories?.type || 'other';
-      const categoryName = line.items?.categories?.name || null;
+      // Fallback to the item/category name, then the receipt line name itself
+      const categoryName = line.items?.categories?.name || line.items?.name || line.name || null;
       const category = categorizeItem(categoryType, categoryName);
       const lineTotal = parseFloat(line.line_total || "0");
 
