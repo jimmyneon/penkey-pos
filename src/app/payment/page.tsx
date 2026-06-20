@@ -70,6 +70,7 @@ export default function PaymentPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [defaultDiningOption, setDefaultDiningOption] = useState<'eat-in' | 'takeaway'>('takeaway');
+  const [customerCount, setCustomerCount] = useState<number>(1);
   const [storeInfo, setStoreInfo] = useState({
     name: "Penkey Delicaf & Gifts",
     address: "5 New Street, Lymington",
@@ -666,6 +667,7 @@ export default function PaymentPage() {
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       // Use global default dining option setting (can be overridden by table assignment)
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+      customer_count: customerCount,
       tip_amount: tipAmount,
       voucher_redemptions: [
         ...lines.filter(line => line.voucher).map(line => ({
@@ -824,6 +826,7 @@ export default function PaymentPage() {
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+      customer_count: customerCount,
       tip_amount: tipAmount,
       voucher_redemptions: [
         ...lines.filter(line => line.voucher).map(line => ({
@@ -1737,6 +1740,7 @@ export default function PaymentPage() {
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
         // Use global default dining option setting (can be overridden by table assignment)
         dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
+        customer_count: customerCount,
         payment_provider: "sumup",
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,
@@ -1887,6 +1891,14 @@ export default function PaymentPage() {
               {defaultDiningOption === 'eat-in' ? 'Eat In' : 'Takeaway'}
             </button>
           )}
+
+          {/* Customer Count Toggle - cycles 1 → 2 → 3 → 4 → 1 */}
+          <button
+            onClick={() => setCustomerCount(prev => prev >= 4 ? 1 : prev + 1)}
+            className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg font-semibold transition-all whitespace-nowrap mr-3"
+          >
+            {customerCount} {customerCount === 1 ? 'Person' : 'People'}
+          </button>
         </div>
       </div>
 

@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       customer_phone,
       table_number,
       dining_option,
+      customer_count,
       payment_provider,
       transaction_id,
       checkout_id,
@@ -216,6 +217,7 @@ export async function POST(request: NextRequest) {
         change_amount: payment_method === "cash" ? (cash_tendered || 0) - total : 0,
         status: "completed",
         dining_option: dining_option || "takeaway",
+        customer_count: parseInt(customer_count) || 1,
         idempotency_key: id ? (isValidUUID(id) ? id : stringToUUID(id)) : null,
         // Preserve original transaction time if provided (offline sync), otherwise use database default
         created_at: created_at || undefined,
