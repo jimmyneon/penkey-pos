@@ -11,6 +11,7 @@ function escapeHtml(s: string): string {
 function getValueText(v: any): string {
   if (v.voucher_type === 'amount') return `\u00a3${Number(v.amount).toFixed(2)}`;
   if (v.voucher_type === 'percent') return `${v.percent_discount}% OFF`;
+  if (v.voucher_title) return v.voucher_title;
   return `Free ${v.item_name || 'item'}`;
 }
 
@@ -28,7 +29,7 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   const code = escapeHtml(v.code);
   const storeAddrEsc = storeAddress ? escapeHtml(storeAddress) : '';
 
-  const recipientBlock = recipient ? `
+  const recipientBlock = (recipient && v.voucher_type !== 'item') ? `
     <div class="overlay-text" style="top: 17%;">
       <div class="recipient-name">For ${recipient}</div>
     </div>` : '';

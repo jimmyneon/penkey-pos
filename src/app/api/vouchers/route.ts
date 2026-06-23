@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     send_email,
     quantity = 1,
     batch_label,
+    voucher_title,
   } = body;
 
   const validTypes = ['amount', 'item', 'percent'];
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
         recipient_email: recipient_email || null,
         expires_at: expires_at || null,
         message: message || null,
+        voucher_title: voucher_title || null,
         issued_by: session.user_id,
         status: 'active',
         batch_id: batchId,
@@ -179,6 +181,7 @@ export async function sendVoucherEmail(voucher: any) {
   const valueText =
     voucher.voucher_type === 'amount' ? `\u00a3${Number(voucher.amount).toFixed(2)}`
     : voucher.voucher_type === 'percent' ? `${voucher.percent_discount}% OFF`
+    : voucher.voucher_title ? voucher.voucher_title
     : `Free ${voucher.item_name}`;
 
   const expiryText = voucher.expires_at

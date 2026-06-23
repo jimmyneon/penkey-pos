@@ -62,6 +62,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [batchLabel, setBatchLabel] = useState("");
+  const [voucherTitle, setVoucherTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +102,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     setExpiryMode("12m");
     setQuantity(1);
     setBatchLabel("");
+    setVoucherTitle("");
     setError(null);
   };
 
@@ -157,6 +159,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
       if (voucherType === "percent") body.percent_discount = parseFloat(percentDiscount);
       if (voucherType === "item") {
         body.item_selection_type = itemSelectionType;
+        body.voucher_title = voucherTitle || null;
         if (itemSelectionType === "single") {
           body.item_id = selectedItemId;
           body.item_name = selectedItemName;
@@ -522,6 +525,27 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Voucher Title for item type */}
+          {voucherType === "item" && (
+            <div>
+              <label className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-penkey-orange" />
+                Voucher Title
+                <span className="text-gray-500 font-normal">(shows on the voucher)</span>
+              </label>
+              <input
+                type="text"
+                value={voucherTitle}
+                onChange={(e) => setVoucherTitle(e.target.value)}
+                placeholder="e.g. Choose Any Free Coffee"
+                className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-penkey-orange transition-colors"
+              />
+              <p className="text-xs text-gray-500 mt-1.5">
+                This text appears on the voucher. The selected items control what it can be redeemed against.
+              </p>
             </div>
           )}
 
