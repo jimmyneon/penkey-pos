@@ -21,7 +21,7 @@ export default function ReceiptsSettingsPage() {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="p-3 sm:p-4 md:p-8 pb-8">
+        <div className="p-3 sm:p-4 md:p-8 pb-24">
           <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
 
             <SettingsSection title="Receipt Settings" icon={Receipt}>

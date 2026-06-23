@@ -34,57 +34,57 @@ export default function SettingsPage() {
 
   const settingsCards = [
     {
-      title: "Display & Feedback",
-      description: "Theme, text size, grid layout, sound & haptics",
+      title: "Display",
+      description: "Theme & layout",
       icon: Grid3x3,
       href: "/settings/display",
       color: "bg-blue-500",
     },
     {
-      title: "Order & Operations",
-      description: "Dining options, upsell prompts, shift management",
+      title: "Orders",
+      description: "Dining & shifts",
       icon: Utensils,
       href: "/settings/order",
       color: "bg-purple-500",
     },
     {
-      title: "Receipts & Printing",
-      description: "Print behaviour, copies, tip presets, templates",
+      title: "Receipts",
+      description: "Print & tips",
       icon: Receipt,
       href: "/settings/receipts",
       color: "bg-orange-500",
     },
     {
       title: "Payments",
-      description: "SumUp card payments, terminals",
+      description: "SumUp & terminals",
       icon: CreditCard,
       href: "/settings/payments",
       color: "bg-green-500",
     },
     {
-      title: "Perks Integration",
-      description: "Loyalty app, API key, bean reward rules",
+      title: "Perks",
+      description: "Loyalty & beans",
       icon: Star,
       href: "/settings/perks",
       color: "bg-yellow-500",
     },
     {
       title: "QR Codes",
-      description: "Google review QR, tracking, scan stats",
+      description: "Reviews & scans",
       icon: QrCode,
       href: "/settings/qr-codes",
       color: "bg-cyan-500",
     },
     {
       title: "Printers",
-      description: "Manage receipt printers",
+      description: "Manage printers",
       icon: Printer,
       href: "/settings/printers",
       color: "bg-slate-500",
     },
     {
-      title: "Security & Account",
-      description: "PIN, biometric unlock, sign out",
+      title: "Security",
+      description: "PIN & sign out",
       icon: Lock,
       href: "/settings/security",
       color: "bg-red-500",
@@ -108,46 +108,32 @@ export default function SettingsPage() {
         <div className="w-[44px] sm:w-32"></div>
       </header>
 
-      {/* Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="p-3 sm:p-4 md:p-8 pb-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-
-              {settingsCards.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <button
-                    key={card.href}
-                    onClick={() => {
-                      hapticButtonPress();
-                      router.push(card.href);
-                    }}
-                    className="bg-[#3d3d3d] rounded-lg p-4 sm:p-5 border border-gray-700 hover:border-penkey-orange transition-all active:scale-95 text-left flex flex-col gap-3 min-h-[120px]"
-                  >
-                    <div className={`w-10 h-10 ${card.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                      <Icon className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-white font-semibold text-sm sm:text-base mb-1">{card.title}</h2>
-                      <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">{card.description}</p>
-                    </div>
-                  </button>
-                );
-              })}
-
-            </div>
-
-            {/* Info Note */}
-            <div className="mt-6 bg-[#3d3d3d] rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-gray-400 border border-gray-700">
-              <p className="mb-2 text-sm sm:text-base">ℹ️ <strong className="text-white">Note:</strong></p>
-              <ul className="space-y-1 ml-4 leading-relaxed">
-                <li>• Register settings sync across all devices using this register</li>
-                <li className="hidden sm:list-item">• For business settings (payment methods, tax rates, etc.), contact your manager or use the Back Office</li>
-                <li className="sm:hidden">• For business settings, use the Back Office</li>
-              </ul>
-            </div>
-          </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+          {settingsCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <button
+                key={card.href}
+                onClick={() => {
+                  hapticButtonPress();
+                  router.push(card.href);
+                }}
+                className="bg-[#3d3d3d] rounded-xl p-6 hover:bg-[#4d4d4d] transition-all duration-200 border-2 border-transparent hover:border-penkey-orange active:scale-95"
+              >
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className={`${card.color} rounded-xl p-4 transition-transform duration-200`}>
+                    <Icon className="h-10 w-10 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">{card.title}</h3>
+                    <p className="text-sm text-gray-400">{card.description}</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

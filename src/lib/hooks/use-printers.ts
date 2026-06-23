@@ -22,6 +22,8 @@ export function usePrinters(options: UsePrintersOptions = {}) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPrinters = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (options.register_id) params.set("register_id", options.register_id);
