@@ -190,6 +190,16 @@ class PrintServer:
                 
                 if pull_result.returncode == 0:
                     logger.info(f"[Update] Successfully pulled updates: {pull_result.stdout}")
+                    # Copy updated files from git-tracked subdirectory to runtime directory
+                    import shutil
+                    src_dir = '/home/jimmy/print-server/print-server'
+                    dst_dir = '/home/jimmy/print-server'
+                    for fname in ['print_server.py', 'printer.py', 'supabase_logger.py']:
+                        src = os.path.join(src_dir, fname)
+                        dst = os.path.join(dst_dir, fname)
+                        if os.path.exists(src):
+                            shutil.copy2(src, dst)
+                            logger.info(f"[Update] Copied {fname} to runtime directory")
                     logger.info("[Update] Restarting to apply updates...")
                     return True
                 else:
