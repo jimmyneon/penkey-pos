@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
     expires_at,
     message,
     send_email,
+    quantity = 1,
+    batch_label,
   } = body;
 
   const validTypes = ['amount', 'item', 'percent'];
@@ -61,64 +63,85 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid voucher_type' }, { status: 400 });
   }
 
-  // Generate unique code
-  let code = generateVoucherCode();
-  let attempts = 0;
-  while (attempts < 5) {
-    const { data: existing } = await supabase
-      .from('gift_vouchers')
-      .select('id')
-      .eq('org_id', session.org_id)
-      .eq('code', code)
-      .maybeSingle();
-    if (!existing) break;
-    code = generateVoucherCode();
-    attempts++;
-  }
+  const qty = Math.min(Math.max(parseInt(quantity) || 1, 1), 100);
+  const isBatch = qty > 1;
+  const batchId = isBatch ? crypto.randomUUID() : null;
+  const orgId = session.org_id;
 
-  const qrData = JSON.stringify({ type: 'voucher', code, org_id: session.org_id });
-
-  const { data: voucher, error } = await supabase
-    .from('gift_vouchers')
-    .insert({
-      org_id: session.org_id,
-      code,
-      qr_data: qrData,
-      voucher_type,
-      amount: voucher_type === 'amount' ? amount : null,
-      percent_discount: voucher_type === 'percent' ? percent_discount : null,
-      item_id: voucher_type === 'item' ? item_id : null,
-      item_name: voucher_type === 'item' ? item_name : null,
-      recipient_name: recipient_name || null,
-      recipient_email: recipient_email || null,
-      expires_at: expires_at || null,
-      message: message || null,
-      issued_by: session.user_id,
-      status: 'active',
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('[Voucher POST]', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Send email if requested
-  if (send_email && recipient_email && voucher) {
-    console.log('[Voucher POST] Sending email to:', recipient_email);
-    try {
-      await sendVoucherEmail(voucher as any);
-      console.log('[Voucher POST] Email sent successfully');
-    } catch (emailErr) {
-      console.error('[Voucher POST] Email failed:', emailErr);
-      // Non-fatal - voucher still created
+  // Generate unique code helper
+  async function makeUniqueCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const c = generateVoucherCode();
+      const { data: existing } = await supabase
+        .from('gift_vouchers')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('code', c)
+        .maybeSingle();
+      if (!existing) return c;
     }
-  } else {
-    console.log('[Voucher POST] Email not sent. send_email:', send_email, 'recipient_email:', recipient_email);
+    return generateVoucherCode() + Math.floor(Math.random() * 100);
   }
 
-  return NextResponse.json({ voucher }, { status: 201 });
+  const createdVouchers: any[] = [];
+
+  for (let i = 0; i < qty; i++) {
+    const code = await makeUniqueCode();
+    const qrData = JSON.stringify({ type: 'voucher', code, org_id: session.org_id });
+
+    const { data: voucher, error: insertError } = await supabase
+      .from('gift_vouchers')
+      .insert({
+        org_id: session.org_id,
+        code,
+        qr_data: qrData,
+        voucher_type,
+        amount: voucher_type === 'amount' ? amount : null,
+        percent_discount: voucher_type === 'percent' ? percent_discount : null,
+        item_id: voucher_type === 'item' ? item_id : null,
+        item_name: voucher_type === 'item' ? item_name : null,
+        recipient_name: recipient_name || null,
+        recipient_email: recipient_email || null,
+        expires_at: expires_at || null,
+        message: message || null,
+        issued_by: session.user_id,
+        status: 'active',
+        batch_id: batchId,
+        batch_label: batch_label || null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[Voucher POST] Insert error on item', i, insertError);
+      if (i === 0) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
+      break;
+    }
+
+    createdVouchers.push(voucher);
+
+    // Send email if requested (only for single or first of batch with recipient)
+    if (send_email && recipient_email && voucher && !isBatch) {
+      try {
+        await sendVoucherEmail(voucher as any);
+      } catch (emailErr) {
+        console.error('[Voucher POST] Email failed:', emailErr);
+      }
+    }
+  }
+
+  if (isBatch) {
+    return NextResponse.json({
+      vouchers: createdVouchers,
+      batch_id: batchId,
+      batch_label: batch_label || null,
+      count: createdVouchers.length,
+    }, { status: 201 });
+  }
+
+  return NextResponse.json({ voucher: createdVouchers[0] }, { status: 201 });
 }
 
 export async function DELETE(request: NextRequest) {

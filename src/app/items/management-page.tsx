@@ -338,7 +338,7 @@ export default function ManagementPage() {
             className="text-white hover:bg-white/10"
             title="Export all data"
           >
-            <Download className="h-5 w-5" />
+            <Upload className="h-5 w-5" />
           </Button>
           <Button
             size="sm"
@@ -350,7 +350,7 @@ export default function ManagementPage() {
             className="text-white hover:bg-white/10"
             title="Import data"
           >
-            <Upload className="h-5 w-5" />
+            <Download className="h-5 w-5" />
           </Button>
           {activeTab === "items" && (
             <Button

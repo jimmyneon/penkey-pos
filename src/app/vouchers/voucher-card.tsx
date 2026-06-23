@@ -1,6 +1,6 @@
 "use client";
 
-import { DollarSign, Coffee, Percent, ChevronRight, User } from "lucide-react";
+import { DollarSign, Coffee, Percent, ChevronRight, User, Layers } from "lucide-react";
 
 const STATUS_COLOURS: Record<string, string> = {
   active: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -66,6 +66,12 @@ export function VoucherCard({ voucher, onClick }: VoucherCardProps) {
           </div>
           <div className="text-base font-semibold text-white truncate">{voucherLabel(voucher)}</div>
           <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+            {voucher.batch_label && (
+              <span className="flex items-center gap-1 flex-shrink-0 text-blue-400/70">
+                <Layers className="h-3 w-3" />
+                <span className="truncate max-w-[80px]">{voucher.batch_label}</span>
+              </span>
+            )}
             {voucher.recipient_name && (
               <span className="flex items-center gap-1 truncate">
                 <User className="h-3 w-3 flex-shrink-0" />

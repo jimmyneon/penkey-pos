@@ -202,6 +202,13 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
             <div className="text-2xl font-bold text-white">{voucherLabel(voucher)}</div>
           </div>
 
+          {voucher.batch_label && (
+            <div className="bg-blue-500/10 rounded-xl p-3.5 border border-blue-500/20">
+              <div className="text-xs text-blue-400/70 uppercase tracking-wider mb-0.5">Campaign</div>
+              <div className="text-sm font-semibold text-blue-300">{voucher.batch_label}</div>
+            </div>
+          )}
+
           {/* Info rows */}
           {voucher.recipient_name && (
             <div className="bg-[#2d2d2d] rounded-xl p-3.5 border border-gray-700/30">

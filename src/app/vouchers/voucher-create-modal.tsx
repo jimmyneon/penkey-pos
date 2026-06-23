@@ -55,6 +55,8 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
   const [sendEmail, setSendEmail] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
   const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [batchLabel, setBatchLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +86,8 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
     setSendEmail(false);
     setItemSearch("");
     setExpiryMode("12m");
+    setQuantity(1);
+    setBatchLabel("");
     setError(null);
   };
 
@@ -142,6 +146,10 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
         body.item_id = selectedItemId;
         body.item_name = selectedItemName;
       }
+      if (quantity > 1) {
+        body.quantity = quantity;
+        body.batch_label = batchLabel || undefined;
+      }
 
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -156,7 +164,11 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
 
       if (res.ok) {
         const data = await res.json();
-        onCreated(data.voucher);
+        if (data.vouchers) {
+          onCreated(data.vouchers[0]);
+        } else {
+          onCreated(data.voucher);
+        }
         resetForm();
         onClose();
       } else {
@@ -468,6 +480,74 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
             />
           </div>
 
+          {/* Batch / Campaign section - only for item & percent (amount goes through payment) */}
+          {voucherType !== "amount" && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-penkey-orange" />
+                  Quantity
+                  <span className="text-gray-500 font-normal">(1 = single, &gt;1 = batch campaign)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { hapticButtonPress(); setQuantity(Math.max(1, quantity - 1)); }}
+                    className="w-10 h-10 rounded-lg bg-[#2d2d2d] border border-gray-600 text-white flex items-center justify-center flex-shrink-0"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+                    className="flex-1 bg-[#2d2d2d] text-white text-center px-4 py-2.5 rounded-xl border border-gray-600 focus:outline-none focus:border-penkey-orange transition-colors"
+                  />
+                  <button
+                    onClick={() => { hapticButtonPress(); setQuantity(Math.min(100, quantity + 1)); }}
+                    className="w-10 h-10 rounded-lg bg-[#2d2d2d] border border-gray-600 text-white flex items-center justify-center flex-shrink-0"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  {[5, 10, 25, 50].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => { hapticButtonPress(); setQuantity(n); }}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        quantity === n
+                          ? "border-penkey-orange bg-penkey-orange/15 text-penkey-orange"
+                          : "border-gray-600/50 bg-[#2d2d2d] text-gray-400 hover:border-gray-500"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {quantity > 1 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">
+                    Batch Label <span className="text-gray-500 font-normal">(e.g. "Summer Promo")</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={batchLabel}
+                    onChange={(e) => setBatchLabel(e.target.value)}
+                    placeholder="Optional campaign name"
+                    className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-penkey-orange transition-colors"
+                  />
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Creates {quantity} vouchers, each with a unique QR code. Scan once to redeem.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Send email toggle */}
           {recipientEmail && (
             <button
@@ -517,7 +597,11 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
             ) : (
               <>
                 <Gift className="h-5 w-5" />
-                {voucherType === "amount" ? "Continue to Payment" : "Create Voucher"}
+                {voucherType === "amount"
+                  ? "Continue to Payment"
+                  : quantity > 1
+                  ? `Create ${quantity} Vouchers`
+                  : "Create Voucher"}
               </>
             )}
           </Button>

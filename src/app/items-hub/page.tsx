@@ -98,7 +98,11 @@ export default function ItemsHubPage() {
     try {
       setExporting(true);
       const response = await fetch('/api/export');
-      if (!response.ok) throw new Error('Export failed');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Export failed with status ${response.status}`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -109,9 +113,9 @@ export default function ItemsHubPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      alert(`Export failed: ${error.message || 'Please try again.'}`);
     } finally {
       setExporting(false);
     }
@@ -251,7 +255,7 @@ export default function ItemsHubPage() {
             className="text-white hover:bg-white/10"
             title="Import data"
           >
-            <Upload className="h-5 w-5" />
+            <Download className="h-5 w-5" />
           </Button>
           <Button
             size="sm"
@@ -264,7 +268,7 @@ export default function ItemsHubPage() {
             className="text-white hover:bg-white/10"
             title="Export all data"
           >
-            <Download className="h-5 w-5" />
+            <Upload className="h-5 w-5" />
           </Button>
           <Button
             size="sm"
