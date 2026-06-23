@@ -82,14 +82,18 @@ export async function POST(request: NextRequest) {
 
     let selectedPrinterId = printer_id;
 
-    // If no printer specified, try to find any printer (don't filter by status -
-    // the print server may have a stale heartbeat but will still pick up queued jobs)
+    // If no printer specified, prefer an online printer (has a print server connected)
+    // Fall back to any active printer if none are online
     if (!selectedPrinterId) {
       try {
-        const printers = await getPrinters(supabaseUrl, supabaseKey);
-
-        if (printers.length > 0) {
-          selectedPrinterId = printers[0].id;
+        const onlinePrinters = await getPrinters(supabaseUrl, supabaseKey, { status: "online" });
+        if (onlinePrinters.length > 0) {
+          selectedPrinterId = onlinePrinters[0].id;
+        } else {
+          const allPrinters = await getPrinters(supabaseUrl, supabaseKey);
+          if (allPrinters.length > 0) {
+            selectedPrinterId = allPrinters[0].id;
+          }
         }
       } catch (err: any) {
         console.warn("[Ticket Print] Failed to lookup printers:", err);
