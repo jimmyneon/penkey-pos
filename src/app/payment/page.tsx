@@ -13,7 +13,6 @@ import { ManualPaymentDialog } from "./manual-payment-dialog";
 import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
 import { QRScanner } from "@/components/QRScanner";
 import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
-import { CheckoutReminders } from "@/components/checkout-reminders";
 import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
@@ -1913,15 +1912,6 @@ export default function PaymentPage() {
           />
         ) : (
         <div className="max-w-2xl mx-auto w-full">
-          {/* Checkout Reminders */}
-          <div className="mb-4">
-            <CheckoutReminders
-              cartLines={lines.map(l => ({ item_id: l.item_id, item_name: l.item_name }))}
-              hasPerksCustomer={!!perksCustomer}
-              orgId={session?.org_id}
-              memberId={session?.employee.id}
-            />
-          </div>
           {/* Tip row */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Select Payment Method</h2>
