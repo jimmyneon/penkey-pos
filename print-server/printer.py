@@ -12,6 +12,22 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Common Unicode chars that aren't ASCII — map to ASCII equivalents
+# so they don't show as ? on the printer
+_UNICODE_MAP = {
+    '\u2019': "'",  # Right single quote / curly apostrophe
+    '\u2018': "'",  # Left single quote
+    '\u201C': '"',  # Left double quote
+    '\u201D': '"',  # Right double quote
+    '\u2014': '-',  # Em dash
+    '\u2013': '-',  # En dash
+    '\u2026': '...', # Ellipsis
+    '\u00A0': ' ',  # Non-breaking space
+    '\u2022': '*',  # Bullet
+    '\u2011': '-',  # Non-breaking hyphen
+    '\u00AD': '',   # Soft hyphen (remove)
+}
+
 
 class EpsonSerialPrinter:
     """Epson TM-series printer interface using serial connection"""
@@ -218,11 +234,13 @@ Status: Online
                 commands.extend([0x1D, 0x21, 0x00])  # Normal size
 
             # Encode text: replace £ with raw byte 0x9C (correct on CP437/CP850/CP858)
-            # then encode the rest as ascii. This avoids codec mismatches entirely.
+            # Map common Unicode chars to ASCII equivalents before encoding.
             encoded = bytearray()
             for ch in text:
-                if ch == '£':
+                if ch == '\u00A3' or ch == '£':
                     encoded.append(0x9C)
+                elif ch in _UNICODE_MAP:
+                    encoded.extend(_UNICODE_MAP[ch].encode('ascii'))
                 else:
                     encoded.extend(ch.encode('ascii', errors='replace'))
             commands.extend(encoded)
