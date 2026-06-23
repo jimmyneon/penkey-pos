@@ -77,7 +77,7 @@ export function SettingsPageWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden">
+    <div className="h-dvh bg-[#2d2d2d] flex flex-col overflow-hidden">
       {children}
     </div>
   );
@@ -109,7 +109,7 @@ export function SettingsHeader({
 
 export function SettingsLoading() {
   return (
-    <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center">
+    <div className="min-h-dvh bg-[#2d2d2d] flex items-center justify-center">
       <div className="text-white text-lg">Loading settings...</div>
     </div>
   );

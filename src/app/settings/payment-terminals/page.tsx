@@ -272,7 +272,7 @@ export default function PaymentTerminalsPage() {
   };
 
   return (
-    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden">
+    <div className="h-dvh bg-[#2d2d2d] flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-[#3d3d3d] text-white px-3 sm:px-4 py-3 flex items-center justify-between border-b border-gray-700 flex-shrink-0 z-10">
         <button

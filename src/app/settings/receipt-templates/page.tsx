@@ -133,7 +133,7 @@ export default function ReceiptTemplatesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-white p-4 sm:p-6">
+    <div className="min-h-dvh bg-[#1a1a1a] text-white p-4 sm:p-6">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       
       {/* Header */}

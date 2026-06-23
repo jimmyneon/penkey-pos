@@ -92,7 +92,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden">
+    <div className="h-dvh bg-[#2d2d2d] flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-[#3d3d3d] text-white px-3 sm:px-4 py-3 flex items-center justify-between border-b border-gray-700 flex-shrink-0 z-10">
         <Button
@@ -109,7 +109,7 @@ export default function SettingsPage() {
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="flex-1 overflow-y-auto p-6 pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
           {settingsCards.map((card) => {
             const Icon = card.icon;

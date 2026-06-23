@@ -126,7 +126,7 @@ export default function SecuritySettingsPage() {
   if (loading) return <SettingsLoading />;
 
   return (
-    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden">
+    <div className="h-dvh bg-[#2d2d2d] flex flex-col overflow-hidden">
       <SettingsHeader title="Security & Account" onBack={() => router.push("/settings")} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
