@@ -46,12 +46,19 @@ function buildBatchPrintHtml(images: { code: string; base64: string }[]): string
     }
     .print-btn:hover { background: #243556; }
     @media print {
-      html, body { background: white; padding: 0; margin: 0; overflow: hidden; }
-      .voucher-page { margin: 0; }
+      html, body {
+        background: white; padding: 0; margin: 0;
+        min-height: 0; max-height: 297mm;
+        overflow: hidden;
+        display: block !important;
+      }
+      .voucher-page { margin: 0; page-break-after: always; break-after: page; }
+      .voucher-page:last-child { page-break-after: avoid; break-after: avoid; }
       .voucher-img {
         box-shadow: none; border-radius: 0;
-        width: auto; max-width: none;
-        height: 297mm; object-fit: contain;
+        width: auto; max-width: 100%;
+        max-height: 297mm; height: auto;
+        object-fit: contain; display: block;
       }
       .print-btn-wrap { display: none !important; }
       @page { margin: 0; size: A4; }

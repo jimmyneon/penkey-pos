@@ -210,6 +210,7 @@ export async function sendVoucherEmail(voucher: any) {
     filename: `voucher-${voucher.code}.png`,
     content: pngBuffer.toString('base64'),
     content_type: 'image/png',
+    cid: 'voucher-image',
   }] : undefined;
 
   const { data: emailData, error: emailError } = await resend.emails.send({
@@ -222,18 +223,18 @@ export async function sendVoucherEmail(voucher: any) {
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#e8e4dc;font-family:Georgia,serif;">
+<body style="margin:0;padding:0;background:#e8e4dc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
   <div style="max-width:480px;margin:0 auto;padding:20px 16px;text-align:center;">
-    ${pngBuffer ? `<img src="data:image/png;base64,${pngBuffer.toString('base64')}" alt="${storeName} Gift Voucher" style="width:100%;max-width:400px;height:auto;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);" />` : `
+    ${pngBuffer ? `<img src="cid:voucher-image" alt="${storeName} Gift Voucher" style="width:100%;max-width:400px;height:auto;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);" />` : `
       <div style="background:#1a2847;border-radius:12px;padding:32px 24px;color:#fff;">
         <div style="font-size:28px;font-weight:700;letter-spacing:2px;">${storeName}</div>
         <div style="font-size:11px;color:#c9a96e;text-transform:uppercase;letter-spacing:6px;margin-top:8px;">Gift Voucher</div>
         <div style="font-size:48px;font-weight:700;color:#c9a96e;margin-top:24px;">${valueText}</div>
-        <div style="font-size:22px;font-weight:700;letter-spacing:4px;font-family:Courier New,monospace;margin-top:24px;">${voucher.code}</div>
+        <div style="font-size:22px;font-weight:700;letter-spacing:4px;font-family:monospace;margin-top:24px;">${voucher.code}</div>
         <div style="font-size:14px;margin-top:16px;">${expiryText}</div>
       </div>
     `}
-    <p style="margin:16px 0 0;color:#aaa;font-size:11px;font-family:Arial,sans-serif;">You received this email because a gift voucher was purchased for you at ${storeName}.</p>
+    <p style="margin:16px 0 0;color:#888;font-size:12px;">You received this email because a gift voucher was purchased for you at ${storeName}.</p>
   </div>
 </body>
 </html>`,

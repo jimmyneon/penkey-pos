@@ -19,8 +19,8 @@ export interface VoucherTemplateData {
 const NAVY = '#1a2847';
 const CREAM = '#f5ebd6';
 const WHITE = '#ffffff';
-const TEXT_DARK = '#2a2a2a';
-const TEXT_MUTED = '#8a8a8a';
+const GOLD = '#c9a96e';
+const TEXT_MUTED = 'rgba(245, 235, 214, 0.6)';
 
 const SCALE = 2;
 const BASE_W = 535;
@@ -87,38 +87,38 @@ async function buildOverlaySvg(v: VoucherTemplateData): Promise<string> {
   const elements: string[] = [];
 
   if (recipient) {
-    elements.push(`<text x="${cx}" y="${yCursor}" text-anchor="middle" font-family="Georgia, serif" font-size="${20 * SCALE}" fill="${TEXT_MUTED}">A gift for</text>`);
+    elements.push(`<text x="${cx}" y="${yCursor}" text-anchor="middle" font-family="sans-serif" font-size="${20 * SCALE}" fill="${TEXT_MUTED}">A gift for</text>`);
     yCursor += 30 * SCALE;
-    elements.push(`<text x="${cx}" y="${yCursor}" text-anchor="middle" font-family="Georgia, serif" font-size="${28 * SCALE}" font-weight="600" fill="${NAVY}">${recipient}</text>`);
+    elements.push(`<text x="${cx}" y="${yCursor}" text-anchor="middle" font-family="sans-serif" font-size="${28 * SCALE}" font-weight="bold" fill="${WHITE}">${recipient}</text>`);
     yCursor += 50 * SCALE;
   }
 
   const valueFontSize = valueText.length > 10 ? 48 * SCALE : 64 * SCALE;
-  elements.push(`<text x="${cx}" y="${yCursor + valueFontSize * 0.35}" text-anchor="middle" font-family="Georgia, serif" font-size="${valueFontSize}" font-weight="700" fill="${NAVY}">${valueText}</text>`);
+  elements.push(`<text x="${cx}" y="${yCursor + valueFontSize * 0.35}" text-anchor="middle" font-family="sans-serif" font-size="${valueFontSize}" font-weight="bold" fill="${GOLD}">${valueText}</text>`);
   yCursor += valueFontSize + 30 * SCALE;
 
   elements.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${WHITE}" rx="${8 * SCALE}"/>`);
   elements.push(`<image href="${qrDataUrl}" x="${qrX + 10 * SCALE}" y="${qrY + 10 * SCALE}" width="${qrSize - 20 * SCALE}" height="${qrSize - 20 * SCALE}"/>`);
 
   const codeY = qrY + qrSize + 40 * SCALE;
-  elements.push(`<text x="${cx}" y="${codeY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${12 * SCALE}" fill="${TEXT_MUTED}" letter-spacing="${3 * SCALE}">VOUCHER CODE</text>`);
-  elements.push(`<text x="${cx}" y="${codeY + 30 * SCALE}" text-anchor="middle" font-family="Courier New, monospace" font-size="${22 * SCALE}" font-weight="700" fill="${NAVY}" letter-spacing="${4 * SCALE}">${escapeXml(v.code)}</text>`);
+  elements.push(`<text x="${cx}" y="${codeY}" text-anchor="middle" font-family="sans-serif" font-size="${12 * SCALE}" fill="${TEXT_MUTED}" letter-spacing="${3 * SCALE}">VOUCHER CODE</text>`);
+  elements.push(`<text x="${cx}" y="${codeY + 30 * SCALE}" text-anchor="middle" font-family="monospace" font-size="${22 * SCALE}" font-weight="bold" fill="${WHITE}" letter-spacing="${4 * SCALE}">${escapeXml(v.code)}</text>`);
 
   let msgY = codeY + 60 * SCALE;
   if (message) {
     const msgLines = wrapText(v.message!, 32);
     for (const line of msgLines.slice(0, 3)) {
-      elements.push(`<text x="${cx}" y="${msgY}" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="${16 * SCALE}" fill="${TEXT_DARK}">${escapeXml(line)}</text>`);
+      elements.push(`<text x="${cx}" y="${msgY}" text-anchor="middle" font-family="sans-serif" font-style="italic" font-size="${16 * SCALE}" fill="${WHITE}">${escapeXml(line)}</text>`);
       msgY += 24 * SCALE;
     }
   }
 
   const expiryY = 1280 * SCALE;
-  elements.push(`<text x="${cx}" y="${expiryY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${16 * SCALE}" font-weight="600" fill="${CREAM}">Valid until: ${expiry}</text>`);
+  elements.push(`<text x="${cx}" y="${expiryY}" text-anchor="middle" font-family="sans-serif" font-size="${16 * SCALE}" font-weight="bold" fill="${CREAM}">Valid until: ${expiry}</text>`);
   if (storeAddrEsc) {
-    elements.push(`<text x="${cx}" y="${expiryY + 24 * SCALE}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${12 * SCALE}" fill="${CREAM}" opacity="0.7">${storeAddrEsc}</text>`);
+    elements.push(`<text x="${cx}" y="${expiryY + 24 * SCALE}" text-anchor="middle" font-family="sans-serif" font-size="${12 * SCALE}" fill="${CREAM}" opacity="0.7">${storeAddrEsc}</text>`);
   }
-  elements.push(`<text x="${cx}" y="${expiryY + (storeAddrEsc ? 48 : 24) * SCALE}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${10 * SCALE}" fill="${CREAM}" opacity="0.5">Issued: ${created}</text>`);
+  elements.push(`<text x="${cx}" y="${expiryY + (storeAddrEsc ? 48 : 24) * SCALE}" text-anchor="middle" font-family="sans-serif" font-size="${10 * SCALE}" fill="${CREAM}" opacity="0.5">Issued: ${created}</text>`);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   ${elements.join('\n  ')}

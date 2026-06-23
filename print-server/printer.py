@@ -180,7 +180,7 @@ Status: Online
         # All settings come from the app via printer_settings in the job data
         settings = settings or {}
         code_page = settings.get('code_page', 19)       # App decides code page (default CP858)
-        feed_lines = settings.get('feed_lines_before_cut', 6)
+        feed_lines = settings.get('feed_lines_before_cut', 2)
 
         # Initialize printer (clean state)
         commands.extend([0x1B, 0x40])          # ESC @ — initialize/reset
@@ -208,6 +208,14 @@ Status: Online
                 qr_data = stripped[9:-1]
                 commands.extend([0x1B, 0x61, 0x01])  # Centre align
                 commands.extend(self._build_qr_command(qr_data, module_size=4))
+                commands.append(0x0A)
+                continue
+
+            # Tiny QR code marker: [QRTINY:data] — centre aligned, minimal size
+            if stripped.startswith('[QRTINY:') and stripped.endswith(']'):
+                qr_data = stripped[8:-1]
+                commands.extend([0x1B, 0x61, 0x01])  # Centre align
+                commands.extend(self._build_qr_command(qr_data, module_size=2))
                 commands.append(0x0A)
                 continue
 
@@ -317,7 +325,7 @@ Status: Online
         # Get settings or use defaults
         settings = settings or {}
         code_page = settings.get('code_page', 19)  # CP858 by default
-        feed_lines = settings.get('feed_lines_before_cut', 6)
+        feed_lines = settings.get('feed_lines_before_cut', 2)
 
         # Initialize
         commands.extend([0x1B, 0x40])

@@ -146,18 +146,16 @@ export function generateReceiptText(data: ReceiptData): string {
     lines.push(`Customer: ${data.customer_name}`);
   }
 
-  // Small QR code with transaction ID (for quick scan to pull up receipt)
+  // Thin barcode with short transaction ref (compact, minimal space)
   if (data.transaction_id && !data.transaction_id.startsWith('temp_')) {
-    lines.push(`[QRSMALL:${data.transaction_id}]`);
+    const shortRef = data.transaction_id.substring(0, 8).toUpperCase();
+    lines.push(`[BARCODE:${shortRef}]`);
   }
 
-  lines.push('');
   lines.push(horizontalRule());
-  lines.push('');
 
   // Footer
   lines.push('>>Thank you - see you again soon!');
-  lines.push('');
 
   // QR code for Google Review (tracked via pos.penkey.com redirect)
   lines.push(">>If you've had a great time today,");

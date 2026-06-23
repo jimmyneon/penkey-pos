@@ -11,6 +11,7 @@ import { ToastContainer } from "@/components/toast-container";
 import { VoucherCreateModal } from "./voucher-create-modal";
 import { VoucherDetailModal } from "./voucher-detail-modal";
 import { VoucherCard } from "./voucher-card";
+import { VoucherBatchCard } from "./voucher-batch-card";
 
 interface Session {
   employee: { id: string; name: string; role: string };
@@ -117,7 +118,7 @@ export default function VouchersPage() {
   const filtered = Array.isArray(vouchers)
     ? vouchers.filter((v) => {
         try {
-          const fields = [v.code, v.recipient_name, v.recipient_email, v.item_name]
+          const fields = [v.code, v.recipient_name, v.recipient_email, v.item_name, v.batch_label]
             .filter(Boolean)
             .map((f) => String(f).toLowerCase());
           return fields.some((f) => f.includes(search.toLowerCase()));
@@ -128,6 +129,38 @@ export default function VouchersPage() {
     : [];
 
   const activeCount = filtered.filter((v) => v.status === "active").length;
+
+  // Group vouchers: batch vouchers grouped by batch_id, standalone vouchers shown individually
+  const batchGroups = new Map<string, any[]>();
+  const standalone: any[] = [];
+  const seenIds = new Set<string>();
+
+  for (const v of filtered) {
+    if (v.batch_id) {
+      const existing = batchGroups.get(v.batch_id) || [];
+      existing.push(v);
+      batchGroups.set(v.batch_id, existing);
+    } else {
+      standalone.push(v);
+    }
+  }
+
+  // Build display list: standalone vouchers + batch groups, sorted by first voucher's created_at desc
+  type DisplayItem =
+    | { type: 'single'; voucher: any }
+    | { type: 'batch'; batchId: string; vouchers: any[] };
+  const displayItems: DisplayItem[] = [];
+  for (const v of standalone) {
+    displayItems.push({ type: 'single', voucher: v });
+  }
+  for (const [batchId, vs] of Array.from(batchGroups.entries())) {
+    displayItems.push({ type: 'batch', batchId, vouchers: vs });
+  }
+  displayItems.sort((a, b) => {
+    const aDate = a.type === 'single' ? a.voucher.created_at : a.vouchers[0]?.created_at;
+    const bDate = b.type === 'single' ? b.voucher.created_at : b.vouchers[0]?.created_at;
+    return (bDate || '').localeCompare(aDate || '');
+  });
 
   if (loading) {
     return (
@@ -208,17 +241,36 @@ export default function VouchersPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-700/50">
-            {filtered.map((voucher) => (
-              <VoucherCard
-                key={voucher.id}
-                voucher={voucher}
-                onClick={() => {
-                  hapticButtonPress();
-                  setSelectedVoucher(voucher);
-                  setShowDetail(true);
-                }}
-              />
-            ))}
+            {displayItems.map((item) => {
+              if (item.type === 'batch') {
+                return (
+                  <VoucherBatchCard
+                    key={`batch-${item.batchId}`}
+                    vouchers={item.vouchers}
+                    onSelectVoucher={(voucher) => {
+                      hapticButtonPress();
+                      setSelectedVoucher(voucher);
+                      setShowDetail(true);
+                    }}
+                    onPrintBatch={(voucherId) => {
+                      hapticButtonPress();
+                      window.open(`/api/vouchers/${voucherId}/print-batch?autoprint=1`, "_blank");
+                    }}
+                  />
+                );
+              }
+              return (
+                <VoucherCard
+                  key={item.voucher.id}
+                  voucher={item.voucher}
+                  onClick={() => {
+                    hapticButtonPress();
+                    setSelectedVoucher(item.voucher);
+                    setShowDetail(true);
+                  }}
+                />
+              );
+            })}
           </div>
         )}
       </div>
