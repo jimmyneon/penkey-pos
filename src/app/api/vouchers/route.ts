@@ -164,35 +164,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ voucher: createdVouchers[0] }, { status: 201 });
 }
 
-export async function DELETE(request: NextRequest) {
-  const session = await validatePOSSession(request);
-  if (!session) return unauthorizedResponse();
-
-  const supabase = createSupabaseServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const url = new URL(request.url);
-  const id = url.pathname.split('/').pop();
-
-  if (!id) {
-    return NextResponse.json({ error: 'Voucher ID required' }, { status: 400 });
-  }
-
-  const { error } = await supabase
-    .from('gift_vouchers')
-    .delete()
-    .eq('id', id)
-    .eq('org_id', session.org_id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
-}
-
 export async function sendVoucherEmail(voucher: any) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY not configured');

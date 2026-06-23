@@ -263,9 +263,14 @@ export default function VouchersPage() {
           items={items}
           categories={categories}
           onClose={() => setShowCreate(false)}
-          onCreated={(voucher) => {
-            setVouchers((prev) => [voucher, ...prev]);
-            showToast("Voucher created", "success");
+          onCreated={(createdVouchers) => {
+            setVouchers((prev) => [...createdVouchers, ...prev]);
+            showToast(
+              createdVouchers.length > 1
+                ? `${createdVouchers.length} vouchers created`
+                : "Voucher created",
+              "success"
+            );
           }}
         />
       )}

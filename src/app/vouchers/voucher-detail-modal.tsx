@@ -112,7 +112,12 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
       });
       if (res.ok) {
         onDeleted(voucher.id);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || `Failed to delete voucher (${res.status})`);
       }
+    } catch (err: any) {
+      alert(err.message || 'Network error deleting voucher');
     } finally {
       setDeleting(false);
     }

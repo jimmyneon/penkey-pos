@@ -199,7 +199,15 @@ Status: Online
             if stripped.startswith('[QR:') and stripped.endswith(']'):
                 qr_data = stripped[4:-1]
                 commands.extend([0x1B, 0x61, 0x01])  # Centre align
-                commands.extend(self._build_qr_command(qr_data))
+                commands.extend(self._build_qr_command(qr_data, module_size=8))
+                commands.append(0x0A)
+                continue
+
+            # Small QR code marker: [QRSMALL:data] — centre aligned, compact
+            if stripped.startswith('[QRSMALL:') and stripped.endswith(']'):
+                qr_data = stripped[9:-1]
+                commands.extend([0x1B, 0x61, 0x01])  # Centre align
+                commands.extend(self._build_qr_command(qr_data, module_size=4))
                 commands.append(0x0A)
                 continue
 
@@ -259,10 +267,11 @@ Status: Online
 
         return bytes(commands)
 
-    def _build_qr_command(self, data: str) -> bytes:
+    def _build_qr_command(self, data: str, module_size: int = 8) -> bytes:
         """
         Build ESC/POS QR code commands for Epson TM-T88IV.
         Uses GS ( k command set.
+        module_size controls QR dimensions (4=small, 8=large).
         """
         commands = bytearray()
         encoded_data = data.encode('ascii', errors='replace')
@@ -270,8 +279,8 @@ Status: Online
         # Set QR model: GS ( k pL pH cn fn n
         commands.extend([0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00])
 
-        # Set QR size (module size = 8): GS ( k pL pH cn fn n
-        commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x08])
+        # Set QR size: GS ( k pL pH cn fn n
+        commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, module_size & 0xFF])
 
         # Set error correction level M: GS ( k pL pH cn fn n
         commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31])

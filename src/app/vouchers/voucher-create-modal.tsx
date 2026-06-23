@@ -30,7 +30,7 @@ interface VoucherCreateModalProps {
   items: any[];
   categories: any[];
   onClose: () => void;
-  onCreated: (voucher: any) => void;
+  onCreated: (vouchers: any[]) => void;
 }
 
 export function VoucherCreateModal({ items, categories, onClose, onCreated }: VoucherCreateModalProps) {
@@ -190,9 +190,9 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
       if (res.ok) {
         const data = await res.json();
         if (data.vouchers) {
-          onCreated(data.vouchers[0]);
+          onCreated(data.vouchers);
         } else {
-          onCreated(data.voucher);
+          onCreated([data.voucher]);
         }
         resetForm();
         onClose();

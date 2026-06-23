@@ -145,7 +145,12 @@ export function generateReceiptText(data: ReceiptData): string {
   if (data.customer_name) {
     lines.push(`Customer: ${data.customer_name}`);
   }
-  
+
+  // Small QR code with transaction ID (for quick scan to pull up receipt)
+  if (data.transaction_id && !data.transaction_id.startsWith('temp_')) {
+    lines.push(`[QRSMALL:${data.transaction_id}]`);
+  }
+
   lines.push('');
   lines.push(horizontalRule());
   lines.push('');
@@ -153,11 +158,6 @@ export function generateReceiptText(data: ReceiptData): string {
   // Footer
   lines.push('>>Thank you - see you again soon!');
   lines.push('');
-
-  // Barcode — only show for actual receipt numbers (not UUIDs)
-  if (data.receipt_number && data.receipt_number > 0) {
-    lines.push(`[BARCODE:${data.receipt_number}]`);
-  }
 
   // QR code for Google Review (tracked via pos.penkey.com redirect)
   lines.push(">>If you've had a great time today,");
