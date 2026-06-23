@@ -2,34 +2,6 @@ import QRCode from 'qrcode';
 import path from 'path';
 import fs from 'fs';
 
-let embeddedFontsCache: string | null = null;
-
-function getEmbeddedFonts(): string {
-  if (embeddedFontsCache) return embeddedFontsCache;
-
-  const fontPaths: Record<string, string> = {
-    Georgia: '/System/Library/Fonts/Supplemental/Georgia.ttf',
-    Arial: '/System/Library/Fonts/Supplemental/Arial.ttf',
-    'Courier New': '/System/Library/Fonts/Supplemental/Courier New.ttf',
-  };
-
-  const fontFaces: string[] = [];
-  for (const [name, fontPath] of Object.entries(fontPaths)) {
-    try {
-      if (fs.existsSync(fontPath)) {
-        const buf = fs.readFileSync(fontPath);
-        const b64 = buf.toString('base64');
-        fontFaces.push(
-          `@font-face { font-family: '${name}'; src: url('data:font/ttf;base64,${b64}') format('truetype'); }`
-        );
-      }
-    } catch {}
-  }
-
-  embeddedFontsCache = fontFaces.join('\n  ');
-  return embeddedFontsCache;
-}
-
 export interface VoucherTemplateData {
   code: string;
   voucher_type: 'amount' | 'percent' | 'item';
@@ -148,12 +120,7 @@ async function buildOverlaySvg(v: VoucherTemplateData): Promise<string> {
   }
   elements.push(`<text x="${cx}" y="${expiryY + (storeAddrEsc ? 48 : 24) * SCALE}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${10 * SCALE}" fill="${CREAM}" opacity="0.5">Issued: ${created}</text>`);
 
-  const fontCss = getEmbeddedFonts();
-
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>
-    <style>${fontCss}</style>
-  </defs>
   ${elements.join('\n  ')}
 </svg>`;
 }

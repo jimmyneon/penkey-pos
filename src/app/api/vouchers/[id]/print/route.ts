@@ -48,14 +48,16 @@ function buildPrintPageHtml(pngBase64: string): string {
     }
     .print-btn:hover { background: #243556; }
     @media print {
-      html, body { background: white; padding: 0; margin: 0; }
+      html, body { background: white; padding: 0; margin: 0; min-height: 0; overflow: hidden; }
       .voucher-img {
         box-shadow: none;
         border-radius: 0;
         width: auto;
-        max-width: 105mm;
-        max-height: 297mm;
+        max-width: none;
+        height: 297mm;
         object-fit: contain;
+        page-break-after: avoid;
+        break-after: avoid;
       }
       .print-btn-wrap { display: none !important; }
       @page { margin: 0; size: A4; }

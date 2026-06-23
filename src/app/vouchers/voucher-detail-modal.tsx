@@ -47,6 +47,7 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
   const router = useRouter();
   const { applyVoucher, setBasketVoucher } = useCartStore();
   const [emailing, setEmailing] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0);
   const [redeeming, setRedeeming] = useState(false);
@@ -57,6 +58,7 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
     const email = voucher.recipient_email || prompt("Enter email address:");
     if (!email) return;
     setEmailing(true);
+    setEmailStatus(null);
     try {
       const sessionData =
         sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -68,7 +70,15 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
         },
         body: JSON.stringify({ email }),
       });
-      if (res.ok && onEmailed) onEmailed();
+      if (res.ok) {
+        setEmailStatus({ type: 'success', msg: `Email sent to ${email}` });
+        if (onEmailed) onEmailed();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setEmailStatus({ type: 'error', msg: data.error || `Failed to send email (${res.status})` });
+      }
+    } catch (err: any) {
+      setEmailStatus({ type: 'error', msg: err.message || 'Network error sending email' });
     } finally {
       setEmailing(false);
     }
@@ -312,6 +322,15 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
                   PNG
                 </Button>
               </div>
+              {emailStatus && (
+                <div className={`text-xs rounded-lg px-3 py-2 ${
+                  emailStatus.type === 'success'
+                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                }`}>
+                  {emailStatus.msg}
+                </div>
+              )}
               <Button
                 onClick={handleRedeem}
                 disabled={redeeming}

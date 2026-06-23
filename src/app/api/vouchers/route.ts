@@ -131,7 +131,21 @@ export async function POST(request: NextRequest) {
     // Send email if requested (only for single or first of batch with recipient)
     if (send_email && recipient_email && voucher && !isBatch) {
       try {
-        await sendVoucherEmail(voucher as any);
+        let storeName = 'Penkey';
+        let storeAddress: string | undefined;
+        try {
+          const { data: store } = await supabase
+            .from('stores')
+            .select('name, address')
+            .eq('org_id', session.org_id)
+            .limit(1)
+            .maybeSingle();
+          if ((store as any)?.name) {
+            storeName = (store as any).name;
+            storeAddress = (store as any).address || undefined;
+          }
+        } catch {}
+        await sendVoucherEmail({ ...(voucher as any), storeName, storeAddress });
       } catch (emailErr) {
         console.error('[Voucher POST] Email failed:', emailErr);
       }
@@ -227,7 +241,7 @@ export async function sendVoucherEmail(voucher: any) {
     content_type: 'image/png',
   }] : undefined;
 
-  await resend.emails.send({
+  const { data: emailData, error: emailError } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'noreply@rewards.penkey.co.uk',
     replyTo: process.env.RESEND_REPLY_TO_EMAIL,
     to: voucher.recipient_email,
@@ -253,4 +267,11 @@ export async function sendVoucherEmail(voucher: any) {
 </body>
 </html>`,
   });
+
+  if (emailError) {
+    console.error('[Voucher Email] Resend API error:', emailError);
+    throw new Error(`Email send failed: ${emailError.message || JSON.stringify(emailError)}`);
+  }
+
+  console.log('[Voucher Email] Sent successfully:', emailData?.id);
 }
