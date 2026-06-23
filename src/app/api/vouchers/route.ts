@@ -185,56 +185,85 @@ export async function sendVoucherEmail(voucher: any) {
     ? `Valid until: ${new Date(voucher.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
     : 'No expiry date';
 
-  // Generate PNG voucher image (contains all details: name, QR, code, expiry, etc.)
-  let pngBuffer: Buffer | undefined;
+  const created = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const recipientName = voucher.recipient_name || '';
+
+  // Generate QR code as data URI for inline display
+  let qrDataUrl = '';
   try {
-    const { generateVoucherPng } = await import('@/lib/voucher/voucher-template');
-    pngBuffer = await generateVoucherPng({
-      code: voucher.code,
-      voucher_type: voucher.voucher_type,
-      amount: voucher.amount,
-      percent_discount: voucher.percent_discount,
-      item_name: voucher.item_name,
-      recipient_name: voucher.recipient_name,
-      recipient_email: voucher.recipient_email,
-      message: voucher.message,
-      expires_at: voucher.expires_at,
-      storeName,
-      storeAddress,
+    const QRCode = (await import('qrcode')).default;
+    qrDataUrl = await QRCode.toDataURL(voucher.code, {
+      width: 200,
+      margin: 1,
+      color: { dark: '#1a2847', light: '#ffffff' },
     });
   } catch (err) {
-    console.error('[Voucher Email] PNG generation failed:', err);
+    console.error('[Voucher Email] QR generation failed:', err);
   }
-
-  const attachment = pngBuffer ? [{
-    filename: `voucher-${voucher.code}.png`,
-    content: pngBuffer.toString('base64'),
-    content_type: 'image/png',
-    cid: 'voucher-image',
-  }] : undefined;
 
   const { data: emailData, error: emailError } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'noreply@rewards.penkey.co.uk',
     replyTo: process.env.RESEND_REPLY_TO_EMAIL,
     to: voucher.recipient_email,
     subject: `Your ${storeName} Gift Voucher \u2013 ${valueText}`,
-    attachments: attachment,
     html: `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#e8e4dc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-  <div style="max-width:480px;margin:0 auto;padding:20px 16px;text-align:center;">
-    ${pngBuffer ? `<img src="cid:voucher-image" alt="${storeName} Gift Voucher" style="width:100%;max-width:400px;height:auto;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);" />` : `
-      <div style="background:#1a2847;border-radius:12px;padding:32px 24px;color:#fff;">
-        <div style="font-size:28px;font-weight:700;letter-spacing:2px;">${storeName}</div>
-        <div style="font-size:11px;color:#c9a96e;text-transform:uppercase;letter-spacing:6px;margin-top:8px;">Gift Voucher</div>
-        <div style="font-size:48px;font-weight:700;color:#c9a96e;margin-top:24px;">${valueText}</div>
-        <div style="font-size:22px;font-weight:700;letter-spacing:4px;font-family:monospace;margin-top:24px;">${voucher.code}</div>
-        <div style="font-size:14px;margin-top:16px;">${expiryText}</div>
+  <div style="max-width:420px;margin:0 auto;padding:24px 16px;text-align:center;">
+
+    <!-- Voucher Card -->
+    <div style="background:#1a2847;border-radius:16px;padding:0;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+
+      <!-- Store Name Header -->
+      <div style="padding:28px 24px 8px;">
+        <div style="font-size:26px;font-weight:800;letter-spacing:3px;color:#f5ebd6;">${storeName}</div>
+        <div style="font-size:10px;color:#c9a96e;text-transform:uppercase;letter-spacing:6px;margin-top:6px;">Gift Voucher</div>
       </div>
-    `}
-    <p style="margin:16px 0 0;color:#888;font-size:12px;">You received this email because a gift voucher was purchased for you at ${storeName}.</p>
+
+      ${recipientName ? `
+      <div style="padding:16px 24px 0;">
+        <div style="font-size:11px;color:rgba(245,235,214,0.5);text-transform:uppercase;letter-spacing:2px;">A gift for</div>
+        <div style="font-size:18px;font-weight:700;color:#ffffff;margin-top:4px;">${recipientName}</div>
+      </div>` : ''}
+
+      <!-- Value -->
+      <div style="padding:24px 24px 8px;">
+        <div style="font-size:44px;font-weight:800;color:#c9a96e;line-height:1;">${valueText}</div>
+      </div>
+
+      <!-- QR Code -->
+      ${qrDataUrl ? `
+      <div style="padding:20px 24px 4px;">
+        <div style="background:#fff;display:inline-block;padding:8px;border-radius:8px;">
+          <img src="${qrDataUrl}" alt="QR Code" style="display:block;width:140px;height:140px;" />
+        </div>
+      </div>` : ''}
+
+      <!-- Code -->
+      <div style="padding:12px 24px 4px;">
+        <div style="font-size:10px;color:rgba(245,235,214,0.5);text-transform:uppercase;letter-spacing:3px;">Voucher Code</div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:4px;font-family:'Courier New',monospace;color:#ffffff;margin-top:6px;">${voucher.code}</div>
+      </div>
+
+      ${voucher.message ? `
+      <div style="padding:12px 24px 4px;">
+        <div style="font-size:14px;font-style:italic;color:rgba(255,255,255,0.8);line-height:1.5;">&ldquo;${voucher.message}&rdquo;</div>
+      </div>` : ''}
+
+      <!-- Footer -->
+      <div style="padding:20px 24px 28px;border-top:1px solid rgba(245,235,214,0.1);margin-top:16px;">
+        <div style="font-size:13px;font-weight:600;color:#f5ebd6;">${expiryText}</div>
+        ${storeAddress ? `<div style="font-size:11px;color:rgba(245,235,214,0.5);margin-top:6px;">${storeAddress}</div>` : ''}
+        <div style="font-size:10px;color:rgba(245,235,214,0.3);margin-top:8px;">Issued: ${created}</div>
+      </div>
+    </div>
+
+    <p style="margin:20px 0 0;color:#888;font-size:12px;line-height:1.5;">
+      You received this email because a gift voucher was purchased for you at ${storeName}.<br/>
+      Show this email or the QR code above to redeem your voucher.
+    </p>
   </div>
 </body>
 </html>`,

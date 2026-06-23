@@ -53,6 +53,7 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0);
   const [redeeming, setRedeeming] = useState(false);
   const [batchVouchers, setBatchVouchers] = useState<any[]>([]);
+  const [printing, setPrinting] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
 
   useScrollLock(true);
@@ -76,7 +77,9 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
 
   const handlePrintBatch = () => {
     hapticButtonPress();
+    setPrinting(true);
     window.open(`/api/vouchers/${voucher.id}/print-batch?autoprint=1`, "_blank");
+    setTimeout(() => setPrinting(false), 3000);
   };
 
   const handleEmail = async () => {
@@ -111,7 +114,9 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
 
   const handlePrint = () => {
     hapticButtonPress();
+    setPrinting(true);
     window.open(`/api/vouchers/${voucher.id}/print?autoprint=1`, "_blank");
+    setTimeout(() => setPrinting(false), 2000);
   };
 
   const handleDownload = () => {
@@ -377,10 +382,17 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
                   size="sm"
                   variant="ghost"
                   onClick={handlePrint}
-                  className="bg-[#4d4d4d] hover:bg-[#5d5d5d] text-white border border-gray-600 h-10 flex items-center justify-center gap-2"
+                  disabled={printing}
+                  className="bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 text-white border border-gray-600 h-10 flex items-center justify-center gap-2"
                 >
-                  <Printer className="h-4 w-4" />
-                  Print
+                  {printing ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                  ) : (
+                    <>
+                      <Printer className="h-4 w-4" />
+                      Print
+                    </>
+                  )}
                 </Button>
                 <Button
                   size="sm"
