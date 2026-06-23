@@ -32,6 +32,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Suppress httpx/HTTP client noise so it doesn't flood Supabase logs
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
 
 class PrintServer:
     """
@@ -350,7 +355,19 @@ class PrintServer:
                 'last_seen_at': datetime.utcnow().isoformat()
             }
             if error:
-                updates['config'] = {'last_error': error}
+                # Fetch current config and merge last_error into it
+                # (don't overwrite the entire config object)
+                try:
+                    resp = await self.supabase.table('printers') \
+                        .select('config') \
+                        .eq('id', self.printer_id) \
+                        .single() \
+                        .execute()
+                    current_config = resp.data.get('config', {}) if resp.data else {}
+                    current_config['last_error'] = error
+                    updates['config'] = current_config
+                except Exception:
+                    pass  # If we can't fetch config, just skip updating it
 
             # Use raw table access to avoid schema cache issues
             table = self.supabase.table('printers')
@@ -439,7 +456,11 @@ class PrintServer:
             self._processing.add(job_id)
 
         try:
+            logger.info(f"[Dispatch] Starting process_job for {job_id}")
             await self.process_job(job)
+            logger.info(f"[Dispatch] process_job completed for {job_id}")
+        except Exception as e:
+            logger.error(f"[Dispatch] process_job raised exception for {job_id}: {e}", exc_info=True)
         finally:
             async with self._job_lock:
                 self._processing.discard(job_id)
@@ -597,7 +618,11 @@ class PrintServer:
                     logger.info("[Fallback] Realtime unhealthy — polling for pending jobs...")
                 else:
                     logger.debug("[Fallback] Polling for missed pending jobs...")
-                for job in await self.get_pending_jobs():
+                pending = await self.get_pending_jobs()
+                if pending:
+                    logger.info(f"[Fallback] Found {len(pending)} pending job(s)")
+                for job in pending:
+                    logger.info(f"[Fallback] Dispatching job {job.get('id')}")
                     await self._dispatch_job(job)
                 
                 # Heartbeat - update last_seen_at periodically
