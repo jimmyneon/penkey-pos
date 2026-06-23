@@ -259,7 +259,7 @@ class PrintServer:
                 logger.info(f"[Realtime] Channel status: {status}")
 
         channel = (
-            self.supabase
+            await self.supabase
             .channel(f"print-jobs-{self.printer_id}")
             .on_postgres_changes(
                 event="INSERT",
@@ -319,7 +319,7 @@ class PrintServer:
                 logger.warning(f"[Realtime] Printer config channel issue ({status}): {err}")
 
         cmd_channel = (
-            self.supabase
+            await self.supabase
             .channel(f"printer-cmd-{self.printer_id}")
             .on_postgres_changes(
                 event="UPDATE",
