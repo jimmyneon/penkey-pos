@@ -34,7 +34,7 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
     </div>` : '';
 
   const messageBlock = message ? `
-    <div class="overlay-text" style="top: 52%;">
+    <div class="overlay-text" style="top: 48%;">
       <div class="message-text">&ldquo;${message}&rdquo;</div>
     </div>` : '';
 
@@ -100,7 +100,7 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
     }
     .qr-wrapper {
       position: absolute;
-      top: 36%;
+      top: 34%;
       left: 50%;
       transform: translateX(-50%);
       background: #fff;
@@ -207,12 +207,12 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
       <img src="${qrDataUrl}" alt="QR Code" />
     </div>
     ${messageBlock}
-    <div class="overlay-text" style="top: 58%;">
+    <div class="overlay-text" style="top: 52%;">
       <div class="expiry-text">Valid until: ${expiry}</div>
       ${storeAddrEsc ? `<div class="store-addr">${storeAddrEsc}</div>` : ''}
       <div class="issued-text">Issued: ${created}</div>
     </div>
-    <div class="overlay-text" style="top: 66%;">
+    <div class="overlay-text" style="top: 60%;">
       <div class="code-text">${code}</div>
     </div>
   </div>

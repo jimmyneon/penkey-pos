@@ -34,7 +34,7 @@ function buildVoucherPage(v: any, qrDataUrl: string, storeAddress?: string): str
     </div>` : '';
 
   const messageBlock = message ? `
-    <div class="overlay-text" style="top: 52%;">
+    <div class="overlay-text" style="top: 48%;">
       <div class="message-text">&ldquo;${message}&rdquo;</div>
     </div>` : '';
 
@@ -49,12 +49,12 @@ function buildVoucherPage(v: any, qrDataUrl: string, storeAddress?: string): str
         <img src="${qrDataUrl}" alt="QR Code" />
       </div>
       ${messageBlock}
-      <div class="overlay-text" style="top: 58%;">
+      <div class="overlay-text" style="top: 52%;">
         <div class="expiry-text">Valid until: ${expiry}</div>
         ${storeAddrEsc ? `<div class="store-addr">${storeAddrEsc}</div>` : ''}
         <div class="issued-text">Issued: ${created}</div>
       </div>
-      <div class="overlay-text" style="top: 66%;">
+      <div class="overlay-text" style="top: 60%;">
         <div class="code-text">${code}</div>
       </div>
     </div>
@@ -97,7 +97,7 @@ function buildBatchPrintHtml(pages: string[], count: number): string {
     .overlay-text { position: absolute; left: 0; right: 0; text-align: center; padding: 0 8%; z-index: 1; }
     .recipient-name { font-size: 18px; font-weight: 600; color: #f5ebd6; letter-spacing: 1px; }
     .value-text { font-size: 54px; font-weight: 800; color: #c9a96e; line-height: 1; }
-    .qr-wrapper { position: absolute; top: 36%; left: 50%; transform: translateX(-50%); background: #fff; padding: 8px; border-radius: 10px; z-index: 1; }
+    .qr-wrapper { position: absolute; top: 34%; left: 50%; transform: translateX(-50%); background: #fff; padding: 8px; border-radius: 10px; z-index: 1; }
     .qr-wrapper img { display: block; width: 210px; height: 210px; }
     .code-text { font-family: 'Poppins', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 4px; }
     .message-text { font-size: 14px; font-style: italic; color: #fff; line-height: 1.4; }
