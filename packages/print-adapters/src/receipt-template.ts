@@ -196,42 +196,35 @@ export interface TicketData {
 export function generateTicketText(data: TicketData): string {
   const lines: string[] = [];
 
-  // Header (centre-aligned by print server when it sees these lines)
-  lines.push(data.store_name);
-  if (data.store_address) lines.push(data.store_address);
-  if (data.store_phone) lines.push(data.store_phone);
-  lines.push('');
+  // Header — store name in double-size, centred (same as receipt)
+  lines.push(`>>##${data.store_name}##`);
+  if (data.store_address) lines.push(`>>${data.store_address}`);
+  if (data.store_phone) lines.push(`>>${data.store_phone}`);
 
   // Divider
   lines.push(horizontalRule());
 
   // Ticket name
-  lines.push(`Ticket: ${data.ticket_name}`);
+  lines.push(`**Ticket: ${data.ticket_name}**`);
   if (data.ticket_comment) {
     lines.push(data.ticket_comment);
   }
-  lines.push('');
 
   // Assignment (customer or table) - only show if different from ticket name
-  let assignmentShown = false;
   if (data.assignment) {
     const assignmentName = data.assignment.name.toLowerCase();
     const ticketName = data.ticket_name.toLowerCase();
-    // Only show assignment if it's not already in the ticket name
     if (!ticketName.includes(assignmentName)) {
       if (data.assignment.type === 'customer') {
         lines.push(`Customer: ${data.assignment.name}`);
       } else if (data.assignment.type === 'table') {
         lines.push(`Table: ${data.assignment.name}`);
       }
-      assignmentShown = true;
     }
   } else if (data.table_number && !data.ticket_name.toLowerCase().includes(data.table_number.toLowerCase())) {
     lines.push(`Table: ${data.table_number}`);
-    assignmentShown = true;
   } else if (data.customer_name && !data.ticket_name.toLowerCase().includes(data.customer_name.toLowerCase())) {
     lines.push(`Customer: ${data.customer_name}`);
-    assignmentShown = true;
   }
 
   // Dining option
@@ -240,7 +233,6 @@ export function generateTicketText(data: TicketData): string {
     lines.push(diningText);
   }
 
-  lines.push('');
   lines.push(horizontalRule());
 
   // Items
@@ -262,7 +254,6 @@ export function generateTicketText(data: TicketData): string {
 
   // Divider
   lines.push(horizontalRule());
-  lines.push('');
 
   // Totals
   lines.push(alignLine('Subtotal', currency(data.subtotal)));
@@ -273,24 +264,16 @@ export function generateTicketText(data: TicketData): string {
   // TOTAL – bold markers for the print server
   lines.push(`**${alignLine('TOTAL', currency(data.total))}**`);
 
-  lines.push('');
-
-  // Payment status
+  // Payment status — prominent NOT PAID label
   if (data.is_paid && data.payment_method) {
-    lines.push(`PAID - ${data.payment_method.toUpperCase()}`);
+    lines.push(`>>**PAID - ${data.payment_method.toUpperCase()}**`);
   } else {
-    lines.push('**TO PAY**');
+    lines.push('>>##NOT PAID##');
   }
 
   // Date/time and server info
   lines.push(`${data.date} ${data.time}`);
   lines.push(`Served by: ${data.employee_name}`);
-  lines.push(`Register: ${data.register_name}`);
-
-  lines.push('');
-
-  // Footer
-  lines.push('Food Order');
 
   return lines.join('\n');
 }

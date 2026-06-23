@@ -1710,13 +1710,8 @@ export default function SellPage() {
       return;
     }
 
-    // Require ticket name or assignment before printing
-    if (!currentTicketName && !ticketAssignment) {
-      showToast('Please assign a customer, table, or enter a ticket name before printing', 'error');
-      setSaveTicketMode('assign');
-      setSaveTicketOpen(true);
-      return;
-    }
+    // Auto-generate a ticket number if no name or assignment exists
+    const ticketName = currentTicketName || (ticketAssignment ? ticketAssignment.name : `T${Date.now().toString().slice(-4)}`);
 
     try {
       // Format date and time
@@ -1729,7 +1724,7 @@ export default function SellPage() {
         store_name: storeInfo.name,
         store_address: storeInfo.address,
         store_phone: storeInfo.phone,
-        ticket_name: currentTicketName || (ticketAssignment ? ticketAssignment.name : 'Current Ticket'),
+        ticket_name: ticketName,
         ticket_comment: currentTicketComment,
         date,
         time,
@@ -2174,7 +2169,6 @@ export default function SellPage() {
       <TicketModal
         open={ticketModalOpen}
         onClose={() => setTicketModalOpen(false)}
-        onRedeemVoucher={() => setVoucherRedeemOpen(true)}
         lines={lines}
         updateQuantity={updateQuantity}
         removeLine={removeLine}

@@ -21,6 +21,10 @@ export interface RegisterSettings {
   auto_print_receipt: boolean;
   print_behaviour: "always" | "ask" | "never";
   receipt_copies: number;
+  // Ticket printing
+  ticket_print_behaviour: "always" | "ask" | "never";
+  ticket_copies: number;
+  kitchen_printer_id: string | null;
   default_dining_option: "eat-in" | "takeaway";
   require_customer_name: boolean;
 
@@ -49,6 +53,9 @@ export const DEFAULT_SETTINGS: RegisterSettings = {
   auto_print_receipt: true,
   print_behaviour: "always",
   receipt_copies: 1,
+  ticket_print_behaviour: "ask",
+  ticket_copies: 1,
+  kitchen_printer_id: null,
   default_dining_option: "eat-in",
   require_customer_name: false,
   sound_enabled: true,

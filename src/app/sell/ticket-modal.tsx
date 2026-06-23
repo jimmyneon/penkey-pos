@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@penkey/ui";
-import { Plus, Minus, User, Hash, Trash2, Printer, Save, Tag } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@penkey/ui";
+import { Plus, Minus, User, Hash, Trash2, Printer, Save, X } from "lucide-react";
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress, hapticDelete, hapticSuccess } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
@@ -44,7 +44,6 @@ interface TicketModalProps {
   onSave: () => void;
   onClearAll: () => void;
   onPrint: () => void;
-  onRedeemVoucher?: () => void;
   ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
   onCustomerClick?: (customer: any) => void;
   basketVoucher?: { id: string; name: string; discountType: string; discountValue: number } | null;
@@ -64,13 +63,14 @@ export function TicketModal({
   onSave,
   onClearAll,
   onPrint,
-  onRedeemVoucher,
   ticketAssignment,
   onCustomerClick,
   basketVoucher,
 }: TicketModalProps) {
   // Use scroll lock hook to manage scroll state
   useScrollLock(open);
+
+  const [visible, setVisible] = useState(false);
 
   // Track previous lines length to detect transition from items to empty
   const prevLinesLength = useRef(lines.length);
@@ -83,12 +83,40 @@ export function TicketModal({
     prevLinesLength.current = lines.length;
   }, [lines.length, open, onClose]);
 
+  // Trigger slide-up animation
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => setVisible(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setVisible(false);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-[#3d3d3d] text-white border-gray-700">
-        <DialogHeader>
-          <DialogTitle className="text-xl sm:text-2xl font-bold text-white">Current Ticket</DialogTitle>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+      {/* Backdrop */}
+      <div className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`} />
+
+      {/* Slide-up panel */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`relative w-full max-w-2xl bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Current Ticket</h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+            <X className="h-5 w-5 text-gray-400" />
+          </button>
+        </div>
 
         {/* Assignment Info */}
         {ticketAssignment && (
@@ -212,18 +240,9 @@ export function TicketModal({
           )}
         </div>
 
-        {/* Clear All + Redeem Voucher Buttons */}
+        {/* Clear All Button */}
         {lines.length > 0 && (
-          <div className="pt-3 flex gap-2">
-            {onRedeemVoucher && (
-              <button
-                onClick={() => { hapticButtonPress(); onRedeemVoucher(); }}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2d2d2d] hover:bg-[#4d4d4d] text-penkey-orange border border-penkey-orange/40 rounded-lg font-semibold transition-colors text-sm"
-              >
-                <Tag className="h-4 w-4" />
-                Redeem Voucher
-              </button>
-            )}
+          <div className="pt-3 flex gap-2 flex-shrink-0">
             <Button
               size="lg"
               variant="outline"
@@ -303,7 +322,7 @@ export function TicketModal({
               Charge {formatCurrency(getTotal())}
             </button>
           </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
