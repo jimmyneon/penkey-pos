@@ -407,7 +407,10 @@ class PrintServer:
                 .eq('status', 'pending') \
                 .order('created_at') \
                 .execute()
-            return response.data or []
+            jobs = response.data or []
+            if not jobs:
+                logger.info(f"[Jobs] No pending jobs found for printer {self.printer_id} (response type: {type(response).__name__}, has data: {hasattr(response, 'data')})")
+            return jobs
         except Exception as e:
             logger.error(f"Failed to fetch pending jobs: {e}")
             return []
