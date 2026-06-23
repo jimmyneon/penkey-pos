@@ -37,6 +37,15 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
+# Get git commit hash for version tracking
+import subprocess as _sp
+try:
+    _GIT_HASH = _sp.check_output(['git', 'rev-parse', '--short', 'HEAD'],
+                                 cwd='/home/jimmy/print-server',
+                                 stderr=_sp.DEVNULL).decode().strip()
+except Exception:
+    _GIT_HASH = 'unknown'
+
 
 class PrintServer:
     """
@@ -51,7 +60,7 @@ class PrintServer:
         self.supabase_url = os.getenv('SUPABASE_URL')
         self.supabase_key = os.getenv('SUPABASE_KEY')
         self.printer_id = os.getenv('PRINTER_ID')
-        self.poll_interval = int(os.getenv('POLL_INTERVAL', '5'))  # fallback only
+        self.poll_interval = int(os.getenv('POLL_INTERVAL', '30'))  # fallback only
 
         # Serial printer settings
         self.printer_device = os.getenv('PRINTER_DEVICE', '/dev/ttyUSB0')
@@ -75,6 +84,7 @@ class PrintServer:
         self._realtime_channel = None
         self._cmd_channel = None
         self._reconnect_attempts = 0
+        self._jobs_processed = 0
 
         if not all([self.supabase_url, self.supabase_key, self.printer_id]):
             raise ValueError(
@@ -197,34 +207,40 @@ class PrintServer:
         The callback fires immediately when the POS queues a new job.
         Includes automatic reconnection on channel errors.
         """
-        async def on_insert(payload):
-            record = payload.get('data', {}).get('record') or payload.get('record', {})
-            if not record:
-                logger.warning(f"[Realtime] Received payload with no record: {payload}")
-                return
+        def on_insert(payload):
+            """Sync callback — Supabase-py does not await async callbacks."""
+            try:
+                record = payload.get('data', {}).get('record') or payload.get('record', {})
+                if not record:
+                    logger.warning(f"[Realtime] Received payload with no record: {payload}")
+                    return
 
-            job_id = record.get('id')
-            status = record.get('status')
+                job_id = record.get('id')
+                status = record.get('status')
 
-            if status != 'pending':
-                return  # only care about fresh pending jobs
+                if status != 'pending':
+                    return  # only care about fresh pending jobs
 
-            logger.info(f"[Realtime] New job received: {job_id}")
-            await self._dispatch_job(record)
+                logger.info(f"[Realtime] New job received: {job_id}")
+                # Schedule the async dispatch on the event loop
+                asyncio.ensure_future(self._dispatch_job(record))
+            except Exception as e:
+                logger.error(f"[Realtime] Error in on_insert callback: {e}", exc_info=True)
 
         def on_subscribe(status, err=None):
+            logger.info(f"[Realtime] Channel status changed: {status} (err={err})")
             if status == 'SUBSCRIBED':
                 logger.info("[Realtime] Successfully subscribed to print_jobs channel")
                 self._realtime_healthy = True
                 self._reconnect_attempts = 0
-            elif status in ('CHANNEL_ERROR', 'TIMED_OUT'):
+            elif status in ('CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'):
                 logger.warning(f"[Realtime] Channel issue ({status}): {err} — fallback poll active")
                 self._realtime_healthy = False
                 self._reconnect_attempts += 1
                 # Schedule reconnection attempt
                 asyncio.ensure_future(self._reconnect_realtime())
             else:
-                logger.debug(f"[Realtime] Channel status: {status}")
+                logger.info(f"[Realtime] Channel status: {status}")
 
         channel = (
             self.supabase
@@ -492,6 +508,7 @@ class PrintServer:
         max_attempts = job.get('max_attempts', 3)
 
         logger.info(f"Processing job {job_id} (attempt {attempts + 1}/{max_attempts})")
+        self._jobs_processed += 1
 
         # Prevent infinite retry loops - if already exceeded max attempts, mark as failed and don't process
         if attempts >= max_attempts:
@@ -567,7 +584,7 @@ class PrintServer:
         The fallback poll runs every POLL_INTERVAL seconds to catch any jobs
         that arrived while the websocket was reconnecting.
         """
-        logger.info("Starting Penkey print server (async realtime + fallback poll)...")
+        logger.info(f"Starting Penkey print server v{_GIT_HASH} (async realtime + fallback poll)...")
         self.running = True
 
         await self.connect()
@@ -604,6 +621,10 @@ class PrintServer:
             try:
                 # Use shorter poll interval when realtime is unhealthy
                 effective_interval = 2 if not self._realtime_healthy else self.poll_interval
+                
+                # Log realtime health every 60 seconds
+                if int(asyncio.get_event_loop().time()) % 60 < effective_interval:
+                    logger.info(f"[Health] realtime_healthy={self._realtime_healthy}, printer={'connected' if self.printer else 'offline'}, jobs_processed={self._jobs_processed}")
 
                 # Wait for shutdown event or poll interval
                 try:
