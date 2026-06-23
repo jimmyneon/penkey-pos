@@ -151,7 +151,7 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push('');
 
   // Footer
-  lines.push('Thank you for visiting');
+  lines.push('Thank you — see you again soon!');
   lines.push('');
 
   // Barcode of order number or transaction ID (for scanning/reprints)
@@ -166,7 +166,7 @@ export function generateReceiptText(data: ReceiptData): string {
   }
 
   // QR code for Google Review (tracked via pos.penkey.com redirect)
-  lines.push('Scan for Google Review:');
+  lines.push("We'd love your feedback!");
   lines.push('[QR:https://pos.penkey.com/qr/NWWTITRL]');
 
   return lines.join('\n');
