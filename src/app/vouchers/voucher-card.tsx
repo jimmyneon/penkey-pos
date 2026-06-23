@@ -15,7 +15,10 @@ const formatCurrency = (amount: number) =>
 const voucherLabel = (v: any) => {
   if (v.voucher_type === "amount") return formatCurrency(v.amount || 0);
   if (v.voucher_type === "percent") return `${v.percent_discount || 0}% off`;
-  if (v.voucher_type === "item") return `Free: ${v.item_name || "item"}`;
+  if (v.voucher_type === "item") {
+    const prefix = v.item_selection_type === "category" ? "Free from" : "Free:";
+    return `${prefix} ${v.item_name || "item"}`;
+  }
   return "—";
 };
 

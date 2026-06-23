@@ -89,6 +89,10 @@ export async function POST(request: NextRequest) {
       recipient_name: v.recipient_name,
       voucher_type: v.voucher_type,
       item_name: v.item_name,
+      item_id: v.item_id,
+      item_ids: v.item_ids,
+      category_id: v.category_id,
+      item_selection_type: v.item_selection_type,
     },
   });
 }

@@ -137,12 +137,32 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
         };
 
         if (v.discountType === "free_item") {
-          const matchingLine = lines.find((line: any) =>
-            line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
-          );
-          if (!matchingLine) {
-            alert(`Add "${v.item_name}" to the cart first, then redeem this voucher.`);
-            return;
+          let matchingLine: any = null;
+
+          if (v.item_selection_type === "multiple" && v.item_ids) {
+            matchingLine = lines.find((line: any) =>
+              v.item_ids.includes(line.item_id)
+            );
+            if (!matchingLine) {
+              alert(`Add one of these items to the cart first: ${v.item_name}`);
+              return;
+            }
+          } else if (v.item_selection_type === "category" && v.category_id) {
+            matchingLine = lines.find((line: any) =>
+              line.category_id === v.category_id || line.item_category_id === v.category_id
+            );
+            if (!matchingLine) {
+              alert(`Add an item from "${v.item_name}" to the cart first, then redeem this voucher.`);
+              return;
+            }
+          } else {
+            matchingLine = lines.find((line: any) =>
+              line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
+            );
+            if (!matchingLine) {
+              alert(`Add "${v.item_name}" to the cart first, then redeem this voucher.`);
+              return;
+            }
           }
           applyVoucher(matchingLine.id, voucherForCart);
         } else {

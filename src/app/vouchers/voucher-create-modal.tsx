@@ -28,11 +28,12 @@ const formatCurrency = (amount: number) =>
 
 interface VoucherCreateModalProps {
   items: any[];
+  categories: any[];
   onClose: () => void;
   onCreated: (voucher: any) => void;
 }
 
-export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateModalProps) {
+export function VoucherCreateModal({ items, categories, onClose, onCreated }: VoucherCreateModalProps) {
   const router = useRouter();
   const { addLine } = useCartStore();
 
@@ -43,6 +44,10 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
   const [percentDiscount, setPercentDiscount] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedItemName, setSelectedItemName] = useState("");
+  const [itemSelectionType, setItemSelectionType] = useState<"single" | "multiple" | "category">("single");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedCategoryName, setSelectedCategoryName] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [expiryDate, setExpiryDate] = useState(() => {
@@ -67,7 +72,11 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
   const isFormValid = () => {
     if (voucherType === "amount") return !!amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0;
     if (voucherType === "percent") return !!percentDiscount && !isNaN(parseFloat(percentDiscount)) && parseFloat(percentDiscount) > 0 && parseFloat(percentDiscount) <= 100;
-    if (voucherType === "item") return !!selectedItemId;
+    if (voucherType === "item") {
+      if (itemSelectionType === "single") return !!selectedItemId;
+      if (itemSelectionType === "multiple") return selectedItemIds.length > 0;
+      if (itemSelectionType === "category") return selectedCategoryIds.length > 0;
+    }
     return false;
   };
 
@@ -77,6 +86,10 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
     setPercentDiscount("");
     setSelectedItemId("");
     setSelectedItemName("");
+    setItemSelectionType("single");
+    setSelectedItemIds([]);
+    setSelectedCategoryIds([]);
+    setSelectedCategoryName("");
     setRecipientName("");
     setRecipientEmail("");
     const d12 = new Date();
@@ -143,8 +156,20 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
 
       if (voucherType === "percent") body.percent_discount = parseFloat(percentDiscount);
       if (voucherType === "item") {
-        body.item_id = selectedItemId;
-        body.item_name = selectedItemName;
+        body.item_selection_type = itemSelectionType;
+        if (itemSelectionType === "single") {
+          body.item_id = selectedItemId;
+          body.item_name = selectedItemName;
+        } else if (itemSelectionType === "multiple") {
+          body.item_ids = selectedItemIds;
+          const selectedNames = items
+            .filter((it: any) => selectedItemIds.includes(it.id))
+            .map((it: any) => it.name);
+          body.item_name = selectedNames.join(", ");
+        } else if (itemSelectionType === "category") {
+          body.category_id = selectedCategoryIds[0];
+          body.item_name = selectedCategoryName;
+        }
       }
       if (quantity > 1) {
         body.quantity = quantity;
@@ -318,52 +343,183 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
           )}
 
           {voucherType === "item" && (
-            <div className="relative">
-              <label className="text-sm font-medium text-gray-300 mb-2 block">Select Item</label>
-              <button
-                onClick={() => setShowItemDropdown(!showItemDropdown)}
-                className="w-full bg-[#2d2d2d] text-left px-4 py-3.5 rounded-xl border border-gray-600 hover:border-penkey-orange flex items-center justify-between transition-colors"
-              >
-                <span className={selectedItemName ? "text-white font-medium" : "text-gray-500"}>
-                  {selectedItemName || "Choose an item..."}
-                </span>
-                <ChevronDown
-                  className={`h-4 w-4 text-gray-400 transition-transform ${showItemDropdown ? "rotate-180" : ""}`}
-                />
-              </button>
-              {showItemDropdown && (
-                <div className="absolute z-20 w-full bg-[#4d4d4d] border border-gray-600 rounded-xl mt-1.5 shadow-2xl">
-                  <div className="p-2 border-b border-gray-600">
+            <div className="space-y-3">
+              {/* Sub-selector: single / multiple / category */}
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { type: "single" as const, label: "Single", desc: "One item" },
+                  { type: "multiple" as const, label: "Multiple", desc: "Pick items" },
+                  { type: "category" as const, label: "Category", desc: "Whole category" },
+                ]).map(({ type, label, desc }) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      hapticButtonPress();
+                      setItemSelectionType(type);
+                      setShowItemDropdown(false);
+                    }}
+                    className={`py-2.5 px-2 rounded-lg flex flex-col items-center gap-0.5 border-2 transition-colors ${
+                      itemSelectionType === type
+                        ? "border-penkey-orange bg-penkey-orange/15 text-penkey-orange"
+                        : "border-gray-600/50 bg-[#2d2d2d] text-gray-400 hover:border-gray-500"
+                    }`}
+                  >
+                    <span className="text-xs font-semibold">{label}</span>
+                    <span className="text-[10px] opacity-70">{desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Single item picker */}
+              {itemSelectionType === "single" && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowItemDropdown(!showItemDropdown)}
+                    className="w-full bg-[#2d2d2d] text-left px-4 py-3.5 rounded-xl border border-gray-600 hover:border-penkey-orange flex items-center justify-between transition-colors"
+                  >
+                    <span className={selectedItemName ? "text-white font-medium" : "text-gray-500"}>
+                      {selectedItemName || "Choose an item..."}
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 text-gray-400 transition-transform ${showItemDropdown ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {showItemDropdown && (
+                    <div className="absolute z-20 w-full bg-[#4d4d4d] border border-gray-600 rounded-xl mt-1.5 shadow-2xl">
+                      <div className="p-2 border-b border-gray-600">
+                        <input
+                          type="text"
+                          placeholder="Search items..."
+                          value={itemSearch}
+                          onChange={(e) => setItemSearch(e.target.value)}
+                          className="w-full bg-[#3d3d3d] text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-penkey-orange/30"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {filteredItems.slice(0, 30).map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              hapticButtonPress();
+                              setSelectedItemId(item.id);
+                              setSelectedItemName(item.name);
+                              setShowItemDropdown(false);
+                              setItemSearch("");
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex justify-between items-center transition-colors"
+                          >
+                            <span className="text-sm text-white">{item.name}</span>
+                            <span className="text-xs text-gray-400">{formatCurrency(item.base_price || item.price || 0)}</span>
+                          </button>
+                        ))}
+                        {filteredItems.length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-400">No items found</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Multiple items picker */}
+              {itemSelectionType === "multiple" && (
+                <div>
+                  <div className="relative mb-2">
                     <input
                       type="text"
-                      placeholder="Search items..."
+                      placeholder="Search items to add..."
                       value={itemSearch}
                       onChange={(e) => setItemSearch(e.target.value)}
-                      className="w-full bg-[#3d3d3d] text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-penkey-orange/30"
-                      autoFocus
+                      onFocus={() => setShowItemDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowItemDropdown(false), 200)}
+                      className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-penkey-orange transition-colors"
                     />
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {filteredItems.slice(0, 30).map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          hapticButtonPress();
-                          setSelectedItemId(item.id);
-                          setSelectedItemName(item.name);
-                          setShowItemDropdown(false);
-                          setItemSearch("");
-                        }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex justify-between items-center transition-colors"
-                      >
-                        <span className="text-sm text-white">{item.name}</span>
-                        <span className="text-xs text-gray-400">{formatCurrency(item.base_price || item.price || 0)}</span>
-                      </button>
-                    ))}
-                    {filteredItems.length === 0 && (
-                      <div className="px-4 py-3 text-sm text-gray-400">No items found</div>
+                    {showItemDropdown && filteredItems.length > 0 && (
+                      <div className="absolute z-20 w-full bg-[#4d4d4d] border border-gray-600 rounded-xl mt-1.5 shadow-2xl max-h-48 overflow-y-auto">
+                        {filteredItems.slice(0, 20).map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              hapticButtonPress();
+                              if (!selectedItemIds.includes(item.id)) {
+                                setSelectedItemIds([...selectedItemIds, item.id]);
+                              }
+                              setItemSearch("");
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex justify-between items-center transition-colors"
+                          >
+                            <span className="text-sm text-white">{item.name}</span>
+                            <span className="text-xs text-penkey-orange">+ Add</span>
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
+                  {selectedItemIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedItemIds.map((id) => {
+                        const item = items.find((it: any) => it.id === id);
+                        if (!item) return null;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => {
+                              hapticButtonPress();
+                              setSelectedItemIds(selectedItemIds.filter((x) => x !== id));
+                            }}
+                            className="flex items-center gap-1.5 bg-penkey-orange/15 border border-penkey-orange/30 rounded-lg px-3 py-1.5 text-sm text-white"
+                          >
+                            {item.name}
+                            <X className="h-3 w-3 text-penkey-orange" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {selectedItemIds.length === 0 && (
+                    <p className="text-xs text-gray-500">Search and tap items to add them. Recipient can choose any one.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Category picker */}
+              {itemSelectionType === "category" && (
+                <div className="space-y-2">
+                  {categories.length === 0 && (
+                    <p className="text-xs text-gray-500">No categories found.</p>
+                  )}
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        hapticButtonPress();
+                        setSelectedCategoryIds([cat.id]);
+                        setSelectedCategoryName(cat.name);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-xl border-2 flex items-center justify-between transition-colors ${
+                        selectedCategoryIds.includes(cat.id)
+                          ? "border-penkey-orange bg-penkey-orange/15"
+                          : "border-gray-600/50 bg-[#2d2d2d] hover:border-gray-500"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: cat.color || "#888" }}
+                        />
+                        <span className="text-sm font-medium text-white">{cat.name}</span>
+                      </div>
+                      {selectedCategoryIds.includes(cat.id) && (
+                        <Check className="h-4 w-4 text-penkey-orange" />
+                      )}
+                    </button>
+                  ))}
+                  {selectedCategoryName && (
+                    <p className="text-xs text-gray-500">
+                      Recipient can choose any active item in <span className="text-white font-medium">{selectedCategoryName}</span>.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

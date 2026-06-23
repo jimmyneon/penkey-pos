@@ -25,6 +25,7 @@ export default function VouchersPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -43,6 +44,7 @@ export default function VouchersPage() {
       setSession(parsed);
       fetchVouchers(parsed.org_id);
       fetchItems(parsed.org_id);
+      fetchCategories(parsed.org_id);
     } catch (err) {
       router.push("/lock");
     } finally {
@@ -93,6 +95,22 @@ export default function VouchersPage() {
       if (err.name === "AbortError") {
         console.error("[Vouchers] Items fetch aborted due to timeout");
       }
+    }
+  };
+
+  const fetchCategories = async (orgId?: string) => {
+    try {
+      const sessionData =
+        sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const res = await fetch("/api/categories", {
+        headers: sessionData ? { "x-pos-session": sessionData } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(Array.isArray(data) ? data : (data.categories || []));
+      }
+    } catch (err) {
+      console.error("[Vouchers] Categories fetch failed:", err);
     }
   };
 
@@ -243,6 +261,7 @@ export default function VouchersPage() {
       {showCreate && (
         <VoucherCreateModal
           items={items}
+          categories={categories}
           onClose={() => setShowCreate(false)}
           onCreated={(voucher) => {
             setVouchers((prev) => [voucher, ...prev]);
