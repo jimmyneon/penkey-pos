@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import { ArrowLeft, RefreshCw, Calendar, TrendingUp, TrendingDown, Minus, Users, DollarSign, MessageSquare, Trophy, Target, CheckCircle2, Circle, Sparkles, Clock, Flame, ChevronDown, ChevronUp, Receipt, TrendingUp as TrendUp, BarChart3, Package, CreditCard, User, Clock as ClockIcon, Download, Coffee, UtensilsCrossed, Cookie, IceCream } from "lucide-react";
@@ -11,8 +11,6 @@ import { useSalesByTransactionType } from "@/lib/hooks/use-sales-by-transaction-
 import { useSalesByEmployee } from "@/lib/hooks/use-sales-by-employee";
 import { useHourlySales } from "@/lib/hooks/use-hourly-sales";
 import { useDrinkFoodSplit } from "@/lib/hooks/use-drink-food-split";
-import { useStaffTargets } from "@/lib/hooks/use-staff-targets";
-import { getStaffTargetsForPeriod, calculateTargetProgress } from "@/lib/services/staff-targets";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
@@ -84,16 +82,6 @@ export default function ReportsPage() {
   const { data: employeeData, loading: employeeLoading } = useSalesByEmployee(daysForPeriod, dateRangeParams);
   const { data: hourlyData, loading: hourlyLoading } = useHourlySales(daysForPeriod, dateRangeParams);
   const { data: drinkFoodData, loading: drinkFoodLoading, error: drinkFoodError, refetch: drinkFoodDataRefetch } = useDrinkFoodSplit(daysForPeriod, dateRangeParams);
-
-  // Get org_id from session for staff targets
-  const [orgId, setOrgId] = useState<string | undefined>();
-  useEffect(() => {
-    const sessionData = sessionStorage.getItem("pos_session");
-    if (sessionData) {
-      try { setOrgId(JSON.parse(sessionData).org_id); } catch {}
-    }
-  }, []);
-  const { data: staffTargetsData, loading: staffTargetsLoading } = useStaffTargets(orgId, daysForPeriod);
 
   // Use all receipts from the selected period (already filtered by API)
   const periodReceipts = useMemo(() => {
@@ -240,18 +228,6 @@ export default function ReportsPage() {
   
   const periodTarget = getTarget();
   const targetProgress = Math.min((periodMetrics.grossSales / periodTarget) * 100, 100);
-
-  // Staff-friendly tangible targets
-  const staffTargets = getStaffTargetsForPeriod(selectedPeriod === "alltime" ? "year" : selectedPeriod === "custom" ? "custom" : selectedPeriod, customDays);
-  const staffProgress = useMemo(() => {
-    if (!staffTargetsData) return [];
-    return calculateTargetProgress(staffTargets, {
-      upsellCount: staffTargetsData.upsellCount,
-      wetMixPercentage: staffTargetsData.wetMixPercentage,
-      ticketCount: staffTargetsData.ticketCount,
-      reviewMentions: staffTargetsData.reviewMentions,
-    });
-  }, [staffTargetsData, staffTargets]);
 
   return (
     <div className="h-screen bg-[#2d2d2d] flex flex-col touch-manipulation overflow-hidden">
@@ -568,63 +544,6 @@ export default function ReportsPage() {
               </div>
             </button>
 
-            {/* Staff-Friendly Tangible Targets */}
-            <div className="bg-[#3d3d3d] rounded-xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-penkey-orange" />
-                <h3 className="font-semibold text-white text-sm">Staff Targets {periodLabel}</h3>
-              </div>
-              {staffTargetsLoading ? (
-                <p className="text-sm text-gray-400">Loading targets...</p>
-              ) : staffProgress.length > 0 ? (
-                <div className="space-y-3">
-                  {staffProgress.map((target) => {
-                    const remaining = Math.max(target.goal - target.current, 0);
-                    return (
-                    <div key={target.targetId}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          {target.achieved ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-400" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-gray-500" />
-                          )}
-                          <span className={`text-sm font-medium ${
-                            target.achieved ? 'text-green-400' : 'text-white'
-                          }`}>
-                            {target.label}
-                          </span>
-                        </div>
-                        <span className={`text-sm font-bold ${
-                          target.achieved ? 'text-green-400' : 'text-gray-300'
-                        }`}>
-                          {target.current}{target.unit} / {target.goal}{target.unit}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            target.achieved ? 'bg-green-500' : 'bg-penkey-orange'
-                          }`}
-                          style={{ width: `${Math.min(target.percentage, 100)}%` }}
-                        />
-                      </div>
-                      {target.achieved ? (
-                        <p className="text-xs text-green-400 mt-1">✓ Target achieved! Great work!</p>
-                      ) : (
-                        <p className="text-xs text-gray-400 mt-1">
-                          {remaining}{target.unit} to go - {target.description}
-                        </p>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">No data available for this period.</p>
-              )}
-            </div>
-
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-4">
               <button
@@ -789,38 +708,6 @@ export default function ReportsPage() {
               <p className="text-sm text-gray-400">Tap to see full insights</p>
             </button>
 
-            {/* Achievements - Clickable */}
-            <button
-              onClick={() => openModal('goals')}
-              className="w-full bg-[#3d3d3d] rounded-xl p-6 shadow-lg hover:bg-[#404040] transition-colors text-left active:scale-[0.98]"
-            >
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
-                <Trophy className="h-5 w-5 text-penkey-orange" />
-                {selectedPeriod === "today" ? "Today's Goals"
-                  : selectedPeriod === "yesterday" ? "Yesterday's Goals"
-                  : selectedPeriod === "last7days" ? "Last 7 Days Goals"
-                  : selectedPeriod === "month" ? "This Month's Goals"
-                  : selectedPeriod === "year" ? "This Year's Goals"
-                  : selectedPeriod === "alltime" ? "All-Time Goals"
-                  : "Period Goals"}
-              </h3>
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-1">
-                  {periodMetrics.receiptCount >= 50 && (
-                    <CheckCircle2 className="h-5 w-5 text-green-400" />
-                  )}
-                  {comparison.diff > 0 && (
-                    <CheckCircle2 className="h-5 w-5 text-green-400" />
-                  )}
-                  {periodMetrics.grossSales >= periodTarget && (
-                    <CheckCircle2 className="h-5 w-5 text-green-400" />
-                  )}
-                </div>
-                <p className="text-sm text-gray-400">
-                  {[periodMetrics.receiptCount >= 50, comparison.diff > 0, periodMetrics.grossSales >= periodTarget].filter(Boolean).length} of 3 goals achieved
-                </p>
-              </div>
-            </button>
           </div>
         )}
       </div>
@@ -1035,199 +922,6 @@ export default function ReportsPage() {
                   <p className="text-gray-400">No insights available for this period yet.</p>
                 </div>
               )}
-            </div>
-            
-            <Button
-              onClick={closeModal}
-              className="w-full mt-6 bg-penkey-orange hover:bg-penkey-orange/90 text-white min-h-[48px]"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Goals Modal */}
-      {activeModal === 'goals' && (
-        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={closeModal}>
-          <div className="bg-[#3d3d3d] rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                <Trophy className="h-6 w-6 text-penkey-orange" />
-                {selectedPeriod === "today" ? "Today's Goals"
-                  : selectedPeriod === "yesterday" ? "Yesterday's Goals"
-                  : selectedPeriod === "last7days" ? "Last 7 Days Goals"
-                  : selectedPeriod === "month" ? "This Month's Goals"
-                  : selectedPeriod === "year" ? "This Year's Goals"
-                  : selectedPeriod === "alltime" ? "All-Time Goals"
-                  : "Period Goals"}
-              </h3>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {/* Goal 1: Serve tickets based on period */}
-              {(() => {
-                const ticketGoal = selectedPeriod === "today" ? 20
-                  : selectedPeriod === "yesterday" ? 20
-                  : selectedPeriod === "last7days" ? 140
-                  : selectedPeriod === "month" ? 600
-                  : selectedPeriod === "year" ? 7300
-                  : selectedPeriod === "alltime" ? 10000
-                  : customDays * 20;
-                
-                return (
-                  <div className={`p-4 rounded-xl border-2 transition-all ${
-                    periodMetrics.receiptCount >= ticketGoal 
-                      ? 'bg-green-500/10 border-green-500/50' 
-                      : 'bg-[#2d2d2d] border-gray-700'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      {periodMetrics.receiptCount >= ticketGoal ? (
-                        <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0 mt-0.5" />
-                      ) : (
-                        <Circle className="h-6 w-6 text-gray-600 flex-shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1">
-                        <p className={`font-semibold mb-1 ${
-                          periodMetrics.receiptCount >= ticketGoal ? 'text-white' : 'text-gray-400'
-                        }`}>
-                          Serve {ticketGoal}+ tickets
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          Progress: {periodMetrics.receiptCount} / {ticketGoal} tickets
-                        </p>
-                        {periodMetrics.receiptCount >= ticketGoal && (
-                          <p className="text-sm text-green-400 mt-1">✓ Goal achieved!</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Goal 2: Beat previous period */}
-              <div className={`p-4 rounded-xl border-2 transition-all ${
-                comparison.diff > 0 
-                  ? 'bg-green-500/10 border-green-500/50' 
-                  : 'bg-[#2d2d2d] border-gray-700'
-              }`}>
-                <div className="flex items-start gap-3">
-                  {comparison.diff > 0 ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Circle className="h-6 w-6 text-gray-600 flex-shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className={`font-semibold mb-1 ${
-                      comparison.diff > 0 ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      Beat {selectedPeriod === "today" ? "yesterday's"
-                        : selectedPeriod === "yesterday" ? "the day before's"
-                        : selectedPeriod === "last7days" ? "the previous 7 days'"
-                        : selectedPeriod === "month" ? "last month's"
-                        : selectedPeriod === "year" ? "last year's"
-                        : selectedPeriod === "alltime" ? "all previous"
-                        : "previous period's"} sales
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {comparison.diff > 0 
-                        ? `£${Math.abs(comparison.diff).toFixed(2)} more than before`
-                        : comparison.diff < 0
-                        ? `£${Math.abs(comparison.diff).toFixed(2)} less than before`
-                        : 'Same as before'}
-                    </p>
-                    {comparison.diff > 0 && (
-                      <p className="text-sm text-green-400 mt-1">✓ Goal achieved!</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Goal 3: Reach target */}
-              <div className={`p-4 rounded-xl border-2 transition-all ${
-                periodMetrics.grossSales >= periodTarget 
-                  ? 'bg-green-500/10 border-green-500/50' 
-                  : 'bg-[#2d2d2d] border-gray-700'
-              }`}>
-                <div className="flex items-start gap-3">
-                  {periodMetrics.grossSales >= periodTarget ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Circle className="h-6 w-6 text-gray-600 flex-shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className={`font-semibold mb-1 ${
-                      periodMetrics.grossSales >= periodTarget ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      Reach £{periodTarget.toLocaleString()} target
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Progress: £{periodMetrics.grossSales.toFixed(2)} / £{periodTarget.toLocaleString()}
-                    </p>
-                    {periodMetrics.grossSales >= periodTarget ? (
-                      <p className="text-sm text-green-400 mt-1">✓ Goal achieved!</p>
-                    ) : (
-                      <p className="text-sm text-gray-400 mt-1">
-                        £{(periodTarget - periodMetrics.grossSales).toFixed(2)} to go
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Staff-Friendly Targets Section */}
-            <div className="mt-6">
-              <h4 className="text-sm font-semibold text-penkey-orange mb-3 flex items-center gap-2">
-                <Trophy className="h-4 w-4" />
-                Staff Targets (Things YOU control!)
-              </h4>
-              <div className="space-y-3">
-                {staffProgress.length > 0 ? staffProgress.map((target) => {
-                  const remaining = Math.max(target.goal - target.current, 0);
-                  return (
-                    <div key={target.targetId} className={`p-3 rounded-xl border-2 transition-all ${
-                      target.achieved
-                        ? 'bg-green-500/10 border-green-500/50'
-                        : 'bg-[#2d2d2d] border-gray-700'
-                    }`}>
-                      <div className="flex items-start gap-3">
-                        {target.achieved ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-600 flex-shrink-0 mt-0.5" />
-                        )}
-                        <div className="flex-1">
-                          <p className={`font-semibold text-sm ${target.achieved ? 'text-white' : 'text-gray-400'}`}>
-                            {target.label}: {target.current}{target.unit} / {target.goal}{target.unit}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">{target.description}</p>
-                          {target.achieved ? (
-                            <p className="text-xs text-green-400 mt-1">✓ Achieved!</p>
-                          ) : (
-                            <p className="text-xs text-gray-400 mt-1">{remaining}{target.unit} to go</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <p className="text-sm text-gray-400">Loading staff targets...</p>
-                )}
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className="mt-6 p-4 bg-penkey-orange/10 rounded-xl border border-penkey-orange/30">
-              <p className="text-center text-white font-semibold">
-                {[periodMetrics.receiptCount >= 50, comparison.diff > 0, periodMetrics.grossSales >= periodTarget].filter(Boolean).length} of 3 Goals Achieved
-              </p>
             </div>
             
             <Button
