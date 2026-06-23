@@ -12,6 +12,7 @@
 
 const CRED_KEY = (uid: string) => `biometric_cred_${uid}`;
 const ENABLED_KEY = (uid: string) => `biometric_enabled_${uid}`;
+const DISMISSED_KEY = (uid: string) => `biometric_dismissed_${uid}`;
 
 // ─── Availability ────────────────────────────────────────────────────────────
 
@@ -33,6 +34,20 @@ export function isBiometricEnabled(userId: string): boolean {
 export function disableBiometric(userId: string): void {
   localStorage.removeItem(CRED_KEY(userId));
   localStorage.removeItem(ENABLED_KEY(userId));
+  localStorage.removeItem(DISMISSED_KEY(userId));
+}
+
+export function isBiometricDismissed(userId: string): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(DISMISSED_KEY(userId)) === "true";
+}
+
+export function setBiometricDismissed(userId: string): void {
+  localStorage.setItem(DISMISSED_KEY(userId), "true");
+}
+
+export function clearBiometricDismissed(userId: string): void {
+  localStorage.removeItem(DISMISSED_KEY(userId));
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

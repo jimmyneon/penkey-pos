@@ -42,6 +42,13 @@ import {
   clearSumUpCredentials,
   validateStoredCredentials,
 } from "@/lib/services/sumup-credentials";
+import {
+  checkPlatformAuthenticator,
+  isBiometricEnabled,
+  registerBiometric,
+  disableBiometric,
+  clearBiometricDismissed,
+} from "@/lib/services/biometrics";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -55,6 +62,13 @@ export default function SettingsPage() {
   const [currentPasscode, setCurrentPasscode] = useState("");
   const [newPasscode, setNewPasscode] = useState("");
   const [confirmPasscode, setConfirmPasscode] = useState("");
+
+  // Biometric settings
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [cachedUserId, setCachedUserId] = useState<string | null>(null);
+  const [cachedEmployeeName, setCachedEmployeeName] = useState<string>("");
   
   // SumUp OAuth settings
   const [sumUpConnected, setSumUpConnected] = useState(false);
@@ -347,8 +361,17 @@ export default function SettingsPage() {
 
       setRegisterId(regId);
       setUserEmail(session.employee?.email || session.employee?.name || "User");
+      setCachedUserId(session.user_id || null);
+      setCachedEmployeeName(session.employee?.name || "Employee");
       console.log("[Settings] Loading settings for register:", regId);
       console.log("[Settings] Session org_id:", session.org_id);
+
+      // Check biometric availability and current status
+      const bioAvailable = await checkPlatformAuthenticator();
+      setBiometricAvailable(bioAvailable);
+      if (session.user_id) {
+        setBiometricEnabled(isBiometricEnabled(session.user_id));
+      }
 
       // Load settings from database via API endpoint with timeout
       const sessionDataForApi = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -1706,6 +1729,57 @@ export default function SettingsPage() {
                 <Key className="h-4 w-4 mr-2" />
                 Change PIN
               </Button>
+            </SettingRow>
+
+            <SettingRow
+              label="Biometric Unlock"
+              description={
+                biometricAvailable
+                  ? "Use Face ID or fingerprint to unlock the POS"
+                  : "Biometrics not available on this device"
+              }
+            >
+              {biometricAvailable ? (
+                <div className="flex items-center gap-3">
+                  {biometricBusy && (
+                    <div className="animate-spin w-4 h-4 border-2 border-penkey-orange border-t-transparent rounded-full" />
+                  )}
+                  <ToggleSwitch
+                    checked={biometricEnabled}
+                    onChange={async (checked) => {
+                      if (!cachedUserId) {
+                        showToast("User session not found", "error");
+                        return;
+                      }
+                      if (checked) {
+                        setBiometricBusy(true);
+                        try {
+                          const ok = await registerBiometric(cachedUserId, cachedEmployeeName);
+                          if (ok) {
+                            setBiometricEnabled(true);
+                            clearBiometricDismissed(cachedUserId);
+                            showToast("Biometric unlock enabled", "success");
+                            hapticSuccess();
+                          } else {
+                            showToast("Failed to enable biometrics", "error");
+                          }
+                        } catch {
+                          showToast("Biometric setup was cancelled", "error");
+                        } finally {
+                          setBiometricBusy(false);
+                        }
+                      } else {
+                        disableBiometric(cachedUserId);
+                        setBiometricEnabled(false);
+                        showToast("Biometric unlock disabled", "info");
+                        hapticButtonPress();
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <span className="text-gray-500 text-sm">Unavailable</span>
+              )}
             </SettingRow>
           </SettingsSection>
 

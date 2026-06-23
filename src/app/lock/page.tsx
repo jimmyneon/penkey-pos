@@ -12,6 +12,8 @@ import { verifyPinLocally, cachePinHashes, getCachedRegister } from "@/lib/servi
 import {
   checkPlatformAuthenticator,
   isBiometricEnabled,
+  isBiometricDismissed,
+  setBiometricDismissed,
   registerBiometric,
   authenticateBiometric,
 } from "@/lib/services/biometrics";
@@ -35,6 +37,7 @@ export default function LockPage() {
   const [biometricFailCount, setBiometricFailCount] = useState(0);
   const [showPinMode, setShowPinMode] = useState(false);
   const [showEnableBiometricPrompt, setShowEnableBiometricPrompt] = useState(false);
+  const [showDismissedMessage, setShowDismissedMessage] = useState(false);
 
   useEffect(() => {
     // ✅ SECURITY: Check if user is authenticated via httpOnly cookie
@@ -43,19 +46,21 @@ export default function LockPage() {
       const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
       try {
-        const response = await fetch("/api/auth/check", {
-          method: "GET",
-          credentials: "include", // Include httpOnly cookies
-          signal: controller.signal,
-        });
+        // ⚡ PERFORMANCE: Run auth check and biometric availability check in parallel
+        const [response, available] = await Promise.all([
+          fetch("/api/auth/check", {
+            method: "GET",
+            credentials: "include",
+            signal: controller.signal,
+          }),
+          checkPlatformAuthenticator(),
+        ]);
         
         if (!response.ok) {
-          // Not authenticated, redirect to login
           router.push("/login");
           return;
         }
         
-        // Authenticated — cache org_id and user_id now so submit needs no extra fetch
         const authData = await response.json();
         const orgId: string = authData.org_id;
         const userId: string = authData.user_id;
@@ -70,9 +75,7 @@ export default function LockPage() {
           warmPinCacheInBackground(orgId);
         }
 
-        // Resolve biometric state BEFORE revealing the UI so the correct
-        // screen (biometric vs PIN) is shown on the very first render.
-        const available = await checkPlatformAuthenticator();
+        // Resolve biometric state
         const enabled = available && userId ? isBiometricEnabled(userId) : false;
         setBiometricAvailable(available);
         setBiometricEnabled(enabled);
@@ -256,7 +259,8 @@ export default function LockPage() {
       setLoadingMessage("Ready!");
 
       // After a successful PIN — offer to enroll biometrics if available but not yet set up
-      if (biometricAvailable && cachedUserId && !isBiometricEnabled(cachedUserId)) {
+      // Skip if user previously dismissed the prompt
+      if (biometricAvailable && cachedUserId && !isBiometricEnabled(cachedUserId) && !isBiometricDismissed(cachedUserId)) {
         setShowEnableBiometricPrompt(true);
         // Store data so we can proceed after the prompt
         sessionStorage.setItem("_pending_session", JSON.stringify(data));
@@ -308,6 +312,33 @@ export default function LockPage() {
     );
   }
 
+  // ─── Dismissed confirmation message (brief, then proceeds) ────────────────
+  if (showDismissedMessage) {
+    return (
+      <div className="min-h-screen bg-[#2d2d2d] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-[#3d3d3d] rounded-xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-600/30 flex items-center justify-center mx-auto mb-5">
+            <Fingerprint className="w-8 h-8 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-3">No problem!</h2>
+          <p className="text-gray-400 text-sm mb-6">
+            You can enable biometrics later in <strong className="text-white">Settings &gt; Security</strong>.
+          </p>
+          <button
+            onClick={async () => {
+              const pending = sessionStorage.getItem("_pending_session");
+              sessionStorage.removeItem("_pending_session");
+              if (pending) await proceedWithSession(JSON.parse(pending));
+            }}
+            className="w-full h-12 rounded-xl bg-penkey-orange text-white font-semibold active:scale-95 transition-all"
+          >
+            Continue to POS
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ─── Enable biometrics prompt (shown after first successful PIN) ────────────
   if (showEnableBiometricPrompt) {
     return (
@@ -336,9 +367,9 @@ export default function LockPage() {
           </button>
           <button
             onClick={async () => {
-              const pending = sessionStorage.getItem("_pending_session");
-              sessionStorage.removeItem("_pending_session");
-              if (pending) await proceedWithSession(JSON.parse(pending));
+              if (cachedUserId) setBiometricDismissed(cachedUserId);
+              setShowEnableBiometricPrompt(false);
+              setShowDismissedMessage(true);
             }}
             className="w-full h-12 rounded-xl text-gray-400 text-sm"
           >
