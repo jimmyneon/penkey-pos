@@ -39,9 +39,11 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # Get git commit hash for version tracking
 import subprocess as _sp
+import os as _os
 try:
+    _SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
     _GIT_HASH = _sp.check_output(['git', 'rev-parse', '--short', 'HEAD'],
-                                 cwd='/home/jimmy/print-server',
+                                 cwd=_SCRIPT_DIR,
                                  stderr=_sp.DEVNULL).decode().strip()
 except Exception:
     _GIT_HASH = 'unknown'

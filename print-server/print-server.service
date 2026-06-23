@@ -7,7 +7,7 @@ Type=simple
 User=jimmy
 WorkingDirectory=/home/jimmy/print-server
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/jimmy/print-server/venv/bin/python /home/jimmy/print-server/print_server.py
+ExecStart=/home/jimmy/print-server/venv/bin/python /home/jimmy/print-server/print-server/print_server.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -18,7 +18,7 @@ SyslogIdentifier=penkey-print-server
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/tmp /home/jimmy/print-server /dev /home/jimmy/print-server/.git
+ReadWritePaths=/tmp /home/jimmy/print-server /dev /home/jimmy/print-server/.git /home/jimmy/print-server/print-server
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
