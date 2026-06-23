@@ -29,12 +29,12 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   const storeAddrEsc = storeAddress ? escapeHtml(storeAddress) : '';
 
   const recipientBlock = recipient ? `
-    <div class="overlay-text" style="top: 24%;">
+    <div class="overlay-text" style="top: 17%;">
       <div class="recipient-name">For ${recipient}</div>
     </div>` : '';
 
   const messageBlock = message ? `
-    <div class="overlay-text" style="top: 70%;">
+    <div class="overlay-text" style="top: 52%;">
       <div class="message-text">&ldquo;${message}&rdquo;</div>
     </div>` : '';
 
@@ -100,7 +100,7 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
     }
     .qr-wrapper {
       position: absolute;
-      top: 42%;
+      top: 36%;
       left: 50%;
       transform: translateX(-50%);
       background: #fff;
@@ -200,20 +200,20 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   <div class="voucher-container">
     <img class="voucher-bg" src="/voucher.png" alt="Voucher" />
     ${recipientBlock}
-    <div class="overlay-text" style="top: 32%;">
+    <div class="overlay-text" style="top: 25%;">
       <div class="value-text">${valueText}</div>
     </div>
     <div class="qr-wrapper">
       <img src="${qrDataUrl}" alt="QR Code" />
     </div>
-    <div class="overlay-text" style="top: 64%;">
-      <div class="code-text">${code}</div>
-    </div>
     ${messageBlock}
-    <div class="overlay-text" style="top: 74%;">
+    <div class="overlay-text" style="top: 58%;">
       <div class="expiry-text">Valid until: ${expiry}</div>
       ${storeAddrEsc ? `<div class="store-addr">${storeAddrEsc}</div>` : ''}
       <div class="issued-text">Issued: ${created}</div>
+    </div>
+    <div class="overlay-text" style="top: 66%;">
+      <div class="code-text">${code}</div>
     </div>
   </div>
   <div class="print-btn-wrap">
