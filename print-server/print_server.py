@@ -14,12 +14,18 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Ensure script's own directory is in sys.path for local imports (printer.py, etc.)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+
+# Load environment from .env in script dir, then parent dir (backwards compat)
+load_dotenv(os.path.join(_SCRIPT_DIR, '.env'))
+load_dotenv(os.path.join(os.path.dirname(_SCRIPT_DIR), '.env'))
+
 from supabase import create_client, AsyncClient
 from printer import EpsonSerialPrinter
 from supabase_logger import SupabaseLogHandler
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging - will add Supabase handler after client is created
 logging.basicConfig(
@@ -39,9 +45,7 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # Get git commit hash for version tracking
 import subprocess as _sp
-import os as _os
 try:
-    _SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
     _GIT_HASH = _sp.check_output(['git', 'rev-parse', '--short', 'HEAD'],
                                  cwd=_SCRIPT_DIR,
                                  stderr=_sp.DEVNULL).decode().strip()
