@@ -49,10 +49,8 @@ function buildVoucherPage(v: any, qrDataUrl: string, storeAddress?: string): str
         <img src="${qrDataUrl}" alt="QR Code" />
       </div>
       ${messageBlock}
-      <div class="overlay-text" style="top: 52%;">
+      <div class="overlay-text" style="top: 56%;">
         <div class="expiry-text">Valid until: ${expiry}</div>
-        ${storeAddrEsc ? `<div class="store-addr">${storeAddrEsc}</div>` : ''}
-        <div class="issued-text">Issued: ${created}</div>
       </div>
       <div class="overlay-text" style="top: 60%;">
         <div class="code-text">${code}</div>
