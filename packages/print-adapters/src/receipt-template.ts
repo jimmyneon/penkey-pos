@@ -166,7 +166,9 @@ export function generateReceiptText(data: ReceiptData): string {
   }
 
   // QR code for Google Review (tracked via pos.penkey.com redirect)
-  lines.push("We'd love your feedback!");
+  lines.push("If you've had a great time today,");
+  lines.push("we'd love a 5-star review!");
+  lines.push("Scan below:");
   lines.push('[QR:https://pos.penkey.com/qr/NWWTITRL]');
 
   return lines.join('\n');
