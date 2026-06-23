@@ -91,7 +91,10 @@ export async function GET(request: NextRequest) {
       .eq("org_id", session.org_id)
       .order("sort_order", { ascending: true });
 
-    if (categoriesError) throw categoriesError;
+    if (categoriesError) {
+      console.error('[Export] Categories query failed:', categoriesError);
+      throw new Error(`Failed to fetch categories: ${categoriesError.message}`);
+    }
 
     // Fetch items with variants
     const { data: items, error: itemsError } = await supabase
@@ -110,7 +113,10 @@ export async function GET(request: NextRequest) {
       .eq("org_id", session.org_id)
       .order("name");
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      console.error('[Export] Items query failed:', itemsError);
+      throw new Error(`Failed to fetch items: ${itemsError.message}`);
+    }
 
     // Fetch modifier groups with options
     const { data: modifierGroups, error: modifiersError } = await supabase
@@ -134,7 +140,10 @@ export async function GET(request: NextRequest) {
       .eq("org_id", session.org_id)
       .order("sort_order", { ascending: true });
 
-    if (modifiersError) throw modifiersError;
+    if (modifiersError) {
+      console.error('[Export] Modifier groups query failed:', modifiersError);
+      throw new Error(`Failed to fetch modifier groups: ${modifiersError.message}`);
+    }
 
     // Fetch item-modifier links (no org_id on this table, filter by item_id instead)
     const itemIds = (items as Item[] || []).map(i => i.id);
@@ -148,7 +157,10 @@ export async function GET(request: NextRequest) {
         .in("item_id", itemIds)
         .in("modifier_group_id", modifierGroupIds);
 
-      if (itemModifiersError) throw itemModifiersError;
+      if (itemModifiersError) {
+        console.error('[Export] Item modifiers query failed:', itemModifiersError);
+        throw new Error(`Failed to fetch item-modifier links: ${itemModifiersError.message}`);
+      }
       itemModifiers = data as ItemModifier[] || [];
     }
 
@@ -219,6 +231,7 @@ export async function GET(request: NextRequest) {
     
     const csvContent = csvLines.join('\n');
 
+    console.log(`[Export] Data fetched - Categories: ${(categories as Category[] || []).length}, Items: ${(items as Item[] || []).length}, Modifier groups: ${(modifierGroups as ModifierGroup[] || []).length}, Item-modifier links: ${(itemModifiers as ItemModifier[] || []).length}`);
     console.log(`[API-AUTH] Successful GET /api/export - User: ${session.user_id}, Org: ${session.org_id}`);
     
     // Return as CSV file download
