@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import {
@@ -12,6 +12,7 @@ import {
   Trash2,
   Ticket,
   Gift,
+  Layers,
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { hapticButtonPress } from "@/lib/utils/haptics";
@@ -51,8 +52,32 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0);
   const [redeeming, setRedeeming] = useState(false);
+  const [batchVouchers, setBatchVouchers] = useState<any[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   useScrollLock(true);
+
+  useEffect(() => {
+    if (!voucher.batch_id) return;
+    setBatchLoading(true);
+    const sessionData =
+      sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    fetch("/api/vouchers", {
+      headers: sessionData ? { "x-pos-session": sessionData } : {},
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const all = data.vouchers || [];
+        setBatchVouchers(all.filter((v: any) => v.batch_id === voucher.batch_id));
+      })
+      .catch(() => {})
+      .finally(() => setBatchLoading(false));
+  }, [voucher.batch_id]);
+
+  const handlePrintBatch = () => {
+    hapticButtonPress();
+    window.open(`/api/vouchers/${voucher.id}/print-batch?autoprint=1`, "_blank");
+  };
 
   const handleEmail = async () => {
     const email = voucher.recipient_email || prompt("Enter email address:");
@@ -244,6 +269,46 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
             </div>
           )}
 
+          {/* Batch vouchers list */}
+          {voucher.batch_id && (
+            <div className="bg-[#2d2d2d] rounded-xl p-3.5 border border-gray-700/30">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5" />
+                  Batch Vouchers
+                </div>
+                {batchVouchers.length > 0 && (
+                  <span className="text-xs text-gray-400">{batchVouchers.length} total</span>
+                )}
+              </div>
+              {batchLoading ? (
+                <div className="text-sm text-gray-500 py-2">Loading batch...</div>
+              ) : batchVouchers.length > 0 ? (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {batchVouchers.map((bv: any) => (
+                    <div
+                      key={bv.id}
+                      className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-[#3d3d3d]/50"
+                    >
+                      <span className="font-mono font-bold text-penkey-orange tracking-wider">
+                        {bv.code}
+                      </span>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-medium ${
+                          STATUS_COLOURS[bv.status] || ""
+                        }`}
+                      >
+                        {bv.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 py-2">No batch vouchers found</div>
+              )}
+            </div>
+          )}
+
           {/* Info rows */}
           {voucher.recipient_name && (
             <div className="bg-[#2d2d2d] rounded-xl p-3.5 border border-gray-700/30">
@@ -327,6 +392,17 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
                   PNG
                 </Button>
               </div>
+              {voucher.batch_id && batchVouchers.length > 1 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handlePrintBatch}
+                  className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 h-10 flex items-center justify-center gap-2"
+                >
+                  <Layers className="h-4 w-4" />
+                  Print All ({batchVouchers.length})
+                </Button>
+              )}
               {emailStatus && (
                 <div className={`text-xs rounded-lg px-3 py-2 ${
                   emailStatus.type === 'success'
