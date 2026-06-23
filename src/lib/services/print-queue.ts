@@ -84,6 +84,9 @@ export async function createReceiptPrintJob(
     printerSettings = printer?.config || {};
   }
 
+  // Ensure minimal feed lines to reduce wasted paper
+  printerSettings = { ...printerSettings, feed_lines_before_cut: 2 };
+
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,
     type: "receipt",
@@ -120,6 +123,9 @@ export async function createTicketPrintJob(
       .single();
     printerSettings = printer?.config || {};
   }
+
+  // Ensure minimal feed lines to reduce wasted paper
+  printerSettings = { ...printerSettings, feed_lines_before_cut: 2 };
 
   return createPrintJob(supabaseUrl, supabaseKey, {
     printer_id,

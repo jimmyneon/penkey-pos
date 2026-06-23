@@ -311,6 +311,18 @@ Status: Online
         commands = bytearray()
         encoded_data = data.encode('ascii', errors='replace')
 
+        # Set barcode height (1-255, default 162) — use 30 for thin barcode
+        commands.extend([0x1D, 0x68, 30])
+
+        # Set barcode width (2-6, default 3) — use 2 for narrowest
+        commands.extend([0x1D, 0x77, 2])
+
+        # Set HRI font position (0=no print, 1=above, 2=below, 3=both) — below
+        commands.extend([0x1D, 0x48, 2])
+
+        # Set HRI font type (0=Font A, 1=Font B)
+        commands.extend([0x1D, 0x66, 0])
+
         # CODE128 function B: GS k m n d1...dn
         # m = 73 = CODE128, n = data length
         commands.extend([0x1D, 0x6B, 0x49, len(encoded_data)])

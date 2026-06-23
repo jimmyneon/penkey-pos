@@ -75,7 +75,6 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push(`>>##${data.store_name}##`);
   if (data.store_address) lines.push(`>>${data.store_address}`);
   if (data.store_phone) lines.push(`>>${data.store_phone}`);
-  lines.push('');
 
   // Divider
   lines.push(horizontalRule());
@@ -99,7 +98,6 @@ export function generateReceiptText(data: ReceiptData): string {
 
   // Divider
   lines.push(horizontalRule());
-  lines.push('');
 
   // Totals
   lines.push(alignLine('Subtotal', currency(data.subtotal)));
@@ -110,15 +108,12 @@ export function generateReceiptText(data: ReceiptData): string {
   // TOTAL – bold markers for the print server
   lines.push(`**${alignLine('TOTAL', currency(data.total))}**`);
 
-  lines.push('');
-
   // Cash details
   if (data.payment_method === 'cash' && data.cash_tendered != null) {
     lines.push(alignLine('Cash Tendered', currency(data.cash_tendered)));
     if (data.cash_change != null) {
       lines.push(alignLine('Change', currency(data.cash_change)));
     }
-    lines.push('');
   }
 
   // Payment + metadata
