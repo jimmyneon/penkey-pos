@@ -306,16 +306,20 @@ Status: Online
     def _build_barcode_command(self, data: str) -> bytes:
         """
         Build ESC/POS barcode commands for Epson TM-T88IV.
-        Uses GS k command with CODE128 (function B).
+        Uses GS k function A (m=4) for CODE128 — the TM-T88IV supports
+        function A but may NOT support function B (m=73).
         """
         commands = bytearray()
         encoded_data = data.encode('ascii', errors='replace')
 
-        # Set barcode height (1-255, default 162) — use 30 for thin barcode
-        commands.extend([0x1D, 0x68, 30])
+        # Reset print mode to normal (in case double-size from ## is still active)
+        commands.extend([0x1D, 0x21, 0x00])
 
-        # Set barcode width (2-6, default 3) — use 2 for narrowest
-        commands.extend([0x1D, 0x77, 2])
+        # Set barcode height (1-255, default 162) — use 60 for visible barcode
+        commands.extend([0x1D, 0x68, 60])
+
+        # Set barcode width (2-6, default 3) — use 3 for standard width
+        commands.extend([0x1D, 0x77, 3])
 
         # Set HRI font position (0=no print, 1=above, 2=below, 3=both) — below
         commands.extend([0x1D, 0x48, 2])
@@ -323,10 +327,12 @@ Status: Online
         # Set HRI font type (0=Font A, 1=Font B)
         commands.extend([0x1D, 0x66, 0])
 
-        # CODE128 function B: GS k m n d1...dn
-        # m = 73 = CODE128, n = data length
-        commands.extend([0x1D, 0x6B, 0x49, len(encoded_data)])
-        commands.extend(encoded_data)
+        # CODE128 function A: GS k m d1...dn NUL
+        # m = 4 = CODE128
+        # Data must include code set prefix: {B for ASCII printable chars
+        commands.extend([0x1D, 0x6B, 0x04])
+        commands.extend(b'{B' + encoded_data)
+        commands.append(0x00)  # NUL terminator
 
         return bytes(commands)
 
