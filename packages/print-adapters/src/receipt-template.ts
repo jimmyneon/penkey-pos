@@ -151,24 +151,18 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push('');
 
   // Footer
-  lines.push('Thank you — see you again soon!');
+  lines.push('>>Thank you - see you again soon!');
   lines.push('');
 
-  // Barcode of order number or transaction ID (for scanning/reprints)
-  const barcodeData = (data.receipt_number && data.receipt_number > 0)
-    ? String(data.receipt_number)
-    : (data.transaction_id && !data.transaction_id.startsWith('temp_'))
-      ? data.transaction_id
-      : null;
-  if (barcodeData) {
-    lines.push(`[BARCODE:${barcodeData}]`);
-    lines.push('');
+  // Barcode — only show for actual receipt numbers (not UUIDs)
+  if (data.receipt_number && data.receipt_number > 0) {
+    lines.push(`[BARCODE:${data.receipt_number}]`);
   }
 
   // QR code for Google Review (tracked via pos.penkey.com redirect)
-  lines.push("If you've had a great time today,");
-  lines.push("we'd love a 5-star review!");
-  lines.push("Scan below:");
+  lines.push(">>If you've had a great time today,");
+  lines.push(">>we'd love a 5-star review!");
+  lines.push(">>Scan below:");
   lines.push('[QR:https://pos.penkey.com/qr/NWWTITRL]');
 
   return lines.join('\n');

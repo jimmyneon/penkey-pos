@@ -179,16 +179,18 @@ Status: Online
                 commands.append(0x0A)
                 continue
 
-            # QR code marker: [QR:url]
+            # QR code marker: [QR:url] — centre aligned
             if stripped.startswith('[QR:') and stripped.endswith(']'):
                 qr_data = stripped[4:-1]
+                commands.extend([0x1B, 0x61, 0x01])  # Centre align
                 commands.extend(self._build_qr_command(qr_data))
                 commands.append(0x0A)
                 continue
 
-            # Barcode marker: [BARCODE:data]
+            # Barcode marker: [BARCODE:data] — centre aligned
             if stripped.startswith('[BARCODE:') and stripped.endswith(']'):
                 barcode_data = stripped[9:-1]
+                commands.extend([0x1B, 0x61, 0x01])  # Centre align
                 commands.extend(self._build_barcode_command(barcode_data))
                 commands.append(0x0A)
                 continue
@@ -207,8 +209,12 @@ Status: Online
             else:
                 commands.extend([0x1D, 0x21, 0x00])  # Normal size
 
-            # Alignment — left by default, app uses markers or text structure
-            commands.extend([0x1B, 0x61, 0x00])  # Left align
+            # Alignment — >> prefix means centre, else left
+            if stripped.startswith('>>'):
+                commands.extend([0x1B, 0x61, 0x01])  # Centre align
+                line = stripped[2:].strip()
+            else:
+                commands.extend([0x1B, 0x61, 0x00])  # Left align
 
             # Encode text: replace £ with raw byte 0x9C (correct on CP437/CP850/CP858)
             # then encode the rest as ascii. This avoids codec mismatches entirely.
