@@ -29,13 +29,12 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   const storeAddrEsc = storeAddress ? escapeHtml(storeAddress) : '';
 
   const recipientBlock = recipient ? `
-    <div class="overlay-text" style="top: 27%;">
-      <div class="label-text">A gift for</div>
-      <div class="recipient-name">${recipient}</div>
+    <div class="overlay-text" style="top: 24%;">
+      <div class="recipient-name">For ${recipient}</div>
     </div>` : '';
 
   const messageBlock = message ? `
-    <div class="overlay-text" style="top: 67%;">
+    <div class="overlay-text" style="top: 70%;">
       <div class="message-text">&ldquo;${message}&rdquo;</div>
     </div>` : '';
 
@@ -45,10 +44,13 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Print Voucher - ${code}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
       background: #e8e4dc;
     }
     body {
@@ -63,14 +65,18 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
       width: 105mm;
       max-width: 100%;
       aspect-ratio: 535 / 1536;
-      background-image: url('/voucher.png');
-      background-size: 100% 100%;
-      background-position: center;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       border-radius: 4px;
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
+    }
+    .voucher-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 0;
     }
     .overlay-text {
       position: absolute;
@@ -78,62 +84,51 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
       right: 0;
       text-align: center;
       padding: 0 8%;
-    }
-    .label-text {
-      font-size: 11px;
-      color: rgba(245, 235, 214, 0.6);
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 4px;
+      z-index: 1;
     }
     .recipient-name {
-      font-size: 16px;
-      font-weight: 700;
-      color: #ffffff;
+      font-size: 18px;
+      font-weight: 600;
+      color: #f5ebd6;
+      letter-spacing: 1px;
     }
     .value-text {
-      font-size: 36px;
+      font-size: 54px;
       font-weight: 800;
       color: #c9a96e;
       line-height: 1;
     }
     .qr-wrapper {
       position: absolute;
-      top: 44%;
+      top: 42%;
       left: 50%;
       transform: translateX(-50%);
       background: #fff;
-      padding: 6px;
-      border-radius: 8px;
+      padding: 8px;
+      border-radius: 10px;
+      z-index: 1;
     }
     .qr-wrapper img {
       display: block;
-      width: 140px;
-      height: 140px;
-    }
-    .code-label {
-      font-size: 10px;
-      color: rgba(245, 235, 214, 0.6);
-      text-transform: uppercase;
-      letter-spacing: 3px;
+      width: 210px;
+      height: 210px;
     }
     .code-text {
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
+      font-family: 'Poppins', 'Courier New', monospace;
+      font-size: 18px;
       font-weight: 700;
       color: #ffffff;
-      letter-spacing: 3px;
-      margin-top: 4px;
+      letter-spacing: 4px;
     }
     .message-text {
-      font-size: 13px;
+      font-size: 14px;
       font-style: italic;
       color: #ffffff;
       line-height: 1.4;
     }
     .expiry-text {
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 600;
       color: #f5ebd6;
     }
     .store-addr {
@@ -183,6 +178,8 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
         min-height: 0; max-height: 297mm;
         overflow: hidden;
         display: block !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       .voucher-container {
         width: auto; max-width: 100%;
@@ -190,6 +187,7 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
         box-shadow: none; border-radius: 0;
         page-break-after: avoid; break-after: avoid;
       }
+      .voucher-bg { width: 100%; height: 100%; }
       .print-btn-wrap, .loading-overlay { display: none !important; }
       @page { margin: 0; size: A4; }
     }
@@ -200,19 +198,19 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
     <div class="spinner"></div>
   </div>
   <div class="voucher-container">
+    <img class="voucher-bg" src="/voucher.png" alt="Voucher" />
     ${recipientBlock}
-    <div class="overlay-text" style="top: 35%;">
+    <div class="overlay-text" style="top: 32%;">
       <div class="value-text">${valueText}</div>
     </div>
     <div class="qr-wrapper">
       <img src="${qrDataUrl}" alt="QR Code" />
     </div>
-    <div class="overlay-text" style="top: 62%;">
-      <div class="code-label">VOUCHER CODE</div>
+    <div class="overlay-text" style="top: 64%;">
       <div class="code-text">${code}</div>
     </div>
     ${messageBlock}
-    <div class="overlay-text" style="top: 83%;">
+    <div class="overlay-text" style="top: 74%;">
       <div class="expiry-text">Valid until: ${expiry}</div>
       ${storeAddrEsc ? `<div class="store-addr">${storeAddrEsc}</div>` : ''}
       <div class="issued-text">Issued: ${created}</div>
@@ -229,7 +227,7 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
     img.onload = hideLoading;
     img.onerror = hideLoading;
     img.src = '/voucher.png';
-    setTimeout(hideLoading, 3000);
+    setTimeout(hideLoading, 5000);
     if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
       window.addEventListener('load', function() { setTimeout(function() { window.print(); }, 800); });
     }
