@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Fingerprint, KeyRound, Delete, LogOut } from "lucide-react";
 import { authenticateBiometric, isBiometricEnabled } from "@/lib/services/biometrics";
 import { verifyPinLocally } from "@/lib/services/pin-cache";
@@ -20,6 +20,7 @@ export function LockOverlay({ userId, orgId, onUnlock, onSignOut }: LockOverlayP
 
   const [showPin, setShowPin] = useState(!biometricEnrolled);
   const [pin, setPin] = useState("");
+  const pinRef = useRef("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [bioFailCount, setBioFailCount] = useState(0);
@@ -72,10 +73,12 @@ export function LockOverlay({ userId, orgId, onUnlock, onSignOut }: LockOverlayP
       } else {
         if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
         setError("Incorrect PIN");
+        pinRef.current = "";
         setPin("");
       }
     } catch {
       setError("Verification failed. Try again.");
+      pinRef.current = "";
       setPin("");
     } finally {
       setLoading(false);
@@ -87,9 +90,12 @@ export function LockOverlay({ userId, orgId, onUnlock, onSignOut }: LockOverlayP
   }, [pin, handlePinSubmit]);
 
   const handleNumber = (n: string) => {
-    if (pin.length < 4 && !loading) {
+    const current = pinRef.current;
+    if (current.length < 4 && !loading) {
       hapticButtonPress();
-      setPin(p => p + n);
+      const next = current + n;
+      pinRef.current = next;
+      setPin(next);
       setError("");
     }
   };
@@ -164,24 +170,24 @@ export function LockOverlay({ userId, orgId, onUnlock, onSignOut }: LockOverlayP
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
                   <button
                     key={n}
-                    onClick={() => handleNumber(n.toString())}
+                    onPointerDown={(e) => { e.preventDefault(); handleNumber(n.toString()); }}
                     disabled={loading}
-                    className="h-13 text-xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 text-white disabled:opacity-50 py-3"
+                    className="h-13 text-xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 text-white disabled:opacity-50 py-3 touch-none select-none"
                   >
                     {n}
                   </button>
                 ))}
                 <button
-                  onClick={() => { hapticButtonPress(); setPin(""); setError(""); }}
+                  onPointerDown={(e) => { e.preventDefault(); hapticButtonPress(); pinRef.current = ""; setPin(""); setError(""); }}
                   disabled={loading}
-                  className="h-13 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 text-white disabled:opacity-50 flex items-center justify-center py-3"
+                  className="h-13 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 text-white disabled:opacity-50 flex items-center justify-center py-3 touch-none select-none"
                 >
                   <Delete className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={() => handleNumber("0")}
+                  onPointerDown={(e) => { e.preventDefault(); handleNumber("0"); }}
                   disabled={loading}
-                  className="h-13 text-xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 text-white disabled:opacity-50 py-3"
+                  className="h-13 text-xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 text-white disabled:opacity-50 py-3 touch-none select-none"
                 >
                   0
                 </button>

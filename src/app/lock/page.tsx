@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Delete, LogOut, Fingerprint, KeyRound } from "lucide-react";
 import { dataCache } from "@/lib/services/data-cache";
@@ -23,6 +23,7 @@ const BIOMETRIC_MAX_FAILURES = 3;
 export default function LockPage() {
   const router = useRouter();
   const [pin, setPin] = useState("");
+  const pinRef = useRef("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
@@ -190,16 +191,20 @@ export default function LockPage() {
     }
   };
 
-  const handleNumberClick = (num: string) => {
-    if (pin.length < 4) {
+  const handleNumberPress = (num: string) => {
+    const current = pinRef.current;
+    if (current.length < 4 && !loading) {
       hapticButtonPress();
-      setPin(pin + num);
+      const next = current + num;
+      pinRef.current = next;
+      setPin(next);
       setError("");
     }
   };
 
-  const handleClear = () => {
+  const handleClearPress = () => {
     hapticButtonPress();
+    pinRef.current = "";
     setPin("");
     setError("");
   };
@@ -271,6 +276,7 @@ export default function LockPage() {
     } catch (err: any) {
       if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
       setError(err.message || "Invalid PIN");
+      pinRef.current = "";
       setPin("");
     } finally {
       setLoading(false);
@@ -469,24 +475,24 @@ export default function LockPage() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
                   key={num}
-                  onClick={() => handleNumberClick(num.toString())}
+                  onPointerDown={(e) => { e.preventDefault(); handleNumberPress(num.toString()); }}
                   disabled={loading}
-                  className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50"
+                  className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50 touch-none select-none"
                 >
                   {num}
                 </button>
               ))}
               <button
-                onClick={handleClear}
+                onPointerDown={(e) => { e.preventDefault(); handleClearPress(); }}
                 disabled={loading}
-                className="h-14 sm:h-16 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50 flex items-center justify-center"
+                className="h-14 sm:h-16 rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50 flex items-center justify-center touch-none select-none"
               >
                 <Delete className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
               <button
-                onClick={() => handleNumberClick("0")}
+                onPointerDown={(e) => { e.preventDefault(); handleNumberPress("0"); }}
                 disabled={loading}
-                className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50"
+                className="h-14 sm:h-16 text-xl sm:text-2xl font-semibold rounded-md bg-[#4d4d4d] border-2 border-gray-600 hover:bg-[#5d5d5d] active:scale-95 active:bg-[#5d5d5d] text-white disabled:opacity-50 touch-none select-none"
               >
                 0
               </button>
