@@ -75,9 +75,57 @@ export async function GET(
       console.error('Error fetching recent scans:', recentError);
     }
     
+    // Get unique scans (by IP or user_agent)
+    const { data: allScans, error: uniqueError } = await supabase
+      .from('qr_scans')
+      .select('ip_address, user_agent')
+      .eq('qr_code_id', id);
+    
+    if (uniqueError) {
+      console.error('Error fetching unique scans:', uniqueError);
+    }
+    
+    const uniqueIPs = new Set<string>();
+    const uniqueAgents = new Set<string>();
+    allScans?.forEach((scan) => {
+      if (scan.ip_address) uniqueIPs.add(scan.ip_address);
+      if (scan.user_agent) uniqueAgents.add(scan.user_agent);
+    });
+    const uniqueScans = Math.max(uniqueIPs.size, uniqueAgents.size);
+    
+    // Today's scans
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { count: todayScans } = await supabase
+      .from('qr_scans')
+      .select('id', { count: 'exact', head: true })
+      .eq('qr_code_id', id)
+      .gte('scanned_at', todayStart.toISOString());
+    
+    // This week's scans
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 7);
+    const { count: weekScans } = await supabase
+      .from('qr_scans')
+      .select('id', { count: 'exact', head: true })
+      .eq('qr_code_id', id)
+      .gte('scanned_at', weekStart.toISOString());
+    
+    // Average scans per day (based on days since first scan)
+    let avgPerDay = 0;
+    if (allScans && allScans.length > 0 && recentScans && recentScans.length > 0) {
+      const firstScanDate = new Date(recentScans[recentScans.length - 1].scanned_at);
+      const daysSinceFirst = Math.max(1, Math.ceil((Date.now() - firstScanDate.getTime()) / (1000 * 60 * 60 * 24)));
+      avgPerDay = (allScans.length / daysSinceFirst);
+    }
+    
     return NextResponse.json({
       stats: {
         total_scans: totalScans || 0,
+        unique_scans: uniqueScans,
+        today_scans: todayScans || 0,
+        week_scans: weekScans || 0,
+        avg_per_day: Math.round(avgPerDay * 10) / 10,
         scans_by_day: scansByDay,
         scans_by_store: storeCounts,
         recent_scans: recentScans || [],

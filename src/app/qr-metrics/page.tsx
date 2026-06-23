@@ -7,6 +7,10 @@ import { ArrowLeft, RefreshCw, QrCode, Star, TrendingUp, Target, Flame, Trophy, 
 
 interface QRStats {
   total_scans: number;
+  unique_scans: number;
+  today_scans: number;
+  week_scans: number;
+  avg_per_day: number;
   scans_by_day: Record<string, number>;
   scans_by_store: Record<string, number>;
   recent_scans: any[];
@@ -278,6 +282,20 @@ export default function QRMetricsPage() {
                 <span className="text-white font-semibold">Total Scans (All Time)</span>
               </div>
               <div className="text-4xl font-bold text-white">{stats.total_scans}</div>
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{stats.unique_scans ?? 0}</div>
+                  <div className="text-xs text-gray-400">Unique Visitors</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{stats.today_scans ?? 0}</div>
+                  <div className="text-xs text-gray-400">Today</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{stats.avg_per_day ?? 0}</div>
+                  <div className="text-xs text-gray-400">Avg / Day</div>
+                </div>
+              </div>
             </div>
 
             {/* Recent Scans */}

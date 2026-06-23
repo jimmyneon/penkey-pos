@@ -154,15 +154,20 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push('Thank you for visiting');
   lines.push('');
 
-  // Barcode of order number (for scanning/reprints)
-  if (data.receipt_number && data.receipt_number > 0) {
-    lines.push(`[BARCODE:${data.receipt_number}]`);
+  // Barcode of order number or transaction ID (for scanning/reprints)
+  const barcodeData = (data.receipt_number && data.receipt_number > 0)
+    ? String(data.receipt_number)
+    : (data.transaction_id && !data.transaction_id.startsWith('temp_'))
+      ? data.transaction_id
+      : null;
+  if (barcodeData) {
+    lines.push(`[BARCODE:${barcodeData}]`);
     lines.push('');
   }
 
-  // QR code for Google Review
+  // QR code for Google Review (tracked via pos.penkey.com redirect)
   lines.push('Scan for Google Review:');
-  lines.push('[QR:https://g.page/r/CeN_pycf11-zEAE/review]');
+  lines.push('[QR:https://pos.penkey.com/qr/NWWTITRL]');
 
   return lines.join('\n');
 }
