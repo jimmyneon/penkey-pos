@@ -195,31 +195,32 @@ Status: Online
                 commands.append(0x0A)
                 continue
 
+            # Alignment — >> prefix means centre, else left
+            if stripped.startswith('>>'):
+                commands.extend([0x1B, 0x61, 0x01])  # Centre align
+                text = stripped[2:].strip()
+            else:
+                commands.extend([0x1B, 0x61, 0x00])  # Left align
+                text = stripped
+
             # Bold markers (**text**) — app decides what is bold
-            if stripped.startswith('**') and stripped.endswith('**'):
+            if text.startswith('**') and text.endswith('**'):
                 commands.extend([0x1B, 0x45, 0x01])  # Bold on
-                line = stripped[2:-2]
+                text = text[2:-2]
             else:
                 commands.extend([0x1B, 0x45, 0x00])  # Bold off
 
             # Double-size markers (##text##) — app decides what is large
-            if stripped.startswith('##') and stripped.endswith('##'):
+            if text.startswith('##') and text.endswith('##'):
                 commands.extend([0x1D, 0x21, 0x11])  # Double width + height
-                line = stripped[2:-2]
+                text = text[2:-2]
             else:
                 commands.extend([0x1D, 0x21, 0x00])  # Normal size
-
-            # Alignment — >> prefix means centre, else left
-            if stripped.startswith('>>'):
-                commands.extend([0x1B, 0x61, 0x01])  # Centre align
-                line = stripped[2:].strip()
-            else:
-                commands.extend([0x1B, 0x61, 0x00])  # Left align
 
             # Encode text: replace £ with raw byte 0x9C (correct on CP437/CP850/CP858)
             # then encode the rest as ascii. This avoids codec mismatches entirely.
             encoded = bytearray()
-            for ch in line:
+            for ch in text:
                 if ch == '£':
                     encoded.append(0x9C)
                 else:

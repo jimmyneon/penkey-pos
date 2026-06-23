@@ -71,10 +71,10 @@ Handlebars.registerHelper("hr", () => horizontalRule());
 export function generateReceiptText(data: ReceiptData): string {
   const lines: string[] = [];
 
-  // Header (centre-aligned by print server when it sees these lines)
-  lines.push(data.store_name);
-  if (data.store_address) lines.push(data.store_address);
-  if (data.store_phone) lines.push(data.store_phone);
+  // Header — store name in double-size, centred
+  lines.push(`>>##${data.store_name}##`);
+  if (data.store_address) lines.push(`>>${data.store_address}`);
+  if (data.store_phone) lines.push(`>>${data.store_phone}`);
   lines.push('');
 
   // Divider
