@@ -120,7 +120,7 @@ export default function VouchersPage() {
   }
 
   return (
-    <div className="h-screen bg-[#2d2d2d] flex flex-col overflow-hidden relative">
+    <div className="h-dvh bg-[#2d2d2d] flex flex-col overflow-hidden relative">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* Header - matches other pages */}

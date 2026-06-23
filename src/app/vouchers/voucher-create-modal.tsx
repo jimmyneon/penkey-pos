@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { hapticButtonPress } from "@/lib/utils/haptics";
+import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 type VoucherType = "amount" | "item" | "percent";
 
@@ -34,6 +35,8 @@ interface VoucherCreateModalProps {
 export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateModalProps) {
   const router = useRouter();
   const { addLine } = useCartStore();
+
+  useScrollLock(true);
 
   const [voucherType, setVoucherType] = useState<VoucherType>("amount");
   const [amount, setAmount] = useState("");

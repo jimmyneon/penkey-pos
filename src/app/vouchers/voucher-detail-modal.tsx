@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { hapticButtonPress } from "@/lib/utils/haptics";
+import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 const STATUS_COLOURS: Record<string, string> = {
   active: "bg-green-500/20 text-green-400 border border-green-500/30",
@@ -49,6 +50,8 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(0);
   const [redeeming, setRedeeming] = useState(false);
+
+  useScrollLock(true);
 
   const handleEmail = async () => {
     const email = voucher.recipient_email || prompt("Enter email address:");

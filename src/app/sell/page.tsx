@@ -40,6 +40,7 @@ import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound,
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
 import { upsellLearningEngine } from "@/lib/services/upsell-learning-engine";
+import { getScriptedUpsell } from "@/lib/services/upsell-scripts";
 import { useRegisterSettings } from "@/lib/hooks/use-register-settings";
 import { useUserPreferences } from "@/lib/hooks/use-user-preferences";
 import { getAll, getByKey } from "@/lib/idb/db";
@@ -117,6 +118,7 @@ export default function SellPage() {
   const [forceRefresh, setForceRefresh] = useState(false);
   const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([]);
   const [upsellTriggerItem, setUpsellTriggerItem] = useState<{ id: string; name: string } | null>(null);
+  const [upsellQuestion, setUpsellQuestion] = useState<string | undefined>(undefined);
   const [upsellDebounceTimer, setUpsellDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   const [upsellResetTimer, setUpsellResetTimer] = useState<NodeJS.Timeout | null>(null);
   const [isSelectingFromUpsell, setIsSelectingFromUpsell] = useState(false);
@@ -791,6 +793,7 @@ export default function SellPage() {
       console.log('[Upsell] Clearing suggestions - user manually collapsed');
       setUpsellSuggestions([]);
       setUpsellTriggerItem(null);
+      setUpsellQuestion(undefined);
       setIsSelectingFromUpsell(false);
     };
     
@@ -1051,6 +1054,25 @@ export default function SellPage() {
         const triggerItem = item;
         setUpsellTriggerItem({ id: triggerItem.id, name: triggerItem.name });
 
+        // Build category map for scripted upsells
+        const categoryMap = new Map<string, string>();
+        categories.forEach((cat: any) => {
+          if (cat.id) categoryMap.set(cat.id, cat.name || '');
+        });
+
+        // Try scripted upsell first (curated yes/no questions)
+        const scriptedResult = getScriptedUpsell(triggerItem, lines, items, categoryMap);
+
+        if (scriptedResult && scriptedResult.suggestedItems.length > 0) {
+          console.log(`[Upsell] Scripted: "${scriptedResult.question}" -> ${scriptedResult.suggestedItems.length} items`);
+          setUpsellQuestion(scriptedResult.question);
+          setUpsellSuggestions(scriptedResult.suggestedItems);
+          if (upsellResetTimer) clearTimeout(upsellResetTimer);
+          return;
+        }
+
+        // Fall back to learning engine
+        setUpsellQuestion(undefined);
         const suggestions = upsellLearningEngine.getSuggestions(triggerItem, lines, 9);
     
         // Debug: Log what we got from learning engine
@@ -1071,6 +1093,7 @@ export default function SellPage() {
         if (uniqueSuggestions.length > 0) {
           console.log(`[Upsell] Found ${uniqueSuggestions.length} unique suggestions:`, uniqueSuggestions.map(s => s.name).join(', '));
           setUpsellSuggestions(uniqueSuggestions);
+          setUpsellQuestion(undefined);
           
           // Clear any existing reset timer
           if (upsellResetTimer) {
@@ -1088,6 +1111,7 @@ export default function SellPage() {
         } else {
           console.log("[Upsell] No relevant suggestions");
           setUpsellSuggestions([]);
+          setUpsellQuestion(undefined);
         }
       } catch (err) {
         console.error("Failed to get upsell suggestions:", err);
@@ -1337,6 +1361,7 @@ export default function SellPage() {
       // Clear upsell suggestions
       setUpsellSuggestions([]);
       setUpsellTriggerItem(null);
+      setUpsellQuestion(undefined);
       
       // Clear ticket name/comment and assignment so next save will prompt
       setCurrentTicketName("");
@@ -2096,6 +2121,7 @@ export default function SellPage() {
           upsellSuggestions={upsellSuggestions}
           onSelectUpsellItem={handleUpsellSelect}
           triggerItem={upsellTriggerItem || undefined}
+          upsellQuestion={upsellQuestion}
           openTicketsCount={savedTickets.length}
           onOpenTickets={() => setOpenTicketsOpen(true)}
           onViewStats={() => router.push("/reports")}

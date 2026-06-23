@@ -41,6 +41,7 @@ interface PromptData {
   icon: React.ReactNode;
   message: string;
   subtext?: string;
+  questionText?: string;
   action?: () => void;
   expandable?: boolean;
   upsellItems?: UpsellItem[];
@@ -53,6 +54,7 @@ interface PenkeyPromptsBarProps {
   upsellSuggestions?: UpsellItem[];
   onSelectUpsellItem?: (item: UpsellItem, event?: React.MouseEvent) => void;
   triggerItem?: { id: string; name: string };
+  upsellQuestion?: string;
   
   // Stats data
   dailySales?: number;
@@ -90,6 +92,7 @@ export function PenkeyPromptsBar({
   upsellSuggestions = [],
   onSelectUpsellItem,
   triggerItem,
+  upsellQuestion,
   dailySales = 0,
   upsellCount = 0,
   itemsSold = 0,
@@ -165,8 +168,9 @@ export function PenkeyPromptsBar({
       prompts.push({
         type: 'upsell',
         icon: <Sparkles className="h-5 w-5" />,
-        message: `Upsell with ${triggerItem.name}`,
+        message: upsellQuestion || `Upsell with ${triggerItem.name}`,
         subtext: `${itemNames}${moreCount}`,
+        questionText: upsellQuestion,
         expandable: true,
         upsellItems: upsellSuggestions,
       });
@@ -619,6 +623,15 @@ export function PenkeyPromptsBar({
               transitionDuration: isDragging ? '0s' : '0.3s, 0.5s, 0.5s, 0.5s',
             }}
           >
+            {/* Scripted Question Banner */}
+            {currentPrompt.questionText && (
+              <div className="px-4 py-2 bg-penkey-orange/20 border-b border-penkey-orange/30">
+                <p className="text-white text-sm font-semibold text-center leading-tight">
+                  <span className="text-penkey-orange">Ask: </span>
+                  &ldquo;{currentPrompt.questionText}&rdquo;
+                </p>
+              </div>
+            )}
             <div 
               className={`p-3 grid gap-2 max-h-[50vh] overflow-y-auto ${
                 gridSize === 2 ? 'grid-cols-2' :
@@ -700,9 +713,16 @@ export function PenkeyPromptsBar({
             {currentPrompt.icon}
           </div>
           <div className="flex-1 text-center min-w-0">
-            <p className="font-semibold text-sm leading-tight truncate">
-              {currentPrompt.message}
-            </p>
+            {currentPrompt.type === 'upsell' && currentPrompt.questionText ? (
+              <p className="font-semibold text-sm leading-tight truncate text-white">
+                <span className="text-penkey-orange">Ask: </span>
+                &ldquo;{currentPrompt.questionText}&rdquo;
+              </p>
+            ) : (
+              <p className="font-semibold text-sm leading-tight truncate">
+                {currentPrompt.message}
+              </p>
+            )}
             {currentPrompt.subtext && !isExpanded && (
               <p className="text-xs opacity-90 mt-0.5 truncate">
                 {currentPrompt.subtext}
