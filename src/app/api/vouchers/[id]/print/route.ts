@@ -177,15 +177,17 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
         background: white; padding: 0; margin: 0;
         min-height: 0; max-height: 297mm;
         overflow: hidden;
-        display: block !important;
+        display: flex !important;
+        align-items: center; justify-content: center;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
       .voucher-container {
-        width: auto; max-width: 100%;
+        width: 105mm; max-width: 100%;
         max-height: 297mm; height: auto;
         box-shadow: none; border-radius: 0;
         page-break-after: avoid; break-after: avoid;
+        margin: 0 auto;
       }
       .voucher-bg { width: 100%; height: 100%; }
       .print-btn-wrap, .loading-overlay { display: none !important; }

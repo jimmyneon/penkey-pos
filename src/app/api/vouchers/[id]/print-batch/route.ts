@@ -110,10 +110,10 @@ function buildBatchPrintHtml(pages: string[], count: number): string {
     .spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media print {
-      html, body { background: white; padding: 0; margin: 0; min-height: 0; overflow: hidden; display: block !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .voucher-page { margin: 0; page-break-after: always; break-after: page; }
+      html, body { background: white; padding: 0; margin: 0; min-height: 0; overflow: hidden; display: flex !important; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .voucher-page { margin: 0; page-break-after: always; break-after: page; display: flex; justify-content: center; }
       .voucher-page:last-child { page-break-after: avoid; break-after: avoid; }
-      .voucher-container { width: auto; max-width: 100%; max-height: 297mm; height: auto; box-shadow: none; border-radius: 0; }
+      .voucher-container { width: 105mm; max-width: 100%; max-height: 297mm; height: auto; box-shadow: none; border-radius: 0; margin: 0 auto; }
       .voucher-bg { width: 100%; height: 100%; }
       .print-btn-wrap, .loading-overlay { display: none !important; }
       @page { margin: 0; size: A4; }
