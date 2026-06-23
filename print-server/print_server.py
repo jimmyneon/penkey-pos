@@ -245,7 +245,9 @@ class PrintServer:
         # Also subscribe to printer config changes for remote restart
         def on_printer_update(payload):
             try:
-                new_config = payload.get('new', {}).get('config', {}) or {}
+                # Supabase postgres_changes payload format: payload.data.record
+                record = payload.get('data', {}).get('record') or payload.get('record') or payload.get('new', {})
+                new_config = record.get('config', {}) or {}
                 command = new_config.get('command')
                 if command == 'restart':
                     logger.info("[Remote] Restart command received — exiting for systemd restart")
@@ -261,7 +263,7 @@ class PrintServer:
                         import subprocess
                         result = subprocess.run(
                             ['git', 'pull', 'origin', 'main'],
-                            cwd='/home/jimmy/penkey-pos',
+                            cwd='/home/jimmy/print-server',
                             capture_output=True,
                             text=True,
                             timeout=30
