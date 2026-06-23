@@ -357,7 +357,7 @@ export function VoucherCreateModal({ items, onClose, onCreated }: VoucherCreateM
                         className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex justify-between items-center transition-colors"
                       >
                         <span className="text-sm text-white">{item.name}</span>
-                        <span className="text-xs text-gray-400">{formatCurrency(item.price)}</span>
+                        <span className="text-xs text-gray-400">{formatCurrency(item.base_price || item.price || 0)}</span>
                       </button>
                     ))}
                     {filteredItems.length === 0 && (

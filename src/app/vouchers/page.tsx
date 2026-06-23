@@ -87,7 +87,7 @@ export default function VouchersPage() {
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || []);
+        setItems(Array.isArray(data) ? data : (data.items || []));
       }
     } catch (err: any) {
       if (err.name === "AbortError") {
