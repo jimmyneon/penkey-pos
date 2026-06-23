@@ -179,6 +179,20 @@ Status: Online
                 commands.append(0x0A)
                 continue
 
+            # QR code marker: [QR:url]
+            if stripped.startswith('[QR:') and stripped.endswith(']'):
+                qr_data = stripped[4:-1]
+                commands.extend(self._build_qr_command(qr_data))
+                commands.append(0x0A)
+                continue
+
+            # Barcode marker: [BARCODE:data]
+            if stripped.startswith('[BARCODE:') and stripped.endswith(']'):
+                barcode_data = stripped[9:-1]
+                commands.extend(self._build_barcode_command(barcode_data))
+                commands.append(0x0A)
+                continue
+
             # Bold markers (**text**) — app decides what is bold
             if stripped.startswith('**') and stripped.endswith('**'):
                 commands.extend([0x1B, 0x45, 0x01])  # Bold on
@@ -217,6 +231,48 @@ Status: Online
 
         # Cut paper
         commands.extend([0x1D, 0x56, 0x42, 0x00])  # GS V B 0
+
+        return bytes(commands)
+
+    def _build_qr_command(self, data: str) -> bytes:
+        """
+        Build ESC/POS QR code commands for Epson TM-T88IV.
+        Uses GS ( k command set.
+        """
+        commands = bytearray()
+        encoded_data = data.encode('ascii', errors='replace')
+
+        # Set QR model: GS ( k pL pH cn fn n
+        commands.extend([0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00])
+
+        # Set QR size (module size = 6): GS ( k pL pH cn fn n
+        commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06])
+
+        # Set error correction level M: GS ( k pL pH cn fn n
+        commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31])
+
+        # Store data: GS ( k pL pH cn fn m d1...dk
+        data_len = len(encoded_data) + 3
+        commands.extend([0x1D, 0x28, 0x6B, data_len & 0xFF, (data_len >> 8) & 0xFF, 0x31, 0x50, 0x30])
+        commands.extend(encoded_data)
+
+        # Print QR code: GS ( k pL pH cn fn m
+        commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30])
+
+        return bytes(commands)
+
+    def _build_barcode_command(self, data: str) -> bytes:
+        """
+        Build ESC/POS barcode commands for Epson TM-T88IV.
+        Uses GS k command with CODE128 (function B).
+        """
+        commands = bytearray()
+        encoded_data = data.encode('ascii', errors='replace')
+
+        # CODE128 function B: GS k m n d1...dn
+        # m = 73 = CODE128, n = data length
+        commands.extend([0x1D, 0x6B, 0x49, len(encoded_data)])
+        commands.extend(encoded_data)
 
         return bytes(commands)
 

@@ -124,6 +124,7 @@ export function generateReceiptText(data: ReceiptData): string {
   // Payment + metadata
   lines.push(data.payment_method);
   lines.push(`${data.date} ${data.time}`);
+  lines.push(`Served by ${data.employee_name}`);
   
   // Order number
   if (data.receipt_number && data.receipt_number > 0) {
@@ -140,20 +141,28 @@ export function generateReceiptText(data: ReceiptData): string {
     }
   }
   
-  // Transaction ID only for card payments (not temp IDs)
-  if (data.transaction_id && !data.transaction_id.startsWith('temp_')) {
-    lines.push(`Transaction ID: ${data.transaction_id}`);
-  }
-  
   // Customer name if provided
   if (data.customer_name) {
     lines.push(`Customer: ${data.customer_name}`);
   }
   
   lines.push('');
+  lines.push(horizontalRule());
+  lines.push('');
 
   // Footer
   lines.push('Thank you for visiting');
+  lines.push('');
+
+  // Barcode of order number (for scanning/reprints)
+  if (data.receipt_number && data.receipt_number > 0) {
+    lines.push(`[BARCODE:${data.receipt_number}]`);
+    lines.push('');
+  }
+
+  // QR code for Google Review
+  lines.push('Scan for Google Review:');
+  lines.push('[QR:https://g.page/r/CeN_pycf11-zEAE/review]');
 
   return lines.join('\n');
 }
