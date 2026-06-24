@@ -732,7 +732,9 @@ export default function SellPage() {
         const justPaid = sessionStorage.getItem("pos_just_paid");
         if (justPaid) {
           sessionStorage.removeItem("pos_just_paid");
-          console.log('[CartSync] Just paid — skipping DB cart restore, creating fresh cart');
+          console.log('[CartSync] Just paid — clearing any stale DB cart, creating fresh cart');
+          // Clear any stale cart row that might survive if clearCart() failed during payment (e.g. offline)
+          await CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
           await CartSyncService.initialize(
             session.org_id,
             session.register.id,
@@ -794,7 +796,7 @@ export default function SellPage() {
     const timer = setTimeout(() => {
       if (lines.length === 0) {
         // Cart is empty — clear stale DB cart so old items don't reappear on reload/device switch
-        CartSyncService.clearCart();
+        CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
       } else {
         CartSyncService.saveCart(lines, ticketAssignment);
       }
@@ -2362,7 +2364,7 @@ export default function SellPage() {
           setCurrentTicketName("");
           setCurrentTicketComment("");
           setTicketAssignment(null);
-          await CartSyncService.clearCart();
+          await CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
           hapticDelete();
           playDeleteSound();
         }}
