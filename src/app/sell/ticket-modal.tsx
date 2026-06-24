@@ -6,6 +6,7 @@ import { Plus, Minus, User, Hash, Trash2, Printer, Save, X } from "lucide-react"
 import { formatCurrency } from "@penkey/ui";
 import { hapticButtonPress, hapticDelete, hapticSuccess } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { usePullToDismiss } from "@/hooks/use-pull-to-dismiss";
 
 interface CartLine {
   id: string;
@@ -72,6 +73,11 @@ export function TicketModal({
 
   const [visible, setVisible] = useState(false);
 
+  const { dragOffset, isDragging, handlers: pullHandlers } = usePullToDismiss({
+    onDismiss: onClose,
+    threshold: 100,
+  });
+
   // Track previous lines length to detect transition from items to empty
   const prevLinesLength = useRef(lines.length);
 
@@ -103,15 +109,25 @@ export function TicketModal({
       {/* Slide-up panel */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-2xl bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
+        style={{
+          transform: isDragging ? `translateY(${dragOffset}px)` : undefined,
+          transition: isDragging ? 'none' : undefined,
+        }}
+        className={`relative w-full max-w-md bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+        {/* Drag handle - pull down to dismiss */}
+        <div
+          {...pullHandlers}
+          className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing"
+        >
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
+        {/* Header - also pull-to-dismiss zone */}
+        <div
+          {...pullHandlers}
+          className="flex items-center justify-between px-4 py-2 flex-shrink-0"
+        >
           <h2 className="text-xl sm:text-2xl font-bold text-white">Current Ticket</h2>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
             <X className="h-5 w-5 text-gray-400" />
@@ -282,33 +298,37 @@ export function TicketModal({
             </div>
         )}
 
-        {/* Fixed Action Buttons - Always Visible */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <button
-              type="button"
-              disabled={lines.length === 0}
-              onClick={() => {
-                hapticButtonPress();
-                onClose();
-                onSave();
-              }}
-              className="flex-1 w-full px-4 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors border border-gray-600 flex items-center justify-center gap-2"
-            >
-              <Save className="h-5 w-5" />
-              Save Ticket
-            </button>
-            <button
-              type="button"
-              disabled={lines.length === 0}
-              onClick={() => {
-                hapticButtonPress();
-                onPrint();
-              }}
-              className="flex-1 w-full px-4 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors border border-gray-600 flex items-center justify-center gap-2"
-            >
-              <Printer className="h-5 w-5" />
-              Print
-            </button>
+        {/* Fixed Action Buttons - Mobile-friendly grid layout */}
+        <div className="pt-4 space-y-2">
+            {/* Row 1: Save and Print side by side */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={lines.length === 0}
+                onClick={() => {
+                  hapticButtonPress();
+                  onClose();
+                  onSave();
+                }}
+                className="px-3 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors border border-gray-600 flex items-center justify-center gap-2 text-sm active:scale-95"
+              >
+                <Save className="h-5 w-5" />
+                Save
+              </button>
+              <button
+                type="button"
+                disabled={lines.length === 0}
+                onClick={() => {
+                  hapticButtonPress();
+                  onPrint();
+                }}
+                className="px-3 py-3 bg-[#4d4d4d] hover:bg-[#5d5d5d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors border border-gray-600 flex items-center justify-center gap-2 text-sm active:scale-95"
+              >
+                <Printer className="h-5 w-5" />
+                Print
+              </button>
+            </div>
+            {/* Row 2: Charge - full width, prominent */}
             <button
               type="button"
               disabled={lines.length === 0}
@@ -317,7 +337,7 @@ export function TicketModal({
                 onClose();
                 onCheckout();
               }}
-              className="flex-1 w-full px-4 py-3 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center"
+              className="w-full px-4 py-4 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center text-lg active:scale-95"
             >
               Charge {formatCurrency(getTotal())}
             </button>

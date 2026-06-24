@@ -19,9 +19,7 @@ import {
   Monitor,
   ShoppingBag,
   Eye,
-  Pencil,
   ChevronDown,
-  ChevronUp,
   Info,
   CheckCircle,
   AlertCircle,
@@ -32,6 +30,7 @@ import { RefundDialog } from "./refund-dialog";
 import { EmailDialog } from "./email-dialog";
 import { QRScanner } from "@/components/QRScanner";
 import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
+import { BottomSheet } from "@/components/bottom-sheet";
 import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
@@ -104,9 +103,9 @@ export default function TransactionDetailsPage() {
   const [receipt, setReceipt] = useState<ReceiptDetail | null>(null);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [showItems, setShowItems] = useState(false);
-  const [showTransactionInfo, setShowTransactionInfo] = useState(false);
-  const [showPayments, setShowPayments] = useState(false);
+  const [showItemsSheet, setShowItemsSheet] = useState(false);
+  const [showTransactionSheet, setShowTransactionSheet] = useState(false);
+  const [showPaymentsSheet, setShowPaymentsSheet] = useState(false);
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
   // Guards against double-fire of the refund handler while a request is in flight
   const refundingRef = useRef(false);
@@ -620,24 +619,24 @@ export default function TransactionDetailsPage() {
                 </p>
               </div>
             )}
-            <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <Button
               onClick={handleViewReceipt}
-              className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12"
+              className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12 active:scale-95"
             >
               <Eye className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">View</span>
             </Button>
             <Button
               onClick={handlePrint}
-              className="bg-purple-600 hover:bg-purple-700 text-white border-0 text-xs sm:text-sm h-12"
+              className="bg-purple-600 hover:bg-purple-700 text-white border-0 text-xs sm:text-sm h-12 active:scale-95"
             >
               <Printer className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Print</span>
             </Button>
             <Button
               onClick={() => setEmailDialogOpen(true)}
-              className="bg-green-600 hover:bg-green-700 text-white border-0 text-xs sm:text-sm h-12"
+              className="bg-green-600 hover:bg-green-700 text-white border-0 text-xs sm:text-sm h-12 active:scale-95"
             >
               <Mail className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Email</span>
@@ -645,20 +644,20 @@ export default function TransactionDetailsPage() {
             <Button
               onClick={() => setVoidConfirmOpen(true)}
               disabled={refundDisabled}
-              className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs sm:text-sm h-12 disabled:opacity-50"
+              className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs sm:text-sm h-12 disabled:opacity-50 active:scale-95"
               title={!hasTransactionId && primaryPayment?.method === 'card' ? 'Cannot refund: transaction information missing. Please ensure the receipt has been synced to the server.' : undefined}
             >
               Void
             </Button>
-            <Button
-              onClick={() => setQrScannerOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12"
-              title={isWithin24Hours() ? "Assign customer to receipt (beans can be awarded within 24 hours)" : "Assign customer to receipt (no bean awarding - outside 24-hour window)"}
-            >
-              <QrCode className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Assign Customer</span>
-            </Button>
-            </div>
+          </div>
+          <Button
+            onClick={() => setQrScannerOpen(true)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs sm:text-sm h-12 active:scale-95"
+            title={isWithin24Hours() ? "Assign customer to receipt (beans can be awarded within 24 hours)" : "Assign customer to receipt (no bean awarding - outside 24-hour window)"}
+          >
+            <QrCode className="h-4 w-4 sm:mr-2" />
+            <span>Assign Customer</span>
+          </Button>
           </div>
 
           {/* Summary Card */}
@@ -701,158 +700,41 @@ export default function TransactionDetailsPage() {
             </div>
           </div>
 
-          {/* Items - Collapsible */}
-          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700">
-            <button
-              onClick={() => setShowItems(!showItems)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-gray-400" />
-                <h3 className="text-base font-bold text-white">Items ({receipt.lines.length})</h3>
-              </div>
-              {showItems ? (
-                <ChevronUp className="h-5 w-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-gray-400" />
-              )}
-            </button>
-            {showItems && (
-              <div className="px-4 pb-4 space-y-2 border-t border-gray-700 pt-3">
-                {receipt.lines.map((line) => (
-                <div key={line.id} className="flex justify-between items-start pb-3 border-b border-gray-700 last:border-0">
-                  <div className="flex-1">
-                    <p className="text-white font-medium">{line.name}</p>
-                    {line.modifiers && Array.isArray(line.modifiers) && line.modifiers.length > 0 && (
-                      <div className="text-sm text-gray-400 ml-4 mt-1">
-                        {line.modifiers.map((mod: any, idx: number) => (
-                          <div key={idx}>
-                            + {mod.name}
-                            {mod.price > 0 && ` (${formatCurrency(mod.price)})`}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {line.notes && (
-                      <p className="text-sm text-gray-500 italic mt-1">
-                        Note: {line.notes}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-400 mt-1">
-                      {line.quantity} × {formatCurrency(line.unit_price)}
-                    </p>
-                  </div>
-                  <p className="text-white font-medium ml-4">
-                    {formatCurrency(line.line_total)}
-                  </p>
-                </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Items - Tappable card opens slide-up sheet */}
+          <button
+            onClick={() => setShowItemsSheet(true)}
+            className="w-full bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 flex items-center justify-between hover:bg-white/5 transition-colors active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-gray-400" />
+              <h3 className="text-base font-bold text-white">Items ({receipt.lines.length})</h3>
+            </div>
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          </button>
 
-          {/* Transaction Info - Collapsible */}
-          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700">
-            <button
-              onClick={() => setShowTransactionInfo(!showTransactionInfo)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Info className="h-5 w-5 text-gray-400" />
-                <h3 className="text-base font-bold text-white">Transaction Info</h3>
-              </div>
-              {showTransactionInfo ? (
-                <ChevronUp className="h-5 w-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-gray-400" />
-              )}
-            </button>
-            {showTransactionInfo && (
-              <div className="px-4 pb-4 space-y-3 border-t border-gray-700 pt-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Store className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-400">Store:</span>
-                  <span className="text-white">{receipt.store.name}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Monitor className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-400">Register:</span>
-                  <span className="text-white">{receipt.register.name}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <ShoppingBag className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-400">Type:</span>
-                  <Badge variant={receipt.dining_option === "eat-in" ? "default" : "secondary"} className="text-xs">
-                    {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
-                  </Badge>
-                </div>
-                {receipt.customer_name && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-400">Customer:</span>
-                    <span className="text-white">{receipt.customer_name}</span>
-                  </div>
-                )}
-                {receipt.table_number && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Hash className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-400">Table:</span>
-                    <span className="text-white">{receipt.table_number}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Transaction Info - Tappable card opens slide-up sheet */}
+          <button
+            onClick={() => setShowTransactionSheet(true)}
+            className="w-full bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 flex items-center justify-between hover:bg-white/5 transition-colors active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-gray-400" />
+              <h3 className="text-base font-bold text-white">Transaction Info</h3>
+            </div>
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          </button>
 
-          {/* Payments - Collapsible */}
-          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700">
-            <button
-              onClick={() => setShowPayments(!showPayments)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-gray-400" />
-                <h3 className="text-base font-bold text-white">Payments ({receipt.payments.length})</h3>
-              </div>
-              {showPayments ? (
-                <ChevronUp className="h-5 w-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-gray-400" />
-              )}
-            </button>
-            {showPayments && (
-              <div className="px-4 pb-4 space-y-2 border-t border-gray-700 pt-3">
-                {receipt.payments.map((payment) => (
-                  <div key={payment.id} className="flex justify-between items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      {payment.method === "card" ? (
-                        <CreditCard className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <div className="w-4 h-4 flex items-center justify-center text-gray-400 font-bold text-xs">
-                          £
-                        </div>
-                      )}
-                      <span className="text-white capitalize">{payment.method}</span>
-                      {payment.reference && (
-                        <span className="text-xs text-gray-500">({payment.reference})</span>
-                      )}
-                    </div>
-                    <span className="text-white font-medium">
-                      {formatCurrency(payment.amount)}
-                    </span>
-                  </div>
-                ))}
-                {receipt.change_amount > 0 && (
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-700 text-sm">
-                    <span className="text-gray-400">Change Given</span>
-                    <span className="text-white font-medium">
-                      {formatCurrency(receipt.change_amount)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Payments - Tappable card opens slide-up sheet */}
+          <button
+            onClick={() => setShowPaymentsSheet(true)}
+            className="w-full bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 flex items-center justify-between hover:bg-white/5 transition-colors active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-gray-400" />
+              <h3 className="text-base font-bold text-white">Payments ({receipt.payments.length})</h3>
+            </div>
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          </button>
         </div>
       </div>
 
@@ -869,6 +751,126 @@ export default function TransactionDetailsPage() {
         </div>
       )}
 
+      {/* Items Bottom Sheet */}
+      <BottomSheet
+        open={showItemsSheet}
+        onClose={() => setShowItemsSheet(false)}
+        title={`Items (${receipt.lines.length})`}
+        icon={<ShoppingBag className="h-5 w-5 text-gray-400" />}
+      >
+        <div className="space-y-3">
+          {receipt.lines.map((line) => (
+            <div key={line.id} className="flex justify-between items-start pb-3 border-b border-gray-700 last:border-0">
+              <div className="flex-1">
+                <p className="text-white font-medium">{line.name}</p>
+                {line.modifiers && Array.isArray(line.modifiers) && line.modifiers.length > 0 && (
+                  <div className="text-sm text-gray-400 ml-4 mt-1">
+                    {line.modifiers.map((mod: any, idx: number) => (
+                      <div key={idx}>
+                        + {mod.name}
+                        {mod.price > 0 && ` (${formatCurrency(mod.price)})`}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {line.notes && (
+                  <p className="text-sm text-gray-500 italic mt-1">
+                    Note: {line.notes}
+                  </p>
+                )}
+                <p className="text-sm text-gray-400 mt-1">
+                  {line.quantity} × {formatCurrency(line.unit_price)}
+                </p>
+              </div>
+              <p className="text-white font-medium ml-4">
+                {formatCurrency(line.line_total)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
+
+      {/* Transaction Info Bottom Sheet */}
+      <BottomSheet
+        open={showTransactionSheet}
+        onClose={() => setShowTransactionSheet(false)}
+        title="Transaction Info"
+        icon={<Info className="h-5 w-5 text-gray-400" />}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm">
+            <Store className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Store:</span>
+            <span className="text-white">{receipt.store.name}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Monitor className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Register:</span>
+            <span className="text-white">{receipt.register.name}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <ShoppingBag className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Type:</span>
+            <Badge variant={receipt.dining_option === "eat-in" ? "default" : "secondary"} className="text-xs">
+              {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
+            </Badge>
+          </div>
+          {receipt.customer_name && (
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Customer:</span>
+              <span className="text-white">{receipt.customer_name}</span>
+            </div>
+          )}
+          {receipt.table_number && (
+            <div className="flex items-center gap-2 text-sm">
+              <Hash className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Table:</span>
+              <span className="text-white">{receipt.table_number}</span>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* Payments Bottom Sheet */}
+      <BottomSheet
+        open={showPaymentsSheet}
+        onClose={() => setShowPaymentsSheet(false)}
+        title={`Payments (${receipt.payments.length})`}
+        icon={<CreditCard className="h-5 w-5 text-gray-400" />}
+      >
+        <div className="space-y-3">
+          {receipt.payments.map((payment) => (
+            <div key={payment.id} className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-2">
+                {payment.method === "card" ? (
+                  <CreditCard className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <div className="w-4 h-4 flex items-center justify-center text-gray-400 font-bold text-xs">
+                    £
+                  </div>
+                )}
+                <span className="text-white capitalize">{payment.method}</span>
+                {payment.reference && (
+                  <span className="text-xs text-gray-500">({payment.reference})</span>
+                )}
+              </div>
+              <span className="text-white font-medium">
+                {formatCurrency(payment.amount)}
+              </span>
+            </div>
+          ))}
+          {receipt.change_amount > 0 && (
+            <div className="flex justify-between items-center pt-2 border-t border-gray-700 text-sm">
+              <span className="text-gray-400">Change Given</span>
+              <span className="text-white font-medium">
+                {formatCurrency(receipt.change_amount)}
+              </span>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
+
       {/* Dialogs */}
       <RefundDialog
         open={refundDialogOpen}
@@ -884,6 +886,7 @@ export default function TransactionDetailsPage() {
         onClose={() => setEmailDialogOpen(false)}
         onSend={handleEmail}
         receiptNumber={receipt.receipt_number}
+        defaultEmail={(receipt as any).customer_email || undefined}
       />
 
       {/* QR Scanner */}
