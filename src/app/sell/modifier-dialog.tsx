@@ -229,11 +229,13 @@ export function ModifierDialog({
         }
       }
 
-      // Multi-select with a max: if total is already at max, reset all and start fresh
+      // Multi-select with a max: if total is already at max
       if (totalSelected >= maxAllowed && maxAllowed !== Infinity) {
         if (currentQty > 0) {
-          // Tapping an already-selected option at max → reset entire group to 0
-          return { ...prev, [groupId]: {} };
+          // Tapping an already-selected option at max → just remove this option, keep others
+          const newGroup: Record<string, number> = { ...groupSelections };
+          delete newGroup[optionId];
+          return { ...prev, [groupId]: newGroup };
         } else {
           // Tapping a new option at max → reset others, start this at 1
           return { ...prev, [groupId]: { [optionId]: 1 } };

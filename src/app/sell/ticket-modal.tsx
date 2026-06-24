@@ -109,24 +109,26 @@ export function TicketModal({
       {/* Slide-up panel */}
       <div
         onClick={(e) => e.stopPropagation()}
-        {...pullHandlers}
         style={{
           transform: isDragging ? `translateY(${dragOffset}px)` : undefined,
           transition: isDragging ? 'none' : undefined,
         }}
         className={`relative w-full bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing">
-          <div className="w-10 h-1 bg-gray-600 rounded-full" />
-        </div>
+        {/* Drag zone - pull-to-dismiss only works here, not in scrollable content */}
+        <div {...pullHandlers}>
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing">
+            <div className="w-10 h-1 bg-gray-600 rounded-full" />
+          </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Current Ticket</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-            <X className="h-5 w-5 text-gray-400" />
-          </button>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Current Ticket</h2>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <X className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Assignment Info */}
@@ -271,7 +273,7 @@ export function TicketModal({
 
         {/* Fixed Totals - Always Visible */}
         {(lines.length > 0 || basketVoucher) && (
-          <div className="border-t border-gray-700 pt-4 mt-4 space-y-2">
+          <div className="border-t border-gray-700 pt-4 mt-4 space-y-2 px-4">
               <div className="flex justify-between text-base">
                 <span className="text-gray-400">Subtotal</span>
                 <span className="font-semibold text-white">{formatCurrency(getSubtotal())}</span>
@@ -332,7 +334,7 @@ export function TicketModal({
                 onClose();
                 onCheckout();
               }}
-              className="w-full px-4 py-4 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center text-lg active:scale-95"
+              className="w-full px-4 py-8 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center text-2xl active:scale-95"
             >
               Charge {formatCurrency(getTotal())}
             </button>
