@@ -29,10 +29,16 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   const code = escapeHtml(v.code);
   const storeAddrEsc = storeAddress ? escapeHtml(storeAddress) : '';
 
-  const recipientBlock = (recipient && v.voucher_type !== 'item') ? `
+  const headerText = (v.voucher_type === 'item' && v.voucher_title) ? escapeHtml(v.voucher_title)
+    : recipient ? `For ${recipient}` : '';
+  const headerBlock = headerText ? `
     <div class="overlay-text" style="top: 17%;">
-      <div class="recipient-name">For ${recipient}</div>
+      <div class="header-text" data-text="${headerText}">${headerText}</div>
     </div>` : '';
+  const valueBlock = v.voucher_type === 'item' && v.voucher_title ? '' : `
+    <div class="overlay-text" style="top: 25%;">
+      <div class="value-text">${valueText}</div>
+    </div>`;
 
   const messageBlock = message ? `
     <div class="overlay-text" style="top: 48%;">
@@ -87,11 +93,14 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
       padding: 0 8%;
       z-index: 1;
     }
-    .recipient-name {
-      font-size: 18px;
+    .header-text {
       font-weight: 600;
       color: #f5ebd6;
       letter-spacing: 1px;
+      line-height: 1.2;
+      max-height: 2.4em;
+      overflow: hidden;
+      word-wrap: break-word;
     }
     .value-text {
       font-size: 54px;
@@ -202,10 +211,8 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
   </div>
   <div class="voucher-container">
     <img class="voucher-bg" src="/voucher.png" alt="Voucher" />
-    ${recipientBlock}
-    <div class="overlay-text" style="top: 25%;">
-      <div class="value-text">${valueText}</div>
-    </div>
+    ${headerBlock}
+    ${valueBlock}
     <div class="qr-wrapper">
       <img src="${qrDataUrl}" alt="QR Code" />
     </div>
@@ -224,6 +231,18 @@ function buildPrintPageHtml(v: any, qrDataUrl: string, storeName: string, storeA
     function hideLoading() {
       document.getElementById('loadingOverlay').classList.add('hidden');
     }
+    // Dynamic font sizing for header text
+    document.querySelectorAll('.header-text').forEach(function(el) {
+      var text = el.getAttribute('data-text') || el.textContent || '';
+      var len = text.length;
+      var size;
+      if (len <= 12) size = 22;
+      else if (len <= 20) size = 18;
+      else if (len <= 30) size = 15;
+      else if (len <= 40) size = 13;
+      else size = 11;
+      el.style.fontSize = size + 'px';
+    });
     var img = new Image();
     img.onload = hideLoading;
     img.onerror = hideLoading;
