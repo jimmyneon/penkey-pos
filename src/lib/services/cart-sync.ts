@@ -98,12 +98,14 @@ export class CartSyncService {
     try {
       const supabase = createClient(supabaseUrl, supabaseKey);
 
+      const now = new Date().toISOString();
       const { error } = await supabase
         .from('active_carts')
         .update({
           lines,
           ticket_assignment: ticketAssignment,
-          last_activity_at: new Date().toISOString(),
+          updated_at: now,
+          last_activity_at: now,
         })
         .eq('id', this.currentCartId);
 
@@ -191,24 +193,39 @@ export class CartSyncService {
   }
 
   /**
-   * Clear cart (after payment completion)
+   * Clear cart (after payment completion or when cart becomes empty)
+   * Retries up to 3 times to ensure stale carts don't persist in the DB.
    */
   static async clearCart(): Promise<void> {
     if (!this.currentCartId) return;
 
-    try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    const cartId = this.currentCartId;
+    const maxRetries = 3;
 
-      await supabase
-        .from('active_carts')
-        .delete()
-        .eq('id', this.currentCartId);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-      console.log('[CartSync] Cart cleared');
-      this.currentCartId = null;
-      this.lastSyncedAt = null;
-    } catch (error) {
-      console.error('[CartSync] Clear failed:', error);
+        await supabase
+          .from('active_carts')
+          .delete()
+          .eq('id', cartId);
+
+        console.log('[CartSync] Cart cleared');
+        this.currentCartId = null;
+        this.lastSyncedAt = null;
+        return;
+      } catch (error) {
+        console.error(`[CartSync] Clear failed (attempt ${attempt}/${maxRetries}):`, error);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
+      }
     }
+
+    // All retries failed — still clear local references so next init creates a fresh cart
+    console.warn('[CartSync] Could not clear cart from DB after retries — clearing local refs');
+    this.currentCartId = null;
+    this.lastSyncedAt = null;
   }
 }

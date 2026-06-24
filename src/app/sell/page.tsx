@@ -773,11 +773,16 @@ export default function SellPage() {
 
   // Sync cart to database in background (write-only, no read)
   useEffect(() => {
-    if (!session || lines.length === 0) return;
+    if (!session) return;
     
     // Debounce to avoid too many writes
     const timer = setTimeout(() => {
-      CartSyncService.saveCart(lines, ticketAssignment);
+      if (lines.length === 0) {
+        // Cart is empty — clear stale DB cart so old items don't reappear on reload/device switch
+        CartSyncService.clearCart();
+      } else {
+        CartSyncService.saveCart(lines, ticketAssignment);
+      }
     }, 1000); // Increased debounce to 1 second
 
     return () => clearTimeout(timer);
@@ -1452,13 +1457,12 @@ export default function SellPage() {
     const ticket = savedTickets.find(t => t.id === ticketId);
     if (!ticket) return;
 
-    // Clear current ticket first
-    lines.forEach(line => removeLine(line.id));
-
-    // Load ticket lines
-    ticket.lines.forEach((line: any) => {
-      addLine(line);
-    });
+    // Replace cart in a single atomic operation to avoid race conditions
+    // where addLine dedup logic could merge with stale lines
+    loadLines(ticket.lines.map((line: any) => ({
+      ...line,
+      id: crypto.randomUUID(),
+    })));
 
     // Set the ticket name, comment, and assignment so we can auto-save later
     setCurrentTicketName(ticket.name);
@@ -1555,7 +1559,7 @@ export default function SellPage() {
     setMergeTicketsOpen(false);
   };
 
-  const handleSplitFromDialog = (ticketId: string) => {
+  const handleSplitFromDialog = async (ticketId: string) => {
     const ticket = savedTickets.find(t => t.id === ticketId);
     if (!ticket) return;
 
@@ -1565,16 +1569,20 @@ export default function SellPage() {
       addLine(line);
     });
 
-    // Remove from saved tickets
+    // Remove from saved tickets (database)
+    try {
+      await TicketSyncService.deleteTickets([ticketId]);
+    } catch (error) {
+      console.error('[SplitFromDialog] Failed to delete ticket:', error);
+    }
     const updatedTickets = savedTickets.filter(t => t.id !== ticketId);
     setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
 
     // Open split dialog
     setSplitTicketOpen(true);
   };
 
-  const handleAddToCustomerFromDialog = (ticketId: string) => {
+  const handleAddToCustomerFromDialog = async (ticketId: string) => {
     const ticket = savedTickets.find(t => t.id === ticketId);
     if (!ticket) return;
 
@@ -1584,10 +1592,14 @@ export default function SellPage() {
       addLine(line);
     });
 
-    // Remove from saved tickets
+    // Remove from saved tickets (database)
+    try {
+      await TicketSyncService.deleteTickets([ticketId]);
+    } catch (error) {
+      console.error('[AddToCustomer] Failed to delete ticket:', error);
+    }
     const updatedTickets = savedTickets.filter(t => t.id !== ticketId);
     setSavedTickets(updatedTickets);
-    localStorage.setItem("pos_saved_tickets", JSON.stringify(updatedTickets));
 
     // Open assign dialog
     setSaveTicketMode('assign');
