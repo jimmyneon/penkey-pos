@@ -660,7 +660,7 @@ export default function TransactionDetailsPage() {
             title={isWithin24Hours() ? "Assign customer to receipt (beans can be awarded within 24 hours)" : "Assign customer to receipt (no bean awarding - outside 24-hour window)"}
           >
             <QrCode className="h-4 w-4 sm:mr-2" />
-            <span>Assign Customer</span>
+            <span>Assign Perks Customer</span>
           </Button>
           </div>
 
@@ -701,6 +701,55 @@ export default function TransactionDetailsPage() {
                   <span className="text-green-400">{formatCurrency(receipt.tip_total)}</span>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Quick Info - Key details visible on page */}
+          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <ShoppingBag className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Type:</span>
+              <Badge variant={receipt.dining_option === "eat-in" ? "default" : "secondary"} className="text-xs">
+                {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Covers:</span>
+              <span className="text-white">{receipt.customer_count || 1} {receipt.customer_count === 1 ? "person" : "people"}</span>
+            </div>
+            {receipt.table_number && (
+              <div className="flex items-center gap-2 text-sm">
+                <Hash className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-400">Table:</span>
+                <span className="text-white">{receipt.table_number}</span>
+              </div>
+            )}
+            {receipt.customer_name && (
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-400">Customer:</span>
+                <span className="text-white">{receipt.customer_name}</span>
+              </div>
+            )}
+            {receipt.customer_email && (
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-400">Email:</span>
+                <span className="text-white text-xs break-all">{receipt.customer_email}</span>
+              </div>
+            )}
+            {receipt.customer_phone && (
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-400">Phone:</span>
+                <span className="text-white">{receipt.customer_phone}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Served by:</span>
+              <span className="text-white">{receipt.member?.first_name} {receipt.member?.last_name}</span>
             </div>
           </div>
 
@@ -819,13 +868,11 @@ export default function TransactionDetailsPage() {
               {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
             </Badge>
           </div>
-          {receipt.customer_count && receipt.customer_count > 1 && (
-            <div className="flex items-center gap-2 text-sm">
-              <User className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-400">Covers:</span>
-              <span className="text-white">{receipt.customer_count} people</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            <User className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Covers:</span>
+            <span className="text-white">{receipt.customer_count || 1} {receipt.customer_count === 1 ? "person" : "people"}</span>
+          </div>
           {receipt.customer_name && (
             <div className="flex items-center gap-2 text-sm">
               <User className="h-4 w-4 text-gray-400" />
