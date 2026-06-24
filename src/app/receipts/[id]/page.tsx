@@ -704,55 +704,6 @@ export default function TransactionDetailsPage() {
             </div>
           </div>
 
-          {/* Quick Info - Key details visible on page */}
-          <div className="bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <ShoppingBag className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-400">Type:</span>
-              <Badge variant={receipt.dining_option === "eat-in" ? "default" : "secondary"} className="text-xs">
-                {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <User className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-400">Covers:</span>
-              <span className="text-white">{receipt.customer_count || 1} {receipt.customer_count === 1 ? "person" : "people"}</span>
-            </div>
-            {receipt.table_number && (
-              <div className="flex items-center gap-2 text-sm">
-                <Hash className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-400">Table:</span>
-                <span className="text-white">{receipt.table_number}</span>
-              </div>
-            )}
-            {receipt.customer_name && (
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-400">Customer:</span>
-                <span className="text-white">{receipt.customer_name}</span>
-              </div>
-            )}
-            {receipt.customer_email && (
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-400">Email:</span>
-                <span className="text-white text-xs break-all">{receipt.customer_email}</span>
-              </div>
-            )}
-            {receipt.customer_phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-400">Phone:</span>
-                <span className="text-white">{receipt.customer_phone}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-sm">
-              <User className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-400">Served by:</span>
-              <span className="text-white">{receipt.member?.first_name} {receipt.member?.last_name}</span>
-            </div>
-          </div>
-
           {/* Items - Tappable card opens slide-up sheet */}
           <button
             onClick={() => setShowItemsSheet(true)}
