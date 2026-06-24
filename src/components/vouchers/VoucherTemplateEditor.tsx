@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { RotateCcw, Save, X, Loader2, ChevronUp, ChevronDown } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { RotateCcw, Save, X, Loader2, ChevronUp, ChevronDown, Eye, EyeOff, Check } from "lucide-react";
 import {
   VoucherLayoutConfig,
   DEFAULT_VOUCHER_LAYOUT,
@@ -14,7 +14,7 @@ interface VoucherTemplateEditorProps {
   previewData: VoucherPreviewData;
   layout: VoucherLayoutConfig;
   onLayoutChange: (layout: VoucherLayoutConfig) => void;
-  onSave?: () => void;
+  onSave?: () => Promise<boolean>;
   saving?: boolean;
   qrDataUrl?: string;
   onClose: () => void;
@@ -31,6 +31,16 @@ export function VoucherTemplateEditor({
 }: VoucherTemplateEditorProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(true);
+  const [showGuides, setShowGuides] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top when editor opens
+  useEffect(() => {
+    if (previewRef.current) {
+      previewRef.current.scrollTop = 0;
+    }
+  }, []);
 
   const toggle = (key: string) => {
     setExpandedKey(expandedKey === key ? null : key);
@@ -41,12 +51,32 @@ export function VoucherTemplateEditor({
     onLayoutChange({ ...DEFAULT_VOUCHER_LAYOUT });
   }, [onLayoutChange]);
 
+  const handleSave = useCallback(async () => {
+    if (!onSave) return;
+    const success = await onSave();
+    setSaveStatus(success ? "success" : "error");
+    if (success) {
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    }
+  }, [onSave]);
+
   return (
     <div className="fixed inset-0 z-[60] bg-[#1a1a1a] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#2d2d2d] border-b border-gray-700 flex-shrink-0">
         <h2 className="text-base font-semibold text-white">Customize Layout</h2>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGuides(!showGuides)}
+            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              showGuides
+                ? "border-penkey-orange/50 text-penkey-orange"
+                : "border-gray-600 text-gray-300"
+            }`}
+          >
+            {showGuides ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            Guides
+          </button>
           <button
             onClick={handleReset}
             className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 active:bg-[#333] transition-colors"
@@ -64,7 +94,7 @@ export function VoucherTemplateEditor({
       </div>
 
       {/* Preview area — fills available space, always visible */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-4 min-h-0">
+      <div ref={previewRef} className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-4 min-h-0">
         <div
           className="relative bg-[#1a2847] rounded-xl overflow-hidden flex-shrink-0"
           style={{ width: "100%", maxWidth: 300 }}
@@ -73,7 +103,7 @@ export function VoucherTemplateEditor({
             data={previewData}
             layout={layout}
             qrDataUrl={qrDataUrl}
-            showGuideLines={true}
+            showGuideLines={showGuides}
             selectedElement={expandedKey}
             className="w-full"
           />
@@ -121,20 +151,39 @@ export function VoucherTemplateEditor({
               ))}
             </div>
 
-            {/* Save button */}
+            {/* Save button + confirmation */}
             {onSave && (
-              <button
-                onClick={onSave}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-3 mt-3 rounded-xl bg-penkey-orange hover:bg-penkey-orange/90 text-white text-sm font-bold disabled:opacity-50 transition-colors"
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`w-full flex items-center justify-center gap-2 py-3 mt-3 rounded-xl text-white text-sm font-bold disabled:opacity-50 transition-colors ${
+                    saveStatus === "success"
+                      ? "bg-green-600"
+                      : saveStatus === "error"
+                      ? "bg-red-600"
+                      : "bg-penkey-orange hover:bg-penkey-orange/90"
+                  }`}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : saveStatus === "success" ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {saveStatus === "success"
+                    ? "Saved!"
+                    : saveStatus === "error"
+                    ? "Failed — try again"
+                    : "Save Layout"}
+                </button>
+                {saveStatus === "success" && (
+                  <p className="text-center text-xs text-green-400 mt-1.5">
+                    Layout saved — close and create your voucher
+                  </p>
                 )}
-                Save Layout
-              </button>
+              </>
             )}
           </div>
         )}

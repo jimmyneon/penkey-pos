@@ -86,7 +86,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
       .catch(() => {});
   }, []);
 
-  const handleSaveLayout = async () => {
+  const handleSaveLayout = async (): Promise<boolean> => {
     setSavingLayout(true);
     try {
       const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -99,8 +99,10 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
         body: JSON.stringify({ layout: voucherLayout }),
       });
       if (!res.ok) throw new Error("Failed to save");
+      return true;
     } catch {
       setError("Failed to save layout");
+      return false;
     } finally {
       setSavingLayout(false);
     }
