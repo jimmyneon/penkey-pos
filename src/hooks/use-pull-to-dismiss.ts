@@ -1,46 +1,59 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, type RefObject } from 'react';
 
 interface PullToDismissOptions {
   onDismiss: () => void;
   threshold?: number;
+  scrollContainerRef?: RefObject<HTMLElement | null>;
 }
 
-export function usePullToDismiss({ onDismiss, threshold = 100 }: PullToDismissOptions) {
+export function usePullToDismiss({ onDismiss, threshold = 100, scrollContainerRef }: PullToDismissOptions) {
   const startY = useRef<number | null>(null);
   const currentY = useRef(0);
   const scrollAtTopRef = useRef(true);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
+  const getScrollTop = useCallback(() => {
+    if (scrollContainerRef?.current) {
+      return scrollContainerRef.current.scrollTop;
+    }
+    return 0;
+  }, [scrollContainerRef]);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const container = e.currentTarget;
-    scrollAtTopRef.current = container.scrollTop <= 1;
+    scrollAtTopRef.current = getScrollTop() <= 1;
     startY.current = e.touches[0].clientY;
-  }, []);
+  }, [getScrollTop]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (startY.current === null) return;
 
-    const container = e.currentTarget;
-    const isAtTop = container.scrollTop <= 1;
+    const isAtTop = getScrollTop() <= 1;
+    const deltaY = e.touches[0].clientY - startY.current;
 
-    if (isAtTop) {
-      scrollAtTopRef.current = true;
-      const deltaY = e.touches[0].clientY - startY.current;
-      if (deltaY > 0) {
-        currentY.current = deltaY;
-        setDragOffset(deltaY);
-        setIsDragging(true);
-        e.preventDefault();
+    if (isAtTop && deltaY > 0) {
+      if (!scrollAtTopRef.current) {
+        startY.current = e.touches[0].clientY;
+        scrollAtTopRef.current = true;
+        return;
       }
-    } else {
+      currentY.current = deltaY;
+      setDragOffset(deltaY);
+      setIsDragging(true);
+      e.preventDefault();
+    } else if (!isAtTop) {
       scrollAtTopRef.current = false;
       if (isDragging) {
         setDragOffset(0);
         setIsDragging(false);
       }
+    } else {
+      if (isDragging) {
+        setDragOffset(0);
+        setIsDragging(false);
+      }
     }
-  }, [isDragging]);
+  }, [isDragging, getScrollTop]);
 
   const handleTouchEnd = useCallback(() => {
     if (currentY.current > threshold) {

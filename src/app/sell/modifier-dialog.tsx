@@ -229,7 +229,18 @@ export function ModifierDialog({
         }
       }
 
-      // Multi-select: increment up to maxAllowed (or 5 if unlimited), but respect maxAllowed cap
+      // Multi-select with a max: if total is already at max, reset all and start fresh
+      if (totalSelected >= maxAllowed && maxAllowed !== Infinity) {
+        if (currentQty > 0) {
+          // Tapping an already-selected option at max → reset entire group to 0
+          return { ...prev, [groupId]: {} };
+        } else {
+          // Tapping a new option at max → reset others, start this at 1
+          return { ...prev, [groupId]: { [optionId]: 1 } };
+        }
+      }
+
+      // Normal rotation: increment up to maxAllowed (or 5 if unlimited), then wrap to 0
       const rotationLimit = maxAllowed === Infinity ? 5 : maxAllowed;
       const nextQty = currentQty >= rotationLimit ? 0 : currentQty + 1;
 
@@ -237,12 +248,6 @@ export function ModifierDialog({
       if (nextQty === 0) {
         delete newGroupSelections[optionId];
         return { ...prev, [groupId]: newGroupSelections };
-      }
-
-      // If adding would exceed maxAllowed, do not apply the increment
-      const adding = nextQty - currentQty; // either 1 if we incremented, else negative/0
-      if (adding > 0 && totalSelected >= maxAllowed && maxAllowed !== Infinity) {
-        return prev; // ignore increment beyond max
       }
 
       newGroupSelections[optionId] = nextQty;
