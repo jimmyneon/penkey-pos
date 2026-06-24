@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Return minimal session data
     return NextResponse.json({
       member_id: matchedEmployee.id,
-      employee_name: matchedEmployee.display_name || matchedEmployee.first_name,
+      employee_name: matchedEmployee.first_name,
       role: matchedEmployee.roles?.name || 'staff',
       org_id: matchedEmployee.org_id,
     });

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       user_id: pin.org_members.user_id,
       pin_hash: pin.pin_hash,
       org_id: pin.org_members.org_id,
-      employee_name: pin.org_members.display_name || pin.org_members.first_name,
+      employee_name: pin.org_members.first_name,
       role: pin.org_members.roles?.name || 'staff',
       cached_at: Date.now(),
     }));

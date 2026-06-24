@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       org_id: orgMember.org_id,
       org_member_id: orgMember.id,
       email: authData.user.email,
-      name: orgMember.display_name || orgMember.first_name,
+      name: orgMember.first_name,
       role: role?.name,
     };
 

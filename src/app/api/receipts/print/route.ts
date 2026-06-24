@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (memberResult?.data) {
-      employeeName = (memberResult.data as any).display_name || (memberResult.data as any).first_name || employeeName;
+      employeeName = (memberResult.data as any).first_name || employeeName;
     }
 
     lines = linesResult?.data || [];

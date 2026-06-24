@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       user_id: sessionData.user_id,
       employee: {
         id: employeeData.id,
-        name: employeeData.display_name || employeeData.first_name,
+        name: employeeData.first_name,
         role: employeeData.roles?.name,
       },
       register: {
