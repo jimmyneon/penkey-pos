@@ -81,14 +81,6 @@ function buildReceiptHtml(receipt: any, lines: any[], orgName: string) {
           <span>Date</span>
           <span>${receiptDate}</span>
         </div>
-        ${employeeName ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;">
-          <span>Served by</span>
-          <span>${employeeName}</span>
-        </div>` : ''}
-        ${registerName ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;">
-          <span>Register</span>
-          <span>${registerName}</span>
-        </div>` : ''}
         ${receipt.dining_option ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;">
           <span>Type</span>
           <span>${receipt.dining_option === 'eat-in' ? 'Eat In' : 'Takeaway'}</span>

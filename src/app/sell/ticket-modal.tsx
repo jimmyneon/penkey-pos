@@ -114,7 +114,7 @@ export function TicketModal({
           transform: isDragging ? `translateY(${dragOffset}px)` : undefined,
           transition: isDragging ? 'none' : undefined,
         }}
-        className={`relative w-[90%] max-w-sm mx-auto bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
+        className={`relative w-full bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing">
@@ -157,7 +157,7 @@ export function TicketModal({
         )}
 
         {/* Scrollable Items Only */}
-        <div className="max-h-[40vh] overflow-y-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+        <div className="max-h-[40vh] overflow-y-auto scrollbar-hide overscroll-behavior-contain" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
           {lines.length > 0 ? (
             <div className="space-y-3">
               {lines.map((line) => (
