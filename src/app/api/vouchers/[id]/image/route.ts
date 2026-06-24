@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/database';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
 import { generateVoucherPng, VoucherTemplateData } from '@/lib/voucher/voucher-template';
+import { DEFAULT_VOUCHER_LAYOUT, VoucherLayoutConfig } from '@/lib/voucher/voucher-layout-config';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const session = await validatePOSSession(request);
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     amount: v.amount,
     percent_discount: v.percent_discount,
     item_name: v.item_name,
+    voucher_title: v.voucher_title,
     recipient_name: v.recipient_name,
     recipient_email: v.recipient_email,
     message: v.message,
@@ -55,8 +57,22 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     storeAddress,
   };
 
+  // Load org's custom voucher layout if configured
+  let layout: VoucherLayoutConfig | undefined;
   try {
-    const pngBuffer = await generateVoucherPng(templateData);
+    const { data: settings } = await supabase
+      .from('org_settings')
+      .select('settings')
+      .eq('org_id', session.org_id)
+      .maybeSingle();
+    const savedLayout = (settings as any)?.settings?.voucher_template_layout;
+    if (savedLayout) {
+      layout = { ...DEFAULT_VOUCHER_LAYOUT, ...savedLayout } as VoucherLayoutConfig;
+    }
+  } catch {}
+
+  try {
+    const pngBuffer = await generateVoucherPng(templateData, layout);
 
     return new NextResponse(pngBuffer, {
       headers: {

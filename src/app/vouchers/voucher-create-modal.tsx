@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@penkey/ui";
 import {
@@ -16,10 +16,14 @@ import {
   User,
   MessageSquare,
   Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { hapticButtonPress } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { VoucherSvgPreview, VoucherPreviewData } from "@/components/vouchers/VoucherSvgPreview";
+import { VoucherTemplateEditor } from "@/components/vouchers/VoucherTemplateEditor";
+import { DEFAULT_VOUCHER_LAYOUT, VoucherLayoutConfig } from "@/lib/voucher/voucher-layout-config";
 
 type VoucherType = "amount" | "item" | "percent";
 
@@ -65,6 +69,42 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
   const [voucherTitle, setVoucherTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLayoutEditor, setShowLayoutEditor] = useState(false);
+  const [voucherLayout, setVoucherLayout] = useState<VoucherLayoutConfig>(DEFAULT_VOUCHER_LAYOUT);
+  const [savingLayout, setSavingLayout] = useState(false);
+
+  // Load saved layout on mount
+  useEffect(() => {
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    fetch("/api/voucher-template-settings", {
+      headers: sessionData ? { "x-pos-session": sessionData } : {},
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.layout) setVoucherLayout(data.layout);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveLayout = async () => {
+    setSavingLayout(true);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const res = await fetch("/api/voucher-template-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
+        body: JSON.stringify({ layout: voucherLayout }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    } catch {
+      setError("Failed to save layout");
+    } finally {
+      setSavingLayout(false);
+    }
+  };
 
   const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(itemSearch.toLowerCase())
@@ -216,6 +256,20 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     if (voucherType === "item") return selectedItemName || "Free Item";
     return "";
   }, [voucherType, amount, percentDiscount, selectedItemName]);
+
+  const svgPreviewData: VoucherPreviewData = useMemo(() => ({
+    code: "XXXX-XXXX",
+    voucherType,
+    amount: parseFloat(amount) || undefined,
+    percentDiscount: parseFloat(percentDiscount) || undefined,
+    itemName: selectedItemName || undefined,
+    voucherTitle: voucherTitle || undefined,
+    recipientName: recipientName || undefined,
+    recipientEmail: recipientEmail || undefined,
+    message: message || undefined,
+    expiresAt: expiryDate || undefined,
+    storeName: "Penkey",
+  }), [voucherType, amount, percentDiscount, selectedItemName, voucherTitle, recipientName, recipientEmail, message, expiryDate]);
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -549,16 +603,44 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
             </div>
           )}
 
-          {/* Live preview - inline on mobile, sidebar on desktop */}
+          {/* Live preview - real SVG matching the actual voucher */}
           <div className="bg-[#2d2d2d]/50 rounded-xl p-3 border border-gray-700/30">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Preview</div>
-            <VoucherPreview
-              type={voucherType}
-              label={previewLabel}
-              recipientName={recipientName}
-              message={message}
-              expiryDate={expiryDate}
-            />
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</div>
+              <button
+                onClick={() => {
+                  hapticButtonPress();
+                  setShowLayoutEditor(!showLayoutEditor);
+                }}
+                className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors ${
+                  showLayoutEditor
+                    ? "border-penkey-orange bg-penkey-orange/15 text-penkey-orange"
+                    : "border-gray-600/50 text-gray-400 hover:border-gray-500"
+                }`}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                {showLayoutEditor ? "Hide Editor" : "Customize Layout"}
+              </button>
+            </div>
+            {showLayoutEditor ? (
+              <div className="bg-[#2d2d2d] rounded-lg border border-gray-700/50 overflow-hidden" style={{ height: 400 }}>
+                <VoucherTemplateEditor
+                  previewData={svgPreviewData}
+                  layout={voucherLayout}
+                  onLayoutChange={setVoucherLayout}
+                  onSave={handleSaveLayout}
+                  saving={savingLayout}
+                />
+              </div>
+            ) : (
+              <div className="relative mx-auto bg-[#1a2847] rounded-xl overflow-hidden" style={{ maxWidth: 240 }}>
+                <VoucherSvgPreview
+                  data={svgPreviewData}
+                  layout={voucherLayout}
+                  className="w-full"
+                />
+              </div>
+            )}
           </div>
 
           {/* Recipient */}
@@ -786,63 +868,6 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
             )}
           </Button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function VoucherPreview({
-  type,
-  label,
-  recipientName,
-  message,
-  expiryDate,
-}: {
-  type: VoucherType;
-  label: string;
-  recipientName: string;
-  message: string;
-  expiryDate: string;
-}) {
-  const typeIcon = type === "amount" ? DollarSign : type === "item" ? Coffee : Percent;
-  const Icon = typeIcon;
-  const gradient =
-    type === "amount"
-      ? "from-amber-500/20 to-orange-500/10"
-      : type === "item"
-      ? "from-blue-500/20 to-cyan-500/10"
-      : "from-purple-500/20 to-pink-500/10";
-
-  return (
-    <div
-      className={`rounded-xl border border-gray-600/50 bg-gradient-to-br ${gradient} p-4 flex flex-col items-center text-center gap-2`}
-    >
-      <div className="bg-white/10 rounded-full p-1.5">
-        <Icon className="h-5 w-5 text-white" />
-      </div>
-      <div className="text-2xl font-bold text-white">{label}</div>
-      {recipientName && (
-        <div className="text-sm text-gray-300">
-          For <span className="font-semibold text-white">{recipientName}</span>
-        </div>
-      )}
-      {message && (
-        <div className="text-xs italic text-gray-400 max-w-[220px] leading-relaxed">
-          &ldquo;{message}&rdquo;
-        </div>
-      )}
-      {expiryDate && (
-        <div className="text-xs text-gray-500">
-          Valid until{" "}
-          {new Date(expiryDate).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}
-        </div>
-      )}
-      <div className="text-[10px] text-gray-600 mt-1 uppercase tracking-wider">
-        Penkey Delicaf & Gifts
       </div>
     </div>
   );

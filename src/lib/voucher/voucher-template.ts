@@ -1,6 +1,15 @@
 import QRCode from 'qrcode';
 import path from 'path';
 import fs from 'fs';
+import {
+  VoucherLayoutConfig,
+  VoucherElementLayout,
+  DEFAULT_VOUCHER_LAYOUT,
+  SCALE,
+  RENDER_W,
+  RENDER_H,
+  VOUCHER_COLORS,
+} from './voucher-layout-config';
 
 export interface VoucherTemplateData {
   code: string;
@@ -8,6 +17,7 @@ export interface VoucherTemplateData {
   amount?: number;
   percent_discount?: number;
   item_name?: string;
+  voucher_title?: string;
   recipient_name?: string;
   recipient_email?: string;
   message?: string;
@@ -16,21 +26,10 @@ export interface VoucherTemplateData {
   storeAddress?: string;
 }
 
-const NAVY = '#1a2847';
-const CREAM = '#f5ebd6';
-const WHITE = '#ffffff';
-const GOLD = '#c9a96e';
-const TEXT_MUTED = 'rgba(245, 235, 214, 0.6)';
-
-const SCALE = 2;
-const BASE_W = 535;
-const BASE_H = 1536;
-const W = BASE_W * SCALE;
-const H = BASE_H * SCALE;
-
 function getValueText(v: VoucherTemplateData): string {
   if (v.voucher_type === 'amount') return `\u00a3${Number(v.amount).toFixed(2)}`;
   if (v.voucher_type === 'percent') return `${v.percent_discount}% OFF`;
+  if (v.voucher_title) return v.voucher_title;
   return `Free ${v.item_name}`;
 }
 
@@ -59,68 +58,85 @@ function wrapText(text: string, maxChars: number): string[] {
   return lines;
 }
 
+function buildTextElement(
+  el: VoucherElementLayout,
+  text: string,
+  fontFamily: string = 'sans-serif'
+): string {
+  const anchor =
+    el.textAlign === 'center' ? 'middle' : el.textAlign === 'right' ? 'end' : 'start';
+  const fontStyleAttr = el.fontStyle === 'italic' ? ` font-style="italic"` : '';
+  const letterSpacingAttr = el.letterSpacing ? ` letter-spacing="${el.letterSpacing * SCALE}"` : '';
+  const opacityAttr = el.opacity != null ? ` opacity="${el.opacity}"` : '';
+  const y = el.y + el.fontSize * 0.35;
+
+  return `<text x="${el.x * SCALE}" y="${y * SCALE}" text-anchor="${anchor}" font-family="${fontFamily}" font-size="${el.fontSize * SCALE}" font-weight="${el.fontWeight}" fill="${el.color}"${fontStyleAttr}${letterSpacingAttr}${opacityAttr}>${escapeXml(text)}</text>`;
+}
+
 /**
  * Build an SVG overlay with dynamic text positioned on the voucher template.
+ * Uses the configurable layout (or defaults if none provided).
  * Coordinates are at 2x scale (1070x3072) to match the upscaled base image.
  */
-async function buildOverlaySvg(v: VoucherTemplateData): Promise<string> {
-  const valueText = escapeXml(getValueText(v));
-  const expiry = escapeXml(expiryText(v));
-  const created = escapeXml(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
-  const recipient = v.recipient_name ? escapeXml(v.recipient_name) : '';
-  const message = v.message ? escapeXml(v.message) : '';
-  const storeAddrEsc = v.storeAddress ? escapeXml(v.storeAddress) : '';
-  const cx = W / 2;
+export async function buildOverlaySvg(
+  v: VoucherTemplateData,
+  layout: VoucherLayoutConfig = DEFAULT_VOUCHER_LAYOUT
+): Promise<string> {
+  const valueText = getValueText(v);
+  const expiry = expiryText(v);
+  const created = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const recipient = v.recipient_name || '';
+  const message = v.message || '';
 
   const qrDataUrl = await QRCode.toDataURL(v.code, {
     width: 300,
     margin: 1,
-    color: { dark: NAVY, light: '#ffffff' },
+    color: { dark: VOUCHER_COLORS.NAVY, light: '#ffffff' },
   });
-
-  const qrSize = 260 * SCALE;
-  const qrX = cx - qrSize / 2;
-  const qrY = 680 * SCALE;
-
-  let yCursor = 430 * SCALE;
 
   const elements: string[] = [];
 
+  // Recipient label + name
   if (recipient) {
-    elements.push(`<text x="${cx}" y="${yCursor}" text-anchor="middle" font-family="sans-serif" font-size="${20 * SCALE}" fill="${TEXT_MUTED}">A gift for</text>`);
-    yCursor += 30 * SCALE;
-    elements.push(`<text x="${cx}" y="${yCursor}" text-anchor="middle" font-family="sans-serif" font-size="${28 * SCALE}" font-weight="bold" fill="${WHITE}">${recipient}</text>`);
-    yCursor += 50 * SCALE;
+    elements.push(buildTextElement(layout.recipientLabel, 'A gift for'));
+    elements.push(buildTextElement(layout.recipientName, recipient));
   }
 
-  const valueFontSize = valueText.length > 10 ? 48 * SCALE : 64 * SCALE;
-  elements.push(`<text x="${cx}" y="${yCursor + valueFontSize * 0.35}" text-anchor="middle" font-family="sans-serif" font-size="${valueFontSize}" font-weight="bold" fill="${GOLD}">${valueText}</text>`);
-  yCursor += valueFontSize + 30 * SCALE;
+  // Value
+  elements.push(buildTextElement(layout.value, valueText));
 
-  elements.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${WHITE}" rx="${8 * SCALE}"/>`);
-  elements.push(`<image href="${qrDataUrl}" x="${qrX + 10 * SCALE}" y="${qrY + 10 * SCALE}" width="${qrSize - 20 * SCALE}" height="${qrSize - 20 * SCALE}"/>`);
+  // QR Code
+  const qr = layout.qrCode;
+  const qrSize = qr.size * SCALE;
+  const qrX = qr.x * SCALE - qrSize / 2;
+  const qrY = qr.y * SCALE;
+  elements.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${qr.bgColor}" rx="${qr.borderRadius * SCALE}"/>`);
+  elements.push(`<image href="${qrDataUrl}" x="${qrX + qr.padding * SCALE}" y="${qrY + qr.padding * SCALE}" width="${qrSize - qr.padding * SCALE * 2}" height="${qrSize - qr.padding * SCALE * 2}"/>`);
 
-  const codeY = qrY + qrSize + 40 * SCALE;
-  elements.push(`<text x="${cx}" y="${codeY}" text-anchor="middle" font-family="sans-serif" font-size="${12 * SCALE}" fill="${TEXT_MUTED}" letter-spacing="${3 * SCALE}">VOUCHER CODE</text>`);
-  elements.push(`<text x="${cx}" y="${codeY + 30 * SCALE}" text-anchor="middle" font-family="monospace" font-size="${22 * SCALE}" font-weight="bold" fill="${WHITE}" letter-spacing="${4 * SCALE}">${escapeXml(v.code)}</text>`);
+  // Code label + value
+  elements.push(buildTextElement(layout.codeLabel, 'VOUCHER CODE'));
+  elements.push(buildTextElement(layout.codeValue, v.code, 'monospace'));
 
-  let msgY = codeY + 60 * SCALE;
+  // Message
   if (message) {
     const msgLines = wrapText(v.message!, 32);
     for (const line of msgLines.slice(0, 3)) {
-      elements.push(`<text x="${cx}" y="${msgY}" text-anchor="middle" font-family="sans-serif" font-style="italic" font-size="${16 * SCALE}" fill="${WHITE}">${escapeXml(line)}</text>`);
-      msgY += 24 * SCALE;
+      elements.push(buildTextElement(layout.message, line));
     }
   }
 
-  const expiryY = 1280 * SCALE;
-  elements.push(`<text x="${cx}" y="${expiryY}" text-anchor="middle" font-family="sans-serif" font-size="${16 * SCALE}" font-weight="bold" fill="${CREAM}">Valid until: ${expiry}</text>`);
-  if (storeAddrEsc) {
-    elements.push(`<text x="${cx}" y="${expiryY + 24 * SCALE}" text-anchor="middle" font-family="sans-serif" font-size="${12 * SCALE}" fill="${CREAM}" opacity="0.7">${storeAddrEsc}</text>`);
-  }
-  elements.push(`<text x="${cx}" y="${expiryY + (storeAddrEsc ? 48 : 24) * SCALE}" text-anchor="middle" font-family="sans-serif" font-size="${10 * SCALE}" fill="${CREAM}" opacity="0.5">Issued: ${created}</text>`);
+  // Expiry
+  elements.push(buildTextElement(layout.expiry, `Valid until: ${expiry}`));
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  // Store address
+  if (v.storeAddress) {
+    elements.push(buildTextElement(layout.storeAddress, v.storeAddress));
+  }
+
+  // Issued date
+  elements.push(buildTextElement(layout.issuedDate, `Issued: ${created}`));
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${RENDER_W}" height="${RENDER_H}" viewBox="0 0 ${RENDER_W} ${RENDER_H}">
   ${elements.join('\n  ')}
 </svg>`;
 }
@@ -128,17 +144,21 @@ async function buildOverlaySvg(v: VoucherTemplateData): Promise<string> {
 /**
  * Generate a PNG by compositing dynamic text onto the user's voucher template image.
  * Uses sharp to load voucher.png, upscale 2x, and overlay text + QR code.
+ * Accepts an optional layout config for custom text positioning.
  */
-export async function generateVoucherPng(v: VoucherTemplateData): Promise<Buffer> {
+export async function generateVoucherPng(
+  v: VoucherTemplateData,
+  layout?: VoucherLayoutConfig
+): Promise<Buffer> {
   const sharp = (await import('sharp')).default;
 
   const templatePath = path.join(process.cwd(), 'public', 'voucher.png');
   const templateBuffer = fs.readFileSync(templatePath);
 
-  const overlaySvg = await buildOverlaySvg(v);
+  const overlaySvg = await buildOverlaySvg(v, layout || DEFAULT_VOUCHER_LAYOUT);
 
   const png = await sharp(templateBuffer)
-    .resize(W, H, { fit: 'fill', kernel: 'lanczos3' })
+    .resize(RENDER_W, RENDER_H, { fit: 'fill', kernel: 'lanczos3' })
     .composite([{
       input: Buffer.from(overlaySvg),
       blend: 'over',
