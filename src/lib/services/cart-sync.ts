@@ -195,37 +195,61 @@ export class CartSyncService {
   /**
    * Clear cart (after payment completion or when cart becomes empty)
    * Retries up to 3 times to ensure stale carts don't persist in the DB.
+   * Falls back to query-based deletion if currentCartId is null (e.g. after
+   * browser refresh on the payment page).
    */
-  static async clearCart(): Promise<void> {
-    if (!this.currentCartId) return;
+  static async clearCart(
+    orgId?: string,
+    registerId?: string,
+    employeeId?: string
+  ): Promise<void> {
+    // If we have a cartId, use it directly
+    if (this.currentCartId) {
+      const cartId = this.currentCartId;
+      const maxRetries = 3;
 
-    const cartId = this.currentCartId;
-    const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const supabase = createClient(supabaseUrl, supabaseKey);
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          await supabase
+            .from('active_carts')
+            .delete()
+            .eq('id', cartId);
+
+          console.log('[CartSync] Cart cleared');
+          this.currentCartId = null;
+          this.lastSyncedAt = null;
+          return;
+        } catch (error) {
+          console.error(`[CartSync] Clear failed (attempt ${attempt}/${maxRetries}):`, error);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          }
+        }
+      }
+
+      console.warn('[CartSync] Could not clear cart from DB after retries — clearing local refs');
+      this.currentCartId = null;
+      this.lastSyncedAt = null;
+      return;
+    }
+
+    // No currentCartId — try query-based deletion as fallback
+    if (orgId && registerId && employeeId) {
+      console.log('[CartSync] No cartId, clearing by org/register/employee query');
       try {
         const supabase = createClient(supabaseUrl, supabaseKey);
-
         await supabase
           .from('active_carts')
           .delete()
-          .eq('id', cartId);
-
-        console.log('[CartSync] Cart cleared');
-        this.currentCartId = null;
-        this.lastSyncedAt = null;
-        return;
+          .eq('org_id', orgId)
+          .eq('register_id', registerId)
+          .eq('employee_id', employeeId);
+        console.log('[CartSync] Cart cleared by query');
       } catch (error) {
-        console.error(`[CartSync] Clear failed (attempt ${attempt}/${maxRetries}):`, error);
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-        }
+        console.error('[CartSync] Query-based clear failed:', error);
       }
     }
-
-    // All retries failed — still clear local references so next init creates a fresh cart
-    console.warn('[CartSync] Could not clear cart from DB after retries — clearing local refs');
-    this.currentCartId = null;
-    this.lastSyncedAt = null;
   }
 }

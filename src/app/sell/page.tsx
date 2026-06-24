@@ -726,6 +726,21 @@ export default function SellPage() {
 
     const initCartSync = async () => {
       try {
+        // If we just completed a payment, skip loading stale cart from DB.
+        // The payment page already cleared both Zustand and the DB cart.
+        // initialize() will still create a fresh empty cart row.
+        const justPaid = sessionStorage.getItem("pos_just_paid");
+        if (justPaid) {
+          sessionStorage.removeItem("pos_just_paid");
+          console.log('[CartSync] Just paid — skipping DB cart restore, creating fresh cart');
+          await CartSyncService.initialize(
+            session.org_id,
+            session.register.id,
+            session.employee.id
+          );
+          return;
+        }
+
         // Load cart from database ONCE on mount
         const { lines: syncedLines, ticketAssignment: syncedAssignment} = await CartSyncService.initialize(
           session.org_id,

@@ -795,8 +795,11 @@ export default function PaymentPage() {
       confirmVoucherRedemptions();
       createPendingVoucher();
       clearCart();
-      CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
+      sessionStorage.setItem("pos_just_paid", "1");
+
+      // Await DB clear so stale cart rows don't survive navigation
+      await CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
 
       // Navigate immediately. Set a flag to prevent the empty-cart-redirect effect.
       setPaymentCompleted(true);
@@ -941,8 +944,11 @@ export default function PaymentPage() {
       confirmVoucherRedemptions();
       createPendingVoucher();
       clearCart();
-      CartSyncService.clearCart();
       sessionStorage.removeItem("pos_ticket_assignment");
+      sessionStorage.setItem("pos_just_paid", "1");
+
+      // Await DB clear so stale cart rows don't survive navigation
+      await CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
 
       setPaymentCompleted(true);
       console.log("[Payment] Navigating to success (manual payment)");
@@ -1841,8 +1847,12 @@ export default function PaymentPage() {
       confirmVoucherRedemptions();
       createPendingVoucher();
       clearCart();
-      CartSyncService.clearCart(); // Clear from database too
       sessionStorage.removeItem("pos_ticket_assignment");
+      sessionStorage.setItem("pos_just_paid", "1");
+
+      // Await DB clear so stale cart rows don't survive navigation
+      await CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
+
       setPaymentCompleted(true);
       setProcessing(false);
       router.push(`/payment/success?receipt_id=${tempReceiptId}&change=0`);
