@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, EyeOff, Eye } from "lucide-react";
 import {
   VoucherLayoutConfig,
   VoucherElementLayout,
@@ -30,7 +30,7 @@ export function ElementControls({
   const element = (layout as any)[meta.key] as VoucherElementLayout | VoucherQrLayout;
   const defaultElement = (DEFAULT_VOUCHER_LAYOUT as any)[meta.key] as VoucherElementLayout | VoucherQrLayout;
 
-  const updateField = (field: string, value: number | string) => {
+  const updateField = (field: string, value: number | string | boolean) => {
     const updated = { ...layout };
     (updated as any)[meta.key] = { ...(updated as any)[meta.key], [field]: value };
     onLayoutChange(updated);
@@ -54,20 +54,39 @@ export function ElementControls({
   const isQr = meta.type === "qr";
   const qrEl = element as VoucherQrLayout;
   const textEl = element as VoucherElementLayout;
+  const isHidden = !!(element as any).hidden;
+
+  const toggleHidden = () => {
+    updateField("hidden", !isHidden);
+  };
 
   return (
-    <div className="border border-gray-700/50 rounded-lg overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-[#2d2d2d] hover:bg-[#333] transition-colors"
-      >
-        <span className="text-sm font-medium text-white">{meta.label}</span>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-gray-400" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        )}
-      </button>
+    <div className={`border border-gray-700/50 rounded-lg overflow-hidden ${isHidden ? "opacity-50" : ""}`}>
+      <div className="w-full flex items-center justify-between px-3 py-2.5 bg-[#2d2d2d] active:bg-[#333] transition-colors">
+        <button onClick={onToggle} className="flex items-center gap-2 flex-1 min-w-0">
+          <span className={`text-sm font-medium ${isHidden ? "text-gray-500" : "text-white"}`}>{meta.label}</span>
+          {isHidden && <span className="text-[10px] text-gray-500 uppercase">hidden</span>}
+        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={toggleHidden}
+            className={`p-1 rounded transition-colors ${
+              isHidden
+                ? "text-gray-500 hover:text-gray-300"
+                : "text-penkey-orange hover:text-penkey-orange/80"
+            }`}
+          >
+            {isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </button>
+          <button onClick={onToggle}>
+            {expanded ? (
+              <ChevronUp className="h-4 w-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
+        </div>
+      </div>
 
       {expanded && (
         <div className="p-3 space-y-3 bg-[#252525]">

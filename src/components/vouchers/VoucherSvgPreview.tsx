@@ -108,40 +108,44 @@ export function VoucherSvgPreview({
 
     // Recipient label + name
     if (data.recipientName) {
-      elements.push(buildTextElement(layout.recipientLabel, "A gift for"));
-      elements.push(buildTextElement(layout.recipientName, data.recipientName));
+      if (!layout.recipientLabel.hidden) elements.push(buildTextElement(layout.recipientLabel, "A gift for"));
+      if (!layout.recipientName.hidden) elements.push(buildTextElement(layout.recipientName, data.recipientName));
     }
 
     // Value
-    const valueText = getValueText(data);
-    elements.push(buildTextElement(layout.value, valueText));
+    if (!layout.value.hidden) {
+      const valueText = getValueText(data);
+      elements.push(buildTextElement(layout.value, valueText));
+    }
 
     // QR Code
-    const qr = layout.qrCode;
-    const qrSize = qr.size * SCALE;
-    const qrX = qr.x * SCALE - qrSize / 2;
-    const qrY = qr.y * SCALE;
-    elements.push(
-      `<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${qr.bgColor}" rx="${qr.borderRadius * SCALE}"/>`
-    );
-    if (qrDataUrl) {
-      const pad = qr.padding * SCALE;
+    if (!layout.qrCode.hidden) {
+      const qr = layout.qrCode;
+      const qrSize = qr.size * SCALE;
+      const qrX = qr.x * SCALE - qrSize / 2;
+      const qrY = qr.y * SCALE;
       elements.push(
-        `<image href="${qrDataUrl}" x="${qrX + pad}" y="${qrY + pad}" width="${qrSize - pad * 2}" height="${qrSize - pad * 2}"/>`
+        `<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${qr.bgColor}" rx="${qr.borderRadius * SCALE}"/>`
       );
-    } else {
-      // Placeholder box for QR
-      elements.push(
-        `<rect x="${qrX + qr.padding * SCALE}" y="${qrY + qr.padding * SCALE}" width="${qrSize - qr.padding * SCALE * 2}" height="${qrSize - qr.padding * SCALE * 2}" fill="#ddd" rx="${qr.borderRadius * SCALE}"/>`
-      );
+      if (qrDataUrl) {
+        const pad = qr.padding * SCALE;
+        elements.push(
+          `<image href="${qrDataUrl}" x="${qrX + pad}" y="${qrY + pad}" width="${qrSize - pad * 2}" height="${qrSize - pad * 2}"/>`
+        );
+      } else {
+        // Placeholder box for QR
+        elements.push(
+          `<rect x="${qrX + qr.padding * SCALE}" y="${qrY + qr.padding * SCALE}" width="${qrSize - qr.padding * SCALE * 2}" height="${qrSize - qr.padding * SCALE * 2}" fill="#ddd" rx="${qr.borderRadius * SCALE}"/>`
+        );
+      }
     }
 
     // Code label + value
-    elements.push(buildTextElement(layout.codeLabel, "VOUCHER CODE"));
-    elements.push(buildTextElement(layout.codeValue, data.code || "XXXX-XXXX", "monospace"));
+    if (!layout.codeLabel.hidden) elements.push(buildTextElement(layout.codeLabel, "VOUCHER CODE"));
+    if (!layout.codeValue.hidden) elements.push(buildTextElement(layout.codeValue, data.code || "XXXX-XXXX", "monospace"));
 
     // Message
-    if (data.message) {
+    if (data.message && !layout.message.hidden) {
       const msgLines = wrapText(data.message, 32);
       for (const line of msgLines.slice(0, 3)) {
         elements.push(buildTextElement(layout.message, line));
@@ -149,20 +153,24 @@ export function VoucherSvgPreview({
     }
 
     // Expiry
-    elements.push(buildTextElement(layout.expiry, `Valid until: ${getExpiryText(data)}`));
+    if (!layout.expiry.hidden) {
+      elements.push(buildTextElement(layout.expiry, `Valid until: ${getExpiryText(data)}`));
+    }
 
     // Store address
-    if (data.storeAddress) {
+    if (data.storeAddress && !layout.storeAddress.hidden) {
       elements.push(buildTextElement(layout.storeAddress, data.storeAddress));
     }
 
     // Issued date
-    const created = new Date().toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    elements.push(buildTextElement(layout.issuedDate, `Issued: ${created}`));
+    if (!layout.issuedDate.hidden) {
+      const created = new Date().toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      elements.push(buildTextElement(layout.issuedDate, `Issued: ${created}`));
+    }
 
     // Guide lines for editing
     if (showGuideLines) {

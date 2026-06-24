@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { RotateCcw, Save, X, Loader2, ChevronUp, ChevronDown, Eye, EyeOff, Check } from "lucide-react";
+import { RotateCcw, Save, X, Loader2, ChevronUp, ChevronDown, Check } from "lucide-react";
 import {
   VoucherLayoutConfig,
   DEFAULT_VOUCHER_LAYOUT,
@@ -31,9 +31,10 @@ export function VoucherTemplateEditor({
 }: VoucherTemplateEditorProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(true);
-  const [showGuides, setShowGuides] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const previewRef = useRef<HTMLDivElement>(null);
+  const sheetContentRef = useRef<HTMLDivElement>(null);
+  const elementRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Scroll to top when editor opens
   useEffect(() => {
@@ -43,8 +44,18 @@ export function VoucherTemplateEditor({
   }, []);
 
   const toggle = (key: string) => {
-    setExpandedKey(expandedKey === key ? null : key);
-    if (expandedKey !== key) setSheetExpanded(true);
+    const isExpanding = expandedKey !== key;
+    setExpandedKey(isExpanding ? key : null);
+    if (isExpanding) {
+      setSheetExpanded(true);
+      // Scroll the sheet content so the expanded element is at the top
+      setTimeout(() => {
+        const elRef = elementRefs.current[key];
+        if (elRef && sheetContentRef.current) {
+          sheetContentRef.current.scrollTo({ top: elRef.offsetTop - 8, behavior: "smooth" });
+        }
+      }, 50);
+    }
   };
 
   const handleReset = useCallback(() => {
@@ -66,17 +77,6 @@ export function VoucherTemplateEditor({
       <div className="flex items-center justify-between px-4 py-3 bg-[#2d2d2d] border-b border-gray-700 flex-shrink-0">
         <h2 className="text-base font-semibold text-white">Customize Layout</h2>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowGuides(!showGuides)}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-              showGuides
-                ? "border-penkey-orange/50 text-penkey-orange"
-                : "border-gray-600 text-gray-300"
-            }`}
-          >
-            {showGuides ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            Guides
-          </button>
           <button
             onClick={handleReset}
             className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 active:bg-[#333] transition-colors"
@@ -103,8 +103,6 @@ export function VoucherTemplateEditor({
             data={previewData}
             layout={layout}
             qrDataUrl={qrDataUrl}
-            showGuideLines={showGuides}
-            selectedElement={expandedKey}
             className="w-full"
           />
         </div>
@@ -137,17 +135,18 @@ export function VoucherTemplateEditor({
 
         {/* Sheet content */}
         {sheetExpanded && (
-          <div className="overflow-y-auto px-3 pb-3" style={{ maxHeight: "calc(55vh - 48px)" }}>
+          <div ref={sheetContentRef} className="overflow-y-auto px-3 pb-3" style={{ maxHeight: "calc(55vh - 48px)" }}>
             <div className="space-y-2">
               {ELEMENT_METADATA.map((meta) => (
-                <ElementControls
-                  key={meta.key}
-                  meta={meta}
-                  layout={layout}
-                  onLayoutChange={onLayoutChange}
-                  expanded={expandedKey === meta.key}
-                  onToggle={() => toggle(meta.key)}
-                />
+                <div key={meta.key} ref={(el) => { elementRefs.current[meta.key] = el; }}>
+                  <ElementControls
+                    meta={meta}
+                    layout={layout}
+                    onLayoutChange={onLayoutChange}
+                    expanded={expandedKey === meta.key}
+                    onToggle={() => toggle(meta.key)}
+                  />
+                </div>
               ))}
             </div>
 

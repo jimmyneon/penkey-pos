@@ -18,6 +18,7 @@ export interface VoucherElementLayout {
   fontStyle?: 'normal' | 'italic';
   letterSpacing?: number;
   opacity?: number;
+  hidden?: boolean;
 }
 
 export interface VoucherQrLayout {
@@ -27,6 +28,7 @@ export interface VoucherQrLayout {
   bgColor: string;
   padding: number;
   borderRadius: number;
+  hidden?: boolean;
 }
 
 export interface VoucherLayoutConfig {

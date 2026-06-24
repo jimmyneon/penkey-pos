@@ -98,27 +98,31 @@ export async function buildOverlaySvg(
 
   // Recipient label + name
   if (recipient) {
-    elements.push(buildTextElement(layout.recipientLabel, 'A gift for'));
-    elements.push(buildTextElement(layout.recipientName, recipient));
+    if (!layout.recipientLabel.hidden) elements.push(buildTextElement(layout.recipientLabel, 'A gift for'));
+    if (!layout.recipientName.hidden) elements.push(buildTextElement(layout.recipientName, recipient));
   }
 
   // Value
-  elements.push(buildTextElement(layout.value, valueText));
+  if (!layout.value.hidden) {
+    elements.push(buildTextElement(layout.value, valueText));
+  }
 
   // QR Code
-  const qr = layout.qrCode;
-  const qrSize = qr.size * SCALE;
-  const qrX = qr.x * SCALE - qrSize / 2;
-  const qrY = qr.y * SCALE;
-  elements.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${qr.bgColor}" rx="${qr.borderRadius * SCALE}"/>`);
-  elements.push(`<image href="${qrDataUrl}" x="${qrX + qr.padding * SCALE}" y="${qrY + qr.padding * SCALE}" width="${qrSize - qr.padding * SCALE * 2}" height="${qrSize - qr.padding * SCALE * 2}"/>`);
+  if (!layout.qrCode.hidden) {
+    const qr = layout.qrCode;
+    const qrSize = qr.size * SCALE;
+    const qrX = qr.x * SCALE - qrSize / 2;
+    const qrY = qr.y * SCALE;
+    elements.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${qr.bgColor}" rx="${qr.borderRadius * SCALE}"/>`);
+    elements.push(`<image href="${qrDataUrl}" x="${qrX + qr.padding * SCALE}" y="${qrY + qr.padding * SCALE}" width="${qrSize - qr.padding * SCALE * 2}" height="${qrSize - qr.padding * SCALE * 2}"/>`);
+  }
 
   // Code label + value
-  elements.push(buildTextElement(layout.codeLabel, 'VOUCHER CODE'));
-  elements.push(buildTextElement(layout.codeValue, v.code, 'monospace'));
+  if (!layout.codeLabel.hidden) elements.push(buildTextElement(layout.codeLabel, 'VOUCHER CODE'));
+  if (!layout.codeValue.hidden) elements.push(buildTextElement(layout.codeValue, v.code, 'monospace'));
 
   // Message
-  if (message) {
+  if (message && !layout.message.hidden) {
     const msgLines = wrapText(v.message!, 32);
     for (const line of msgLines.slice(0, 3)) {
       elements.push(buildTextElement(layout.message, line));
@@ -126,15 +130,19 @@ export async function buildOverlaySvg(
   }
 
   // Expiry
-  elements.push(buildTextElement(layout.expiry, `Valid until: ${expiry}`));
+  if (!layout.expiry.hidden) {
+    elements.push(buildTextElement(layout.expiry, `Valid until: ${expiry}`));
+  }
 
   // Store address
-  if (v.storeAddress) {
+  if (v.storeAddress && !layout.storeAddress.hidden) {
     elements.push(buildTextElement(layout.storeAddress, v.storeAddress));
   }
 
   // Issued date
-  elements.push(buildTextElement(layout.issuedDate, `Issued: ${created}`));
+  if (!layout.issuedDate.hidden) {
+    elements.push(buildTextElement(layout.issuedDate, `Issued: ${created}`));
+  }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${RENDER_W}" height="${RENDER_H}" viewBox="0 0 ${RENDER_W} ${RENDER_H}">
   ${elements.join('\n  ')}
