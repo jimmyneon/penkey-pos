@@ -172,6 +172,11 @@ export interface Database {
         };
         Update: Partial<QRScan>;
       };
+      discounts: {
+        Row: any;
+        Insert: any;
+        Update: any;
+      };
     };
     Views: {
       [_ in never]: never;

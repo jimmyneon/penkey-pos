@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
       created_at,
       tip_amount,
       voucher_redemptions, // Array of voucher redemptions
+      discount_code,
+      discount_amount,
     } = body;
 
     console.log('[Receipt Create] Incoming data:', { id, payment_method, employee_id, register_id, org_id, store_id, linesCount: lines?.length, dining_option });
@@ -218,6 +220,8 @@ export async function POST(request: NextRequest) {
         status: "completed",
         dining_option: dining_option || "takeaway",
         customer_count: parseInt(customer_count) || 1,
+        discount_code: discount_code || null,
+        discount_amount: parseFloat(discount_amount) || 0,
         idempotency_key: id ? (isValidUUID(id) ? id : stringToUUID(id)) : null,
         // Preserve original transaction time if provided (offline sync), otherwise use database default
         created_at: created_at || undefined,
@@ -330,6 +334,24 @@ export async function POST(request: NextRequest) {
         // Don't rollback - voucher tracking is non-critical
       } else {
         console.log('[Receipt Create] Voucher redemptions inserted:', voucherRedemptionRecords.length);
+      }
+    }
+
+    // Increment discount usage count if a discount code was applied
+    if (discount_code) {
+      try {
+        const { data: disc } = await (supabase.from('discounts') as any)
+          .select('id, usage_count')
+          .eq('code', discount_code)
+          .eq('org_id', org_id)
+          .maybeSingle();
+        if (disc) {
+          await (supabase.from('discounts') as any)
+            .update({ usage_count: (disc.usage_count || 0) + 1 })
+            .eq('id', disc.id);
+        }
+      } catch (e) {
+        console.error('[Receipt Create] Failed to increment discount usage:', e);
       }
     }
 

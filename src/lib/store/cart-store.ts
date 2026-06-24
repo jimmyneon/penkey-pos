@@ -29,6 +29,15 @@ export interface VoucherDiscount {
   category?: string;
 }
 
+export interface BasketDiscount {
+  id: string;
+  code: string;
+  name: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  discountAmount: number;
+}
+
 export interface CartLine {
   id: string; // Unique ID for this cart line
   item_id: string;
@@ -46,6 +55,7 @@ export interface CartLine {
 interface CartStore {
   lines: CartLine[];
   basketVoucher: VoucherDiscount | null;
+  basketDiscount: BasketDiscount | null;
   addLine: (line: Omit<CartLine, "id">) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
@@ -56,10 +66,13 @@ interface CartStore {
   removeVoucher: (lineId: string) => void;
   setBasketVoucher: (voucher: VoucherDiscount) => void;
   clearBasketVoucher: () => void;
+  setBasketDiscount: (discount: BasketDiscount) => void;
+  clearBasketDiscount: () => void;
   getSubtotal: () => number;
   getTaxTotal: () => number;
   getTotal: () => number;
   getBasketVoucherDiscount: () => number;
+  getBasketDiscountAmount: () => number;
   getVoucherDiscountTotal: () => number;
 }
 
@@ -68,6 +81,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       lines: [],
       basketVoucher: null,
+      basketDiscount: null,
 
   addLine: (line) => {
     set((state) => {
@@ -139,7 +153,7 @@ export const useCartStore = create<CartStore>()(
   },
 
   clearCart: () => {
-    set({ lines: [], basketVoucher: null });
+    set({ lines: [], basketVoucher: null, basketDiscount: null });
   },
 
   loadLines: (lines) => {
@@ -168,6 +182,14 @@ export const useCartStore = create<CartStore>()(
 
   clearBasketVoucher: () => {
     set({ basketVoucher: null });
+  },
+
+  setBasketDiscount: (discount) => {
+    set({ basketDiscount: discount });
+  },
+
+  clearBasketDiscount: () => {
+    set({ basketDiscount: null });
   },
 
   getSubtotal: () => {
@@ -220,7 +242,11 @@ export const useCartStore = create<CartStore>()(
   },
 
   getTotal: () => {
-    return Math.max(0, get().getSubtotal() + get().getTaxTotal() - get().getBasketVoucherDiscount());
+    const subtotal = get().getSubtotal();
+    const tax = get().getTaxTotal();
+    const voucherDiscount = get().getBasketVoucherDiscount();
+    const discountAmount = get().getBasketDiscountAmount();
+    return Math.max(0, subtotal + tax - voucherDiscount - discountAmount);
   },
 
   getBasketVoucherDiscount: () => {
@@ -232,6 +258,18 @@ export const useCartStore = create<CartStore>()(
     }, 0);
     if (basketVoucher.discountType === 'fixed') return Math.min(basketVoucher.discountValue, lineTotal);
     if (basketVoucher.discountType === 'percentage') return lineTotal * (basketVoucher.discountValue / 100);
+    return 0;
+  },
+
+  getBasketDiscountAmount: () => {
+    const { basketDiscount, lines } = get();
+    if (!basketDiscount) return 0;
+    const lineTotal = lines.reduce((sum, line) => {
+      const lt = (line.unit_price + line.modifiers.reduce((s, m) => s + m.price_adjustment, 0)) * line.quantity;
+      return sum + lt;
+    }, 0);
+    if (basketDiscount.discountType === 'fixed') return Math.min(basketDiscount.discountValue, lineTotal);
+    if (basketDiscount.discountType === 'percentage') return lineTotal * (basketDiscount.discountValue / 100);
     return 0;
   },
 

@@ -156,12 +156,25 @@ export async function buildOverlaySvg(
  */
 export async function generateVoucherPng(
   v: VoucherTemplateData,
-  layout?: VoucherLayoutConfig
+  layout?: VoucherLayoutConfig,
+  backgroundImageUrl?: string
 ): Promise<Buffer> {
   const sharp = (await import('sharp')).default;
 
-  const templatePath = path.join(process.cwd(), 'public', 'voucher.png');
-  const templateBuffer = fs.readFileSync(templatePath);
+  let templateBuffer: Buffer;
+
+  if (backgroundImageUrl && backgroundImageUrl.startsWith('http')) {
+    // Fetch from remote URL (Supabase Storage)
+    const res = await fetch(backgroundImageUrl);
+    if (!res.ok) throw new Error(`Failed to fetch template image: ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+    templateBuffer = Buffer.from(arrayBuffer);
+  } else {
+    // Local file from public/
+    const imageSrc = backgroundImageUrl || '/voucher.png';
+    const templatePath = path.join(process.cwd(), 'public', imageSrc);
+    templateBuffer = fs.readFileSync(templatePath);
+  }
 
   const overlaySvg = await buildOverlaySvg(v, layout || DEFAULT_VOUCHER_LAYOUT);
 

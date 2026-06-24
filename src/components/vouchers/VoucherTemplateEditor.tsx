@@ -4,11 +4,13 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { RotateCcw, Save, X, Loader2, ChevronUp, ChevronDown, Check } from "lucide-react";
 import {
   VoucherLayoutConfig,
+  VoucherTemplate,
   DEFAULT_VOUCHER_LAYOUT,
   ELEMENT_METADATA,
 } from "@/lib/voucher/voucher-layout-config";
 import { VoucherSvgPreview, VoucherPreviewData } from "./VoucherSvgPreview";
 import { ElementControls } from "./ElementControls";
+import { TemplateSelector } from "./TemplateSelector";
 
 interface VoucherTemplateEditorProps {
   previewData: VoucherPreviewData;
@@ -18,6 +20,13 @@ interface VoucherTemplateEditorProps {
   saving?: boolean;
   qrDataUrl?: string;
   onClose: () => void;
+  templates: VoucherTemplate[];
+  activeTemplateId: string;
+  backgroundImageUrl?: string;
+  onSelectTemplate: (templateId: string) => void;
+  onCreateTemplate: (name: string, imageUrl: string) => void;
+  onDeleteTemplate: (templateId: string) => void;
+  onUploadTemplateImage: (file: File) => Promise<string | null>;
 }
 
 export function VoucherTemplateEditor({
@@ -28,6 +37,13 @@ export function VoucherTemplateEditor({
   saving,
   qrDataUrl,
   onClose,
+  templates,
+  activeTemplateId,
+  backgroundImageUrl,
+  onSelectTemplate,
+  onCreateTemplate,
+  onDeleteTemplate,
+  onUploadTemplateImage,
 }: VoucherTemplateEditorProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(true);
@@ -106,6 +122,7 @@ export function VoucherTemplateEditor({
             data={previewData}
             layout={layout}
             qrDataUrl={qrDataUrl}
+            backgroundImageUrl={backgroundImageUrl}
             className="w-full"
           />
         </div>
@@ -139,6 +156,18 @@ export function VoucherTemplateEditor({
         {/* Sheet content */}
         {sheetExpanded && (
           <div ref={sheetContentRef} className="overflow-y-auto px-3 pb-3" style={{ maxHeight: "calc(55vh - 48px)" }}>
+            {/* Template selector */}
+            <div className="mb-3">
+              <TemplateSelector
+                templates={templates}
+                activeTemplateId={activeTemplateId}
+                onSelect={onSelectTemplate}
+                onCreate={onCreateTemplate}
+                onDelete={onDeleteTemplate}
+                onUploadImage={onUploadTemplateImage}
+              />
+            </div>
+
             <div className="space-y-2">
               {ELEMENT_METADATA.map((meta) => (
                 <div key={meta.key} ref={(el) => { elementRefs.current[meta.key] = el; }}>

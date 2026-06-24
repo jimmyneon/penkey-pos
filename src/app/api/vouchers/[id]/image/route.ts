@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/database';
 import { validatePOSSession, unauthorizedResponse } from '@/lib/api/auth';
 import { generateVoucherPng, VoucherTemplateData } from '@/lib/voucher/voucher-template';
-import { DEFAULT_VOUCHER_LAYOUT, VoucherLayoutConfig } from '@/lib/voucher/voucher-layout-config';
+import { DEFAULT_VOUCHER_LAYOUT, DEFAULT_VOUCHER_TEMPLATE, VoucherLayoutConfig, VoucherTemplate } from '@/lib/voucher/voucher-layout-config';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const session = await validatePOSSession(request);
@@ -57,22 +57,30 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     storeAddress,
   };
 
-  // Load org's custom voucher layout if configured
-  let layout: VoucherLayoutConfig | undefined;
+  // Load org's voucher templates and find the active one
+  let layout: VoucherLayoutConfig = DEFAULT_VOUCHER_LAYOUT;
+  let backgroundImageUrl: string | undefined;
   try {
     const { data: settings } = await supabase
       .from('org_settings')
       .select('settings')
       .eq('org_id', session.org_id)
       .maybeSingle();
-    const savedLayout = (settings as any)?.settings?.voucher_template_layout;
-    if (savedLayout) {
-      layout = { ...DEFAULT_VOUCHER_LAYOUT, ...savedLayout } as VoucherLayoutConfig;
-    }
+    const s = (settings as any)?.settings || {};
+    const templates: VoucherTemplate[] = s.voucher_templates || [];
+    const activeId: string = s.active_voucher_template_id || 'default';
+
+    // Try active template first, then fall back to default
+    const activeTemplate = templates.find((t) => t.id === activeId)
+      || templates.find((t) => t.id === 'default')
+      || DEFAULT_VOUCHER_TEMPLATE;
+
+    layout = activeTemplate.layout;
+    backgroundImageUrl = activeTemplate.imageUrl;
   } catch {}
 
   try {
-    const pngBuffer = await generateVoucherPng(templateData, layout);
+    const pngBuffer = await generateVoucherPng(templateData, layout, backgroundImageUrl);
 
     return new NextResponse(pngBuffer, {
       headers: {

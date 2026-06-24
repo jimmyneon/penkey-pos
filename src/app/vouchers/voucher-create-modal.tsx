@@ -23,7 +23,7 @@ import { hapticButtonPress } from "@/lib/utils/haptics";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { VoucherSvgPreview, VoucherPreviewData } from "@/components/vouchers/VoucherSvgPreview";
 import { VoucherTemplateEditor } from "@/components/vouchers/VoucherTemplateEditor";
-import { DEFAULT_VOUCHER_LAYOUT, VoucherLayoutConfig } from "@/lib/voucher/voucher-layout-config";
+import { DEFAULT_VOUCHER_LAYOUT, VoucherLayoutConfig, VoucherTemplate, DEFAULT_VOUCHER_TEMPLATE } from "@/lib/voucher/voucher-layout-config";
 
 type VoucherType = "amount" | "item" | "percent";
 
@@ -72,8 +72,10 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
   const [showLayoutEditor, setShowLayoutEditor] = useState(false);
   const [voucherLayout, setVoucherLayout] = useState<VoucherLayoutConfig>(DEFAULT_VOUCHER_LAYOUT);
   const [savingLayout, setSavingLayout] = useState(false);
+  const [templates, setTemplates] = useState<VoucherTemplate[]>([DEFAULT_VOUCHER_TEMPLATE]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string>('default');
 
-  // Load saved layout on mount
+  // Load saved templates on mount
   useEffect(() => {
     const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
     fetch("/api/voucher-template-settings", {
@@ -81,7 +83,16 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     })
       .then((res) => res.json())
       .then((data) => {
-        if (data.layout) setVoucherLayout(data.layout);
+        if (data.templates) {
+          setTemplates(data.templates);
+          const activeId = data.activeTemplateId || 'default';
+          setActiveTemplateId(activeId);
+          const active = data.templates.find((t: VoucherTemplate) => t.id === activeId);
+          if (active) setVoucherLayout(active.layout);
+        } else if (data.layout) {
+          // Backwards compat: old single-layout format
+          setVoucherLayout(data.layout);
+        }
       })
       .catch(() => {});
   }, []);
@@ -90,21 +101,105 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     setSavingLayout(true);
     try {
       const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const activeTemplate = templates.find((t) => t.id === activeTemplateId) || templates[0];
       const res = await fetch("/api/voucher-template-settings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(sessionData ? { "x-pos-session": sessionData } : {}),
         },
-        body: JSON.stringify({ layout: voucherLayout }),
+        body: JSON.stringify({
+          template: {
+            ...activeTemplate,
+            layout: voucherLayout,
+          },
+        }),
       });
       if (!res.ok) throw new Error("Failed to save");
+      const data = await res.json();
+      if (data.templates) setTemplates(data.templates);
       return true;
     } catch {
       setError("Failed to save layout");
       return false;
     } finally {
       setSavingLayout(false);
+    }
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    setActiveTemplateId(templateId);
+    setVoucherLayout(tpl.layout);
+    // Set active on server
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    fetch("/api/voucher-template-settings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionData ? { "x-pos-session": sessionData } : {}),
+      },
+      body: JSON.stringify({ action: 'setActive', templateId }),
+    }).catch(() => {});
+  };
+
+  const handleCreateTemplate = (name: string, imageUrl: string) => {
+    const newId = `tpl_${Date.now()}`;
+    const newTemplate: VoucherTemplate = {
+      id: newId,
+      name,
+      imageUrl,
+      layout: { ...DEFAULT_VOUCHER_LAYOUT },
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...templates, newTemplate];
+    setTemplates(updated);
+    setActiveTemplateId(newId);
+    setVoucherLayout({ ...DEFAULT_VOUCHER_LAYOUT });
+    // Save to server
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    fetch("/api/voucher-template-settings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionData ? { "x-pos-session": sessionData } : {}),
+      },
+      body: JSON.stringify({ template: newTemplate }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    const updated = templates.filter((t) => t.id !== templateId);
+    setTemplates(updated);
+    if (activeTemplateId === templateId) {
+      setActiveTemplateId('default');
+      const def = updated.find((t) => t.id === 'default');
+      if (def) setVoucherLayout(def.layout);
+    }
+    // Delete on server
+    const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+    fetch(`/api/voucher-template-settings?id=${templateId}`, {
+      method: "DELETE",
+      headers: sessionData ? { "x-pos-session": sessionData } : {},
+    }).catch(() => {});
+  };
+
+  const handleUploadTemplateImage = async (file: File): Promise<string | null> => {
+    try {
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/voucher-template-settings/upload', {
+        method: 'POST',
+        headers: sessionData ? { "x-pos-session": sessionData } : {},
+        body: formData,
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.url || null;
+    } catch {
+      return null;
     }
   };
 
@@ -624,6 +719,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
               <VoucherSvgPreview
                 data={svgPreviewData}
                 layout={voucherLayout}
+                backgroundImageUrl={templates.find((t) => t.id === activeTemplateId)?.imageUrl || '/voucher.png'}
                 className="w-full"
               />
             </div>
@@ -865,6 +961,13 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
           onSave={handleSaveLayout}
           saving={savingLayout}
           onClose={() => setShowLayoutEditor(false)}
+          templates={templates}
+          activeTemplateId={activeTemplateId}
+          backgroundImageUrl={templates.find((t) => t.id === activeTemplateId)?.imageUrl || '/voucher.png'}
+          onSelectTemplate={handleSelectTemplate}
+          onCreateTemplate={handleCreateTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
+          onUploadTemplateImage={handleUploadTemplateImage}
         />
       )}
     </div>

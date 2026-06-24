@@ -182,6 +182,27 @@ export interface ElementMeta {
   maxFontSize: number;
 }
 
+/**
+ * A voucher template = background image + layout config.
+ * Orgs can have multiple templates and switch between them.
+ */
+export interface VoucherTemplate {
+  id: string;
+  name: string;
+  imageUrl: string;
+  layout: VoucherLayoutConfig;
+  isDefault?: boolean;
+  createdAt?: string;
+}
+
+export const DEFAULT_VOUCHER_TEMPLATE: VoucherTemplate = {
+  id: 'default',
+  name: 'Default Template',
+  imageUrl: '/voucher.png',
+  layout: DEFAULT_VOUCHER_LAYOUT,
+  isDefault: true,
+};
+
 export const ELEMENT_METADATA: ElementMeta[] = [
   { key: 'recipientLabel', label: 'Recipient Label', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 60 },
   { key: 'recipientName', label: 'Recipient Name', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 14, maxFontSize: 80 },

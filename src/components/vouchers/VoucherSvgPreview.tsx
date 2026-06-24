@@ -92,6 +92,7 @@ interface VoucherSvgPreviewProps {
   showGuideLines?: boolean;
   selectedElement?: string | null;
   onElementClick?: (key: string) => void;
+  backgroundImageUrl?: string;
 }
 
 export function VoucherSvgPreview({
@@ -102,6 +103,7 @@ export function VoucherSvgPreview({
   showGuideLines = false,
   selectedElement,
   onElementClick,
+  backgroundImageUrl = "/voucher.png",
 }: VoucherSvgPreviewProps) {
   const svgString = useMemo(() => {
     const elements: string[] = [];
@@ -193,17 +195,17 @@ export function VoucherSvgPreview({
         }
       }
       return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${RENDER_W} ${RENDER_H}" preserveAspectRatio="xMidYMid meet">
-  <image href="/voucher.png" x="0" y="0" width="${RENDER_W}" height="${RENDER_H}" preserveAspectRatio="none"/>
+  <image href="${backgroundImageUrl}" x="0" y="0" width="${RENDER_W}" height="${RENDER_H}" preserveAspectRatio="none"/>
   ${elements.join("\n  ")}
   ${guideLines.join("\n  ")}
 </svg>`;
     }
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${RENDER_W} ${RENDER_H}" preserveAspectRatio="xMidYMid meet">
-  <image href="/voucher.png" x="0" y="0" width="${RENDER_W}" height="${RENDER_H}" preserveAspectRatio="none"/>
+  <image href="${backgroundImageUrl}" x="0" y="0" width="${RENDER_W}" height="${RENDER_H}" preserveAspectRatio="none"/>
   ${elements.join("\n  ")}
 </svg>`;
-  }, [data, layout, qrDataUrl, showGuideLines, selectedElement]);
+  }, [data, layout, qrDataUrl, showGuideLines, selectedElement, backgroundImageUrl]);
 
   return (
     <div

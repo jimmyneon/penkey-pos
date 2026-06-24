@@ -4,13 +4,16 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode, Gift } from "lucide-react";
+import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode, Gift, Percent } from "lucide-react";
 import { TipSelection } from "./tip-selection";
 import { useCartStore } from "@/lib/store/cart-store";
+import type { BasketDiscount } from "@/lib/store/cart-store";
 import { TicketModal } from "../sell/ticket-modal";
 import { CashTenderedDialog } from "./cash-tendered-dialog";
 import { ManualPaymentDialog } from "./manual-payment-dialog";
 import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
+import { DiningConfirmDialog } from "./dining-confirm-dialog";
+import { DiscountSelectionDialog } from "./discount-selection-dialog";
 import { QRScanner } from "@/components/QRScanner";
 import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
 import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
@@ -21,6 +24,7 @@ import { CartSyncService } from "@/lib/services/cart-sync";
 import { putMany } from "@/lib/idb/db";
 import { getSumUpCredentials, hasSumUpCredentials, storeSumUpCredentials } from "@/lib/services/sumup-credentials";
 import { playPaymentInitSound, playPaymentProcessingSound, playPaymentSuccessSound, playPaymentFailedSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
+import { hapticButtonPress } from "@/lib/utils/haptics";
 
 interface Session {
   employee: {
@@ -63,7 +67,10 @@ export default function PaymentPage() {
   const [tipAmount, setTipAmount] = useState(0);
   const [showTipSelection, setShowTipSelection] = useState(false);
   const [tipPresets, setTipPresets] = useState<number[]>([2, 5, 10]);
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher, basketVoucher, getBasketVoucherDiscount } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher, basketVoucher, getBasketVoucherDiscount, basketDiscount, setBasketDiscount, clearBasketDiscount, getBasketDiscountAmount } = useCartStore();
+  const [diningConfirmOpen, setDiningConfirmOpen] = useState(false);
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<'cash' | 'card' | 'manual' | null>(null);
   
   // SumUp API key credential check
   const [sumUpConfigured, setSumUpConfigured] = useState(false);
@@ -559,6 +566,27 @@ export default function PaymentPage() {
   const cartTotal = getTotal();
   const total = cartTotal + tipAmount;
 
+  const handlePaymentMethodClick = (method: 'cash' | 'card' | 'manual') => {
+    hapticButtonPress();
+    setPendingPaymentMethod(method);
+    setDiningConfirmOpen(true);
+  };
+
+  const handleDiningConfirm = (diningOption: 'eat-in' | 'takeaway', count: number) => {
+    setDefaultDiningOption(diningOption);
+    setCustomerCount(count);
+    setDiningConfirmOpen(false);
+    const method = pendingPaymentMethod;
+    setPendingPaymentMethod(null);
+    if (method === 'cash') {
+      setCashDialogOpen(true);
+    } else if (method === 'card') {
+      handleCardPayment();
+    } else if (method === 'manual') {
+      setManualPaymentDialogOpen(true);
+    }
+  };
+
   // Fire-and-forget: mark any gift vouchers applied in cart as redeemed
   const confirmVoucherRedemptions = () => {
     const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
@@ -669,6 +697,8 @@ export default function PaymentPage() {
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
       customer_count: customerCount,
       tip_amount: tipAmount,
+      discount_code: basketDiscount?.code || null,
+      discount_amount: basketDiscount ? getBasketDiscountAmount() : 0,
       voucher_redemptions: [
         ...lines.filter(line => line.voucher).map(line => ({
           voucher_id: line.voucher!.id,
@@ -828,6 +858,8 @@ export default function PaymentPage() {
       dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
       customer_count: customerCount,
       tip_amount: tipAmount,
+      discount_code: basketDiscount?.code || null,
+      discount_amount: basketDiscount ? getBasketDiscountAmount() : 0,
       voucher_redemptions: [
         ...lines.filter(line => line.voucher).map(line => ({
           voucher_id: line.voucher!.id,
@@ -1745,6 +1777,8 @@ export default function PaymentPage() {
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,
         tip_amount: tipAmount,
+        discount_code: basketDiscount?.code || null,
+        discount_amount: basketDiscount ? getBasketDiscountAmount() : 0,
         voucher_redemptions: [
           ...lines.filter(line => line.voucher).map(line => ({
             voucher_id: line.voucher!.id,
@@ -1875,6 +1909,11 @@ export default function PaymentPage() {
                 Voucher: {basketVoucher.name} &minus;{formatCurrency(getBasketVoucherDiscount())}
               </div>
             )}
+            {basketDiscount && (
+              <div className="text-xs text-white/90 mt-0.5">
+                Discount: {basketDiscount.code} &minus;{formatCurrency(getBasketDiscountAmount())}
+              </div>
+            )}
             {tipAmount > 0 && (
               <div className="text-xs text-white/80 mt-0.5">incl. {formatCurrency(tipAmount)} tip</div>
             )}
@@ -1915,22 +1954,35 @@ export default function PaymentPage() {
           {/* Tip row */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Select Payment Method</h2>
-            <button
-              onClick={() => setShowTipSelection(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                tipAmount > 0
-                  ? 'bg-penkey-orange text-white'
-                  : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
-              }`}
-            >
-              <Gift className="h-4 w-4" />
-              {tipAmount > 0 ? `Tip: ${formatCurrency(tipAmount)}` : 'Add Tip'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDiscountDialogOpen(true)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  basketDiscount
+                    ? 'bg-green-600 text-white'
+                    : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
+                }`}
+              >
+                <Percent className="h-4 w-4" />
+                {basketDiscount ? `${basketDiscount.code} −${formatCurrency(getBasketDiscountAmount())}` : 'Discount'}
+              </button>
+              <button
+                onClick={() => setShowTipSelection(true)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  tipAmount > 0
+                    ? 'bg-penkey-orange text-white'
+                    : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
+                }`}
+              >
+                <Gift className="h-4 w-4" />
+                {tipAmount > 0 ? `Tip: ${formatCurrency(tipAmount)}` : 'Add Tip'}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Cash Payment Button */}
             <button
-              onClick={() => setCashDialogOpen(true)}
+              onClick={() => handlePaymentMethodClick('cash')}
               disabled={processing}
               className="bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
             >
@@ -1940,7 +1992,7 @@ export default function PaymentPage() {
 
             {/* Card Payment Button */}
             <button
-              onClick={handleCardPayment}
+              onClick={() => handlePaymentMethodClick('card')}
               disabled={processing || !sumUpConfigured || !isOnline}
               className="relative bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:bg-[#4d4d4d] disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
             >
@@ -1956,7 +2008,7 @@ export default function PaymentPage() {
 
             {/* Manual Payment Button */}
             <button
-              onClick={() => setManualPaymentDialogOpen(true)}
+              onClick={() => handlePaymentMethodClick('manual')}
               disabled={processing}
               className="bg-[#5d5d5d] hover:bg-[#6d6d6d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-colors min-h-[180px]"
             >
@@ -1977,6 +2029,32 @@ export default function PaymentPage() {
         </div>
         )}
       </div>
+
+      {/* Dining Confirmation Dialog */}
+      <DiningConfirmDialog
+        open={diningConfirmOpen}
+        onClose={() => { setDiningConfirmOpen(false); setPendingPaymentMethod(null); }}
+        onConfirm={handleDiningConfirm}
+        initialDiningOption={defaultDiningOption}
+        initialCustomerCount={customerCount}
+        isTableAssignment={ticketAssignment?.type === 'table'}
+      />
+
+      {/* Discount Selection Dialog */}
+      <DiscountSelectionDialog
+        open={discountDialogOpen}
+        onClose={() => setDiscountDialogOpen(false)}
+        onApply={(discount: BasketDiscount) => {
+          setBasketDiscount(discount);
+          showToast(`Discount "${discount.code}" applied`, 'success');
+        }}
+        onRemove={() => {
+          clearBasketDiscount();
+          showToast('Discount removed', 'info');
+        }}
+        orderTotal={cartTotal}
+        currentDiscount={basketDiscount}
+      />
 
       {/* Cash Tendered Dialog */}
       <CashTenderedDialog
