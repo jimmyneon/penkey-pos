@@ -3,19 +3,28 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { Banknote } from "lucide-react";
+import { Banknote, Percent } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { hapticButtonPress } from "@/lib/utils/haptics";
+import { DiscountSelectionDialog } from "./discount-selection-dialog";
+import type { BasketDiscount } from "@/lib/store/cart-store";
 
 interface CashTenderedDialogProps {
   open: boolean;
   onClose: () => void;
   onConfirm: (amount: number) => void;
   totalDue: number;
+  cartTotal: number;
+  basketDiscount: BasketDiscount | null;
+  onApplyDiscount: (discount: BasketDiscount) => void;
+  onRemoveDiscount: () => void;
+  getBasketDiscountAmount: () => number;
 }
 
-export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashTenderedDialogProps) {
+export function CashTenderedDialog({ open, onClose, onConfirm, totalDue, cartTotal, basketDiscount, onApplyDiscount, onRemoveDiscount, getBasketDiscountAmount }: CashTenderedDialogProps) {
   const { showToast } = useToast();
   const [cashTendered, setCashTendered] = useState("");
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -68,11 +77,37 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashT
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Total Due */}
+          {/* Total Due + Discount */}
           <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">TOTAL DUE</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs text-gray-400">TOTAL DUE</div>
+              {basketDiscount && (
+                <button
+                  onClick={() => { hapticButtonPress(); setDiscountDialogOpen(true); }}
+                  className="text-xs bg-green-600/30 text-green-400 px-2 py-0.5 rounded font-semibold hover:bg-green-600/40"
+                >
+                  {basketDiscount.code} −{formatCurrency(getBasketDiscountAmount())}
+                </button>
+              )}
+            </div>
             <div className="text-2xl sm:text-3xl font-bold text-white">{formatCurrency(totalDue)}</div>
+            {basketDiscount && (
+              <div className="text-xs text-gray-500 mt-1">
+                Subtotal: {formatCurrency(cartTotal)} | Discount: −{formatCurrency(getBasketDiscountAmount())}
+              </div>
+            )}
           </div>
+
+          {/* Discount Button (when no discount applied) */}
+          {!basketDiscount && (
+            <button
+              onClick={() => { hapticButtonPress(); setDiscountDialogOpen(true); }}
+              className="w-full bg-[#4d4d4d] hover:bg-[#5d5d5d] text-gray-300 rounded-lg py-2.5 px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <Percent className="h-4 w-4" />
+              Add Discount Code
+            </button>
+          )}
 
           {/* Cash Tendered Display */}
           <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3">
@@ -159,6 +194,21 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue }: CashT
           </div>
         </div>
       </DialogContent>
+
+      <DiscountSelectionDialog
+        open={discountDialogOpen}
+        onClose={() => setDiscountDialogOpen(false)}
+        onApply={(discount: BasketDiscount) => {
+          onApplyDiscount(discount);
+          showToast(`Discount "${discount.code}" applied`, 'success');
+        }}
+        onRemove={() => {
+          onRemoveDiscount();
+          showToast('Discount removed', 'info');
+        }}
+        orderTotal={cartTotal}
+        currentDiscount={basketDiscount}
+      />
     </Dialog>
   );
 }

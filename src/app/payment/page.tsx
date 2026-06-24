@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@penkey/ui";
 import { formatCurrency } from "@penkey/ui";
-import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode, Gift, Percent } from "lucide-react";
+import { ArrowLeft, Banknote, CreditCard, ShoppingCart, X, Loader2, UserPlus, Edit3, QrCode, Gift } from "lucide-react";
 import { TipSelection } from "./tip-selection";
 import { useCartStore } from "@/lib/store/cart-store";
 import type { BasketDiscount } from "@/lib/store/cart-store";
@@ -13,7 +13,6 @@ import { CashTenderedDialog } from "./cash-tendered-dialog";
 import { ManualPaymentDialog } from "./manual-payment-dialog";
 import { AssignTicketDialog } from "../sell/assign-ticket-dialog";
 import { DiningConfirmDialog } from "./dining-confirm-dialog";
-import { DiscountSelectionDialog } from "./discount-selection-dialog";
 import { QRScanner } from "@/components/QRScanner";
 import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
 import { scanQRCode, recordVisit, redeemVoucher, BeanRules } from "@/lib/services/perks";
@@ -69,7 +68,6 @@ export default function PaymentPage() {
   const [tipPresets, setTipPresets] = useState<number[]>([2, 5, 10]);
   const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, applyVoucher, removeVoucher, basketVoucher, getBasketVoucherDiscount, basketDiscount, setBasketDiscount, clearBasketDiscount, getBasketDiscountAmount } = useCartStore();
   const [diningConfirmOpen, setDiningConfirmOpen] = useState(false);
-  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState<'cash' | 'card' | 'manual' | null>(null);
   
   // SumUp API key credential check
@@ -1954,30 +1952,17 @@ export default function PaymentPage() {
           {/* Tip row */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Select Payment Method</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDiscountDialogOpen(true)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  basketDiscount
-                    ? 'bg-green-600 text-white'
-                    : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
-                }`}
-              >
-                <Percent className="h-4 w-4" />
-                {basketDiscount ? `${basketDiscount.code} −${formatCurrency(getBasketDiscountAmount())}` : 'Discount'}
-              </button>
-              <button
-                onClick={() => setShowTipSelection(true)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  tipAmount > 0
-                    ? 'bg-penkey-orange text-white'
-                    : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
-                }`}
-              >
-                <Gift className="h-4 w-4" />
-                {tipAmount > 0 ? `Tip: ${formatCurrency(tipAmount)}` : 'Add Tip'}
-              </button>
-            </div>
+            <button
+              onClick={() => setShowTipSelection(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                tipAmount > 0
+                  ? 'bg-penkey-orange text-white'
+                  : 'bg-[#4d4d4d] text-gray-300 hover:bg-[#5d5d5d]'
+              }`}
+            >
+              <Gift className="h-4 w-4" />
+              {tipAmount > 0 ? `Tip: ${formatCurrency(tipAmount)}` : 'Add Tip'}
+            </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Cash Payment Button */}
@@ -2040,28 +2025,17 @@ export default function PaymentPage() {
         isTableAssignment={ticketAssignment?.type === 'table'}
       />
 
-      {/* Discount Selection Dialog */}
-      <DiscountSelectionDialog
-        open={discountDialogOpen}
-        onClose={() => setDiscountDialogOpen(false)}
-        onApply={(discount: BasketDiscount) => {
-          setBasketDiscount(discount);
-          showToast(`Discount "${discount.code}" applied`, 'success');
-        }}
-        onRemove={() => {
-          clearBasketDiscount();
-          showToast('Discount removed', 'info');
-        }}
-        orderTotal={cartTotal}
-        currentDiscount={basketDiscount}
-      />
-
       {/* Cash Tendered Dialog */}
       <CashTenderedDialog
         open={cashDialogOpen}
         onClose={() => setCashDialogOpen(false)}
         onConfirm={handleCashPayment}
         totalDue={total}
+        cartTotal={cartTotal}
+        basketDiscount={basketDiscount}
+        onApplyDiscount={(discount: BasketDiscount) => setBasketDiscount(discount)}
+        onRemoveDiscount={() => clearBasketDiscount()}
+        getBasketDiscountAmount={getBasketDiscountAmount}
       />
 
       {/* Manual Payment Dialog */}
