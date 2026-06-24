@@ -4,24 +4,19 @@
 -- print_jobs growing indefinitely. No automated cleanup was running.
 --
 -- This migration:
--- 1. Enables pg_cron extension
--- 2. Creates cleanup functions for printer_logs, print_jobs, and events_outbox
--- 3. Schedules daily cleanup at 3 AM UTC
--- 4. Runs immediate purge of old data
+-- 1. Creates cleanup functions for printer_logs, print_jobs, and events_outbox
+-- 2. Schedules daily cleanup at 3 AM UTC via pg_cron
+-- 3. Runs immediate purge of old data
 --
--- IMPORTANT: Run this in the Supabase SQL Editor (Dashboard > SQL Editor)
--- pg_cron cannot be enabled via REST API — must be run directly in SQL Editor.
+-- PREREQUISITE: Enable pg_cron extension via Supabase Dashboard first:
+--   Dashboard → Database → Extensions → search "pg_cron" → toggle ON
+-- Do NOT use CREATE EXTENSION in SQL — Supabase's managed extension script
+-- conflicts with manual grants and throws "dependent privileges exist" error.
+--
+-- After enabling in Dashboard, run this migration in the SQL Editor.
 
 -- ============================================================
--- Step 1: Enable pg_cron extension
--- ============================================================
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
-
--- Grant usage to postgres role (required for pg_cron)
-GRANT USAGE ON SCHEMA cron TO postgres;
-
--- ============================================================
--- Step 2: Cleanup function for printer_logs (keep 7 days)
+-- Step 1: Cleanup function for printer_logs (keep 7 days)
 -- ============================================================
 -- The function cleanup_old_printer_logs() already exists from the original
 -- migration (migrations/create_printer_logs_table.sql) but was never scheduled.
@@ -39,7 +34,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================
--- Step 3: Cleanup function for print_jobs (keep 7 days)
+-- Step 2: Cleanup function for print_jobs (keep 7 days)
 -- ============================================================
 CREATE OR REPLACE FUNCTION cleanup_old_print_jobs()
 RETURNS void AS $$
@@ -51,7 +46,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================
--- Step 4: Cleanup function for events_outbox (keep 7 days)
+-- Step 3: Cleanup function for events_outbox (keep 7 days)
 -- ============================================================
 -- events_outbox table was created outside of migrations, so we check
 -- if it exists before creating the function.
@@ -85,7 +80,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================
--- Step 5: Combined cleanup function (runs all three)
+-- Step 4: Combined cleanup function (runs all three)
 -- ============================================================
 CREATE OR REPLACE FUNCTION run_daily_cleanup()
 RETURNS void AS $$
@@ -100,7 +95,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================
--- Step 6: Schedule daily cleanup at 3 AM UTC
+-- Step 5: Schedule daily cleanup at 3 AM UTC
 -- ============================================================
 -- Unschedule any existing jobs with the same name first (idempotent)
 DO $$
@@ -119,7 +114,7 @@ SELECT cron.schedule(
 );
 
 -- ============================================================
--- Step 7: Immediate purge — reclaim disk space NOW
+-- Step 6: Immediate purge — reclaim disk space NOW
 -- ============================================================
 -- Run the cleanup immediately to purge old data right away
 -- instead of waiting for the first scheduled run at 3 AM.
@@ -129,7 +124,7 @@ SELECT cleanup_old_print_jobs();
 SELECT cleanup_old_events_outbox();
 
 -- ============================================================
--- Step 8: VACUUM FULL to reclaim disk space from the purge
+-- Step 7: VACUUM FULL to reclaim disk space from the purge
 -- ============================================================
 -- VACUUM FULL rewrites the table and reclaims space to the OS.
 -- This is important after a large DELETE to actually reduce
