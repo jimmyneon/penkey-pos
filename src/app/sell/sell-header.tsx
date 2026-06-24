@@ -56,7 +56,7 @@ export function SellHeader({
             id="ticket-indicator"
             data-ticket-indicator
             onClick={onTicketClick}
-            className="flex items-center gap-1.5 sm:gap-2 hover:bg-white/10 px-2 py-1 sm:px-3 rounded transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 active:bg-white/10 px-2 py-1 sm:px-3 rounded transition-colors"
           >
             <h1 className="font-semibold text-base sm:text-lg">Ticket</h1>
             <Badge variant="outline" className="text-white border-white/30 text-xs sm:text-sm">
