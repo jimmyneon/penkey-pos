@@ -60,6 +60,20 @@ export const VOUCHER_COLORS = {
   TEXT_MUTED: 'rgba(245, 235, 214, 0.6)',
 } as const;
 
+// Preset color swatches for the editor
+export const VOUCHER_COLOR_PRESETS = [
+  { label: 'White', value: '#ffffff' },
+  { label: 'Cream', value: '#f5ebd6' },
+  { label: 'Gold', value: '#c9a96e' },
+  { label: 'Orange', value: '#f97316' },
+  { label: 'Navy', value: '#1a2847' },
+  { label: 'Dark Navy', value: '#0b1f3a' },
+  { label: 'Green', value: '#22c55e' },
+  { label: 'Red', value: '#ef4444' },
+  { label: 'Blue', value: '#3b82f6' },
+  { label: 'Black', value: '#000000' },
+] as const;
+
 /**
  * Default layout matching the original hardcoded positions.
  * These are the values that were baked into buildOverlaySvg() before
@@ -169,14 +183,14 @@ export interface ElementMeta {
 }
 
 export const ELEMENT_METADATA: ElementMeta[] = [
-  { key: 'recipientLabel', label: 'Recipient Label', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 40 },
-  { key: 'recipientName', label: 'Recipient Name', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 14, maxFontSize: 56 },
-  { key: 'value', label: 'Value / Amount', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 24, maxFontSize: 120 },
+  { key: 'recipientLabel', label: 'Recipient Label', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 60 },
+  { key: 'recipientName', label: 'Recipient Name', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 14, maxFontSize: 80 },
+  { key: 'value', label: 'Value / Amount', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 24, maxFontSize: 160 },
   { key: 'qrCode', label: 'QR Code', type: 'qr', hasFontSize: false, hasPosition: true, hasColor: false, minFontSize: 0, maxFontSize: 0 },
-  { key: 'codeLabel', label: 'Code Label', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 8, maxFontSize: 24 },
-  { key: 'codeValue', label: 'Voucher Code', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 12, maxFontSize: 48 },
-  { key: 'message', label: 'Message', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 32 },
-  { key: 'expiry', label: 'Expiry Date', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 32 },
-  { key: 'storeAddress', label: 'Store Address', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 8, maxFontSize: 24 },
-  { key: 'issuedDate', label: 'Issued Date', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 6, maxFontSize: 20 },
+  { key: 'codeLabel', label: 'Code Label', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 8, maxFontSize: 40 },
+  { key: 'codeValue', label: 'Voucher Code', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 12, maxFontSize: 72 },
+  { key: 'message', label: 'Message', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 48 },
+  { key: 'expiry', label: 'Expiry Date', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 10, maxFontSize: 48 },
+  { key: 'storeAddress', label: 'Store Address', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 8, maxFontSize: 40 },
+  { key: 'issuedDate', label: 'Issued Date', type: 'text', hasFontSize: true, hasPosition: true, hasColor: true, minFontSize: 6, maxFontSize: 36 },
 ];

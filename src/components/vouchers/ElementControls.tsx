@@ -8,6 +8,7 @@ import {
   VoucherQrLayout,
   ElementMeta,
   DEFAULT_VOUCHER_LAYOUT,
+  VOUCHER_COLOR_PRESETS,
   BASE_W,
   BASE_H,
 } from "@/lib/voucher/voucher-layout-config";
@@ -225,6 +226,23 @@ export function ElementControls({
                   <RotateCcw className="h-3 w-3" />
                 </button>
               </label>
+              {/* Preset swatches */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {VOUCHER_COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    onClick={() => updateField("color", preset.value)}
+                    title={preset.label}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform active:scale-90 ${
+                      textEl.color === preset.value
+                        ? "border-penkey-orange ring-1 ring-penkey-orange"
+                        : "border-gray-600"
+                    }`}
+                    style={{ backgroundColor: preset.value }}
+                  />
+                ))}
+              </div>
+              {/* Custom color picker */}
               <div className="flex items-center gap-2">
                 <input
                   type="color"

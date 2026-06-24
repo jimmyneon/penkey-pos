@@ -52,7 +52,10 @@ export function VoucherTemplateEditor({
       setTimeout(() => {
         const elRef = elementRefs.current[key];
         if (elRef && sheetContentRef.current) {
-          sheetContentRef.current.scrollTo({ top: elRef.offsetTop - 8, behavior: "smooth" });
+          const elRect = elRef.getBoundingClientRect();
+          const containerRect = sheetContentRef.current.getBoundingClientRect();
+          const offset = elRect.top - containerRect.top + sheetContentRef.current.scrollTop - 8;
+          sheetContentRef.current.scrollTo({ top: offset, behavior: "smooth" });
         }
       }, 50);
     }
