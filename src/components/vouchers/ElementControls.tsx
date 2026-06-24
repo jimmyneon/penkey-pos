@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import {
   VoucherLayoutConfig,
   VoucherElementLayout,
   VoucherQrLayout,
   ElementMeta,
-  ELEMENT_METADATA,
+  DEFAULT_VOUCHER_LAYOUT,
   BASE_W,
   BASE_H,
 } from "@/lib/voucher/voucher-layout-config";
@@ -28,10 +28,26 @@ export function ElementControls({
   onToggle,
 }: ElementControlsProps) {
   const element = (layout as any)[meta.key] as VoucherElementLayout | VoucherQrLayout;
+  const defaultElement = (DEFAULT_VOUCHER_LAYOUT as any)[meta.key] as VoucherElementLayout | VoucherQrLayout;
 
   const updateField = (field: string, value: number | string) => {
     const updated = { ...layout };
     (updated as any)[meta.key] = { ...(updated as any)[meta.key], [field]: value };
+    onLayoutChange(updated);
+  };
+
+  const resetElement = () => {
+    const updated = { ...layout };
+    (updated as any)[meta.key] = { ...defaultElement };
+    onLayoutChange(updated);
+  };
+
+  const resetField = (field: string) => {
+    const updated = { ...layout };
+    (updated as any)[meta.key] = {
+      ...(updated as any)[meta.key],
+      [field]: (defaultElement as any)[field],
+    };
     onLayoutChange(updated);
   };
 
@@ -55,14 +71,33 @@ export function ElementControls({
 
       {expanded && (
         <div className="p-3 space-y-3 bg-[#252525]">
+          {/* Per-element reset */}
+          <div className="flex justify-end">
+            <button
+              onClick={resetElement}
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-gray-600/50 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset Element
+            </button>
+          </div>
+
           {/* X position */}
           {meta.hasPosition && (
             <div>
-              <label className="text-xs text-gray-400 flex justify-between mb-1">
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
                 <span>X Position</span>
-                <span className="text-gray-300 font-mono">
-                  {isQr ? qrEl.x.toFixed(0) : textEl.x.toFixed(0)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300 font-mono">
+                    {isQr ? qrEl.x.toFixed(0) : textEl.x.toFixed(0)}
+                  </span>
+                  <button
+                    onClick={() => resetField("x")}
+                    className="text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                </div>
               </label>
               <input
                 type="range"
@@ -79,11 +114,19 @@ export function ElementControls({
           {/* Y position */}
           {meta.hasPosition && (
             <div>
-              <label className="text-xs text-gray-400 flex justify-between mb-1">
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
                 <span>Y Position</span>
-                <span className="text-gray-300 font-mono">
-                  {isQr ? qrEl.y.toFixed(0) : textEl.y.toFixed(0)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300 font-mono">
+                    {isQr ? qrEl.y.toFixed(0) : textEl.y.toFixed(0)}
+                  </span>
+                  <button
+                    onClick={() => resetField("y")}
+                    className="text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                </div>
               </label>
               <input
                 type="range"
@@ -100,9 +143,17 @@ export function ElementControls({
           {/* Font size */}
           {meta.hasFontSize && (
             <div>
-              <label className="text-xs text-gray-400 flex justify-between mb-1">
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
                 <span>Font Size</span>
-                <span className="text-gray-300 font-mono">{textEl.fontSize}px</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300 font-mono">{textEl.fontSize}px</span>
+                  <button
+                    onClick={() => resetField("fontSize")}
+                    className="text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                </div>
               </label>
               <input
                 type="range"
@@ -119,9 +170,17 @@ export function ElementControls({
           {/* QR size */}
           {isQr && (
             <div>
-              <label className="text-xs text-gray-400 flex justify-between mb-1">
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
                 <span>QR Size</span>
-                <span className="text-gray-300 font-mono">{qrEl.size}px</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300 font-mono">{qrEl.size}px</span>
+                  <button
+                    onClick={() => resetField("size")}
+                    className="text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                </div>
               </label>
               <input
                 type="range"
@@ -138,7 +197,15 @@ export function ElementControls({
           {/* Color */}
           {meta.hasColor && (
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Color</label>
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
+                <span>Color</span>
+                <button
+                  onClick={() => resetField("color")}
+                  className="text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
+              </label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -159,7 +226,15 @@ export function ElementControls({
           {/* Text alignment */}
           {meta.hasFontSize && (
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Alignment</label>
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
+                <span>Alignment</span>
+                <button
+                  onClick={() => resetField("textAlign")}
+                  className="text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
+              </label>
               <div className="grid grid-cols-3 gap-1">
                 {(["left", "center", "right"] as const).map((align) => (
                   <button
@@ -181,7 +256,15 @@ export function ElementControls({
           {/* Font weight toggle */}
           {meta.hasFontSize && (
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Weight</label>
+              <label className="text-xs text-gray-400 flex justify-between items-center mb-1">
+                <span>Weight</span>
+                <button
+                  onClick={() => resetField("fontWeight")}
+                  className="text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 {(["normal", "bold"] as const).map((weight) => (
                   <button

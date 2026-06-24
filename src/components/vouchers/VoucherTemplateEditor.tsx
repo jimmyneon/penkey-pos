@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { RotateCcw, Save, Eye, Settings2, Loader2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { RotateCcw, Save, X, Loader2, ChevronUp, ChevronDown } from "lucide-react";
 import {
   VoucherLayoutConfig,
   DEFAULT_VOUCHER_LAYOUT,
@@ -17,6 +17,7 @@ interface VoucherTemplateEditorProps {
   onSave?: () => void;
   saving?: boolean;
   qrDataUrl?: string;
+  onClose: () => void;
 }
 
 export function VoucherTemplateEditor({
@@ -26,13 +27,14 @@ export function VoucherTemplateEditor({
   onSave,
   saving,
   qrDataUrl,
+  onClose,
 }: VoucherTemplateEditorProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const [showGuides, setShowGuides] = useState(true);
-  const [activeTab, setActiveTab] = useState<"preview" | "controls">("preview");
+  const [sheetExpanded, setSheetExpanded] = useState(true);
 
   const toggle = (key: string) => {
     setExpandedKey(expandedKey === key ? null : key);
+    if (expandedKey !== key) setSheetExpanded(true);
   };
 
   const handleReset = useCallback(() => {
@@ -40,94 +42,91 @@ export function VoucherTemplateEditor({
   }, [onLayoutChange]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Tab switcher */}
-      <div className="flex gap-1 p-2 bg-[#3d3d3d] border-b border-gray-700">
-        <button
-          onClick={() => setActiveTab("preview")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === "preview"
-              ? "bg-penkey-orange/15 text-penkey-orange"
-              : "text-gray-400 hover:bg-white/5"
-          }`}
-        >
-          <Eye className="h-4 w-4" />
-          Preview
-        </button>
-        <button
-          onClick={() => setActiveTab("controls")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === "controls"
-              ? "bg-penkey-orange/15 text-penkey-orange"
-              : "text-gray-400 hover:bg-white/5"
-          }`}
-        >
-          <Settings2 className="h-4 w-4" />
-          Adjust
-        </button>
+    <div className="fixed inset-0 z-[60] bg-[#1a1a1a] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[#2d2d2d] border-b border-gray-700 flex-shrink-0">
+        <h2 className="text-base font-semibold text-white">Customize Layout</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 active:bg-[#333] transition-colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset All
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Preview tab */}
-      {activeTab === "preview" && (
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="relative mx-auto bg-[#1a2847] rounded-xl overflow-hidden" style={{ maxWidth: 280 }}>
-            <VoucherSvgPreview
-              data={previewData}
-              layout={layout}
-              qrDataUrl={qrDataUrl}
-              showGuideLines={showGuides}
-              selectedElement={expandedKey}
-              className="w-full"
-            />
-          </div>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <button
-              onClick={() => setShowGuides(!showGuides)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                showGuides
-                  ? "border-penkey-orange/50 bg-penkey-orange/10 text-penkey-orange"
-                  : "border-gray-600/50 bg-[#2d2d2d] text-gray-400"
-              }`}
-            >
-              {showGuides ? "Hide Guides" : "Show Guides"}
-            </button>
-          </div>
-          {expandedKey && (
-            <p className="text-center text-xs text-gray-500 mt-2">
-              Tap &ldquo;Adjust&rdquo; to edit the selected element
-            </p>
-          )}
+      {/* Preview area — fills available space, always visible */}
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-4 min-h-0">
+        <div
+          className="relative bg-[#1a2847] rounded-xl overflow-hidden flex-shrink-0"
+          style={{ width: "100%", maxWidth: 300 }}
+        >
+          <VoucherSvgPreview
+            data={previewData}
+            layout={layout}
+            qrDataUrl={qrDataUrl}
+            showGuideLines={true}
+            selectedElement={expandedKey}
+            className="w-full"
+          />
         </div>
-      )}
+      </div>
 
-      {/* Controls tab */}
-      {activeTab === "controls" && (
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {ELEMENT_METADATA.map((meta) => (
-            <ElementControls
-              key={meta.key}
-              meta={meta}
-              layout={layout}
-              onLayoutChange={onLayoutChange}
-              expanded={expandedKey === meta.key}
-              onToggle={() => toggle(meta.key)}
-            />
-          ))}
+      {/* Bottom sheet — collapsible controls */}
+      <div
+        className="bg-[#2d2d2d] border-t border-gray-700 transition-all duration-300 flex-shrink-0"
+        style={{
+          maxHeight: sheetExpanded ? "55vh" : "48px",
+          overflow: "hidden",
+        }}
+      >
+        {/* Sheet handle / toggle */}
+        <button
+          onClick={() => setSheetExpanded(!sheetExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 active:bg-[#333] transition-colors"
+        >
+          <span className="text-sm font-medium text-white">
+            {expandedKey
+              ? ELEMENT_METADATA.find((m) => m.key === expandedKey)?.label
+              : "Adjust Elements"}
+          </span>
+          {sheetExpanded ? (
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          ) : (
+            <ChevronUp className="h-5 w-5 text-gray-400" />
+          )}
+        </button>
 
-          {/* Action buttons */}
-          <div className="flex gap-2 pt-2">
-            <button
-              onClick={handleReset}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-gray-600 bg-[#2d2d2d] text-gray-300 text-sm font-medium hover:bg-[#333] transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </button>
+        {/* Sheet content */}
+        {sheetExpanded && (
+          <div className="overflow-y-auto px-3 pb-3" style={{ maxHeight: "calc(55vh - 48px)" }}>
+            <div className="space-y-2">
+              {ELEMENT_METADATA.map((meta) => (
+                <ElementControls
+                  key={meta.key}
+                  meta={meta}
+                  layout={layout}
+                  onLayoutChange={onLayoutChange}
+                  expanded={expandedKey === meta.key}
+                  onToggle={() => toggle(meta.key)}
+                />
+              ))}
+            </div>
+
+            {/* Save button */}
             {onSave && (
               <button
                 onClick={onSave}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-penkey-orange hover:bg-penkey-orange/90 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 mt-3 rounded-xl bg-penkey-orange hover:bg-penkey-orange/90 text-white text-sm font-bold disabled:opacity-50 transition-colors"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -138,8 +137,8 @@ export function VoucherTemplateEditor({
               </button>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

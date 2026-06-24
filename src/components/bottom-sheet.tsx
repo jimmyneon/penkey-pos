@@ -40,23 +40,18 @@ export function BottomSheet({ open, onClose, title, icon, children }: BottomShee
 
       <div
         onClick={(e) => e.stopPropagation()}
+        {...pullHandlers}
         style={{
           transform: isDragging ? `translateY(${dragOffset}px)` : undefined,
           transition: isDragging ? "none" : undefined,
         }}
-        className={`relative w-full max-w-md bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? "translate-y-0" : "translate-y-full"} max-h-[85vh] flex flex-col`}
+        className={`relative w-full max-w-md bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? "translate-y-0" : "translate-y-full"} min-h-[50vh] max-h-[85vh] flex flex-col`}
       >
-        <div
-          {...pullHandlers}
-          className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing"
-        >
+        <div className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
 
-        <div
-          {...pullHandlers}
-          className="flex items-center justify-between px-4 py-3 flex-shrink-0 border-b border-gray-700"
-        >
+        <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 border-b border-gray-700">
           <div className="flex items-center gap-2">
             {icon}
             <h2 className="text-lg font-bold text-white">{title}</h2>

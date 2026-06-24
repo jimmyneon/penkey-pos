@@ -109,25 +109,20 @@ export function TicketModal({
       {/* Slide-up panel */}
       <div
         onClick={(e) => e.stopPropagation()}
+        {...pullHandlers}
         style={{
           transform: isDragging ? `translateY(${dragOffset}px)` : undefined,
           transition: isDragging ? 'none' : undefined,
         }}
-        className={`relative w-full max-w-md bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
+        className={`relative w-[90%] max-w-sm mx-auto bg-[#3d3d3d] text-white rounded-t-2xl border-t border-gray-700 shadow-2xl transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : 'translate-y-full'} max-h-[90vh] flex flex-col`}
       >
-        {/* Drag handle - pull down to dismiss */}
-        <div
-          {...pullHandlers}
-          className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing"
-        >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-2 pb-1 flex-shrink-0 cursor-grab active:cursor-grabbing">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
 
-        {/* Header - also pull-to-dismiss zone */}
-        <div
-          {...pullHandlers}
-          className="flex items-center justify-between px-4 py-2 flex-shrink-0"
-        >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
           <h2 className="text-xl sm:text-2xl font-bold text-white">Current Ticket</h2>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
             <X className="h-5 w-5 text-gray-400" />

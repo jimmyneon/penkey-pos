@@ -93,6 +93,10 @@ function buildReceiptHtml(receipt: any, lines: any[], orgName: string) {
           <span>Type</span>
           <span>${receipt.dining_option === 'eat-in' ? 'Eat In' : 'Takeaway'}</span>
         </div>` : ''}
+        ${receipt.customer_count && receipt.customer_count > 1 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;">
+          <span>Covers</span>
+          <span>${receipt.customer_count} people</span>
+        </div>` : ''}
         ${receipt.table_number ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;">
           <span>Table</span>
           <span>${receipt.table_number}</span>
@@ -200,6 +204,7 @@ export async function POST(
         created_at,
         dining_option,
         customer_name,
+        customer_count,
         table_number,
         subtotal,
         discount_total,

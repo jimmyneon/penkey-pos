@@ -8,6 +8,7 @@ import {
   ArrowLeft, 
   Printer, 
   Mail,
+  Phone,
   RotateCcw,
   Receipt, 
   Calendar,
@@ -57,6 +58,9 @@ interface ReceiptDetail {
   created_at: string;
   dining_option: string;
   customer_name: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  customer_count: number | null;
   table_number: string | null;
   subtotal: number;
   discount_total: number;
@@ -815,11 +819,32 @@ export default function TransactionDetailsPage() {
               {receipt.dining_option === "eat-in" ? "Eat In" : "Takeaway"}
             </Badge>
           </div>
+          {receipt.customer_count && receipt.customer_count > 1 && (
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Covers:</span>
+              <span className="text-white">{receipt.customer_count} people</span>
+            </div>
+          )}
           {receipt.customer_name && (
             <div className="flex items-center gap-2 text-sm">
               <User className="h-4 w-4 text-gray-400" />
               <span className="text-gray-400">Customer:</span>
               <span className="text-white">{receipt.customer_name}</span>
+            </div>
+          )}
+          {receipt.customer_email && (
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Email:</span>
+              <span className="text-white text-xs break-all">{receipt.customer_email}</span>
+            </div>
+          )}
+          {receipt.customer_phone && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Phone:</span>
+              <span className="text-white">{receipt.customer_phone}</span>
             </div>
           )}
           {receipt.table_number && (
@@ -829,6 +854,33 @@ export default function TransactionDetailsPage() {
               <span className="text-white">{receipt.table_number}</span>
             </div>
           )}
+          <div className="flex items-center gap-2 text-sm">
+            <Clock className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Date:</span>
+            <span className="text-white">
+              {new Date(receipt.created_at).toLocaleString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <User className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Served by:</span>
+            <span className="text-white">
+              {receipt.member?.first_name} {receipt.member?.last_name}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Receipt className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Status:</span>
+            <Badge variant={receipt.status === "completed" ? "default" : receipt.status === "voided" ? "destructive" : "secondary"} className="text-xs capitalize">
+              {receipt.status}
+            </Badge>
+          </div>
         </div>
       </BottomSheet>
 

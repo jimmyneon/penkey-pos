@@ -610,37 +610,21 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
               <button
                 onClick={() => {
                   hapticButtonPress();
-                  setShowLayoutEditor(!showLayoutEditor);
+                  setShowLayoutEditor(true);
                 }}
-                className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors ${
-                  showLayoutEditor
-                    ? "border-penkey-orange bg-penkey-orange/15 text-penkey-orange"
-                    : "border-gray-600/50 text-gray-400 hover:border-gray-500"
-                }`}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-gray-600/50 text-gray-400 hover:border-gray-500 transition-colors"
               >
                 <SlidersHorizontal className="h-3 w-3" />
-                {showLayoutEditor ? "Hide Editor" : "Customize Layout"}
+                Customize Layout
               </button>
             </div>
-            {showLayoutEditor ? (
-              <div className="bg-[#2d2d2d] rounded-lg border border-gray-700/50 overflow-hidden" style={{ height: 400 }}>
-                <VoucherTemplateEditor
-                  previewData={svgPreviewData}
-                  layout={voucherLayout}
-                  onLayoutChange={setVoucherLayout}
-                  onSave={handleSaveLayout}
-                  saving={savingLayout}
-                />
-              </div>
-            ) : (
-              <div className="relative mx-auto bg-[#1a2847] rounded-xl overflow-hidden" style={{ maxWidth: 240 }}>
-                <VoucherSvgPreview
-                  data={svgPreviewData}
-                  layout={voucherLayout}
-                  className="w-full"
-                />
-              </div>
-            )}
+            <div className="relative mx-auto bg-[#1a2847] rounded-xl overflow-hidden" style={{ maxWidth: 240 }}>
+              <VoucherSvgPreview
+                data={svgPreviewData}
+                layout={voucherLayout}
+                className="w-full"
+              />
+            </div>
           </div>
 
           {/* Recipient */}
@@ -869,6 +853,18 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
           </Button>
         </div>
       </div>
+
+      {/* Full-screen layout editor overlay */}
+      {showLayoutEditor && (
+        <VoucherTemplateEditor
+          previewData={svgPreviewData}
+          layout={voucherLayout}
+          onLayoutChange={setVoucherLayout}
+          onSave={handleSaveLayout}
+          saving={savingLayout}
+          onClose={() => setShowLayoutEditor(false)}
+        />
+      )}
     </div>
   );
 }
