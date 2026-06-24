@@ -66,10 +66,10 @@ export function DiscountSelectionDialog({
     const discountAmount = calculateAmount(discount, orderTotal);
     onApply({
       id: discount.id,
-      code: discount.code,
+      code: discount.code || discount.name,
       name: discount.name,
-      discountType: discount.discount_type,
-      discountValue: parseFloat(discount.discount_value),
+      discountType: discount.type,
+      discountValue: parseFloat(discount.value),
       discountAmount,
     });
     onClose();
@@ -113,14 +113,19 @@ export function DiscountSelectionDialog({
   };
 
   const calculateAmount = (discount: any, total: number): number => {
-    if (discount.discount_type === 'percentage') {
-      let amount = total * (parseFloat(discount.discount_value) / 100);
+    const dtype = discount.type || discount.discount_type;
+    const dvalue = parseFloat(discount.value ?? discount.discount_value ?? 0);
+    if (dtype === 'percentage') {
+      let amount = total * (dvalue / 100);
       if (discount.max_discount_amount) {
         amount = Math.min(amount, parseFloat(discount.max_discount_amount));
       }
       return amount;
     }
-    return Math.min(parseFloat(discount.discount_value), total);
+    if (dtype === 'fixed' || dtype === 'fixed_amount') {
+      return Math.min(dvalue, total);
+    }
+    return 0;
   };
 
   return (
@@ -201,7 +206,7 @@ export function DiscountSelectionDialog({
                       <div className="flex-1">
                         <div className="font-semibold text-white">{discount.name}</div>
                         <div className="text-xs text-gray-400 mt-0.5">
-                          Code: {discount.code}
+                          Code: {discount.code || '—'}
                         </div>
                         {discount.description && (
                           <div className="text-xs text-gray-500 mt-1">{discount.description}</div>
@@ -209,9 +214,9 @@ export function DiscountSelectionDialog({
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-penkey-orange">
-                          {discount.discount_type === 'percentage'
-                            ? `${parseFloat(discount.discount_value)}%`
-                            : formatCurrency(parseFloat(discount.discount_value))}
+                          {(discount.type || discount.discount_type) === 'percentage'
+                            ? `${parseFloat(discount.value ?? discount.discount_value)}%`
+                            : formatCurrency(parseFloat(discount.value ?? discount.discount_value))}
                         </div>
                         <div className="text-xs text-green-400">
                           −{formatCurrency(amount)}

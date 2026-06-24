@@ -33,7 +33,7 @@ export interface BasketDiscount {
   id: string;
   code: string;
   name: string;
-  discountType: 'percentage' | 'fixed';
+  discountType: 'percentage' | 'fixed' | 'fixed_amount';
   discountValue: number;
   discountAmount: number;
 }
@@ -268,7 +268,7 @@ export const useCartStore = create<CartStore>()(
       const lt = (line.unit_price + line.modifiers.reduce((s, m) => s + m.price_adjustment, 0)) * line.quantity;
       return sum + lt;
     }, 0);
-    if (basketDiscount.discountType === 'fixed') return Math.min(basketDiscount.discountValue, lineTotal);
+    if (basketDiscount.discountType === 'fixed' || basketDiscount.discountType === 'fixed_amount') return Math.min(basketDiscount.discountValue, lineTotal);
     if (basketDiscount.discountType === 'percentage') return lineTotal * (basketDiscount.discountValue / 100);
     return 0;
   },

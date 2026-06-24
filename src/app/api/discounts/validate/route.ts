@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Discount code is required' }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from('discounts')
+  const { data, error } = await (supabase
+    .from('discounts') as any)
     .select('*')
     .eq('org_id', session.org_id)
     .eq('code', code.toUpperCase().trim())
@@ -66,13 +66,15 @@ export async function POST(request: NextRequest) {
 
   // Calculate discount amount
   let discountAmount = 0;
-  if (discount.discount_type === 'percentage') {
-    discountAmount = orderTotal * (parseFloat(discount.discount_value) / 100);
+  const dtype = discount.type;
+  const dvalue = parseFloat(discount.value);
+  if (dtype === 'percentage') {
+    discountAmount = orderTotal * (dvalue / 100);
     if (discount.max_discount_amount) {
       discountAmount = Math.min(discountAmount, parseFloat(discount.max_discount_amount));
     }
-  } else if (discount.discount_type === 'fixed') {
-    discountAmount = Math.min(parseFloat(discount.discount_value), orderTotal);
+  } else if (dtype === 'fixed' || dtype === 'fixed_amount') {
+    discountAmount = Math.min(dvalue, orderTotal);
   }
 
   return NextResponse.json({
@@ -81,8 +83,8 @@ export async function POST(request: NextRequest) {
       id: discount.id,
       code: discount.code,
       name: discount.name,
-      discount_type: discount.discount_type,
-      discount_value: parseFloat(discount.discount_value),
+      discount_type: discount.type,
+      discount_value: parseFloat(discount.value),
       discount_amount: discountAmount,
       min_order_amount: discount.min_order_amount ? parseFloat(discount.min_order_amount) : 0,
       max_discount_amount: discount.max_discount_amount ? parseFloat(discount.max_discount_amount) : null,

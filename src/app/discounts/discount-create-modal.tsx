@@ -38,8 +38,8 @@ export function DiscountCreateModal({ open, onClose, onSaved, editingDiscount }:
         setCode(editingDiscount.code || "");
         setName(editingDiscount.name || "");
         setDescription(editingDiscount.description || "");
-        setDiscountType(editingDiscount.discount_type || 'percentage');
-        setDiscountValue(editingDiscount.discount_value?.toString() || "");
+        setDiscountType(editingDiscount.type || editingDiscount.discount_type || 'percentage');
+        setDiscountValue((editingDiscount.value ?? editingDiscount.discount_value)?.toString() || "");
         setMinOrderAmount(editingDiscount.min_order_amount?.toString() || "");
         setMaxDiscountAmount(editingDiscount.max_discount_amount?.toString() || "");
         setUsageLimit(editingDiscount.usage_limit?.toString() || "");

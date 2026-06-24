@@ -19,10 +19,18 @@ export async function PUT(
   const updateFields: Record<string, any> = {};
 
   const allowedFields = [
-    'code', 'name', 'description', 'discount_type', 'discount_value',
+    'code', 'name', 'description', 'type', 'value',
     'min_order_amount', 'max_discount_amount', 'usage_limit',
     'one_per_customer', 'valid_from', 'valid_until', 'allowed_channels', 'is_active',
   ];
+
+  // Map frontend field names to DB column names
+  if (body.discount_type !== undefined) {
+    updateFields.type = body.discount_type === 'fixed' ? 'fixed_amount' : body.discount_type;
+  }
+  if (body.discount_value !== undefined) {
+    updateFields.value = parseFloat(body.discount_value);
+  }
 
   for (const field of allowedFields) {
     if (body[field] !== undefined) {
@@ -33,8 +41,8 @@ export async function PUT(
   if (updateFields.code) {
     updateFields.code = updateFields.code.toUpperCase().trim();
   }
-  if (updateFields.discount_value !== undefined) {
-    updateFields.discount_value = parseFloat(updateFields.discount_value);
+  if (updateFields.value !== undefined) {
+    updateFields.value = parseFloat(updateFields.value);
   }
   if (updateFields.min_order_amount !== undefined) {
     updateFields.min_order_amount = parseFloat(updateFields.min_order_amount) || 0;

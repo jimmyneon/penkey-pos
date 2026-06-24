@@ -180,12 +180,12 @@ export default function DiscountsPage() {
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <code className="text-sm text-penkey-orange font-mono bg-[#2d2d2d] px-2 py-0.5 rounded">
-                          {discount.code}
+                          {discount.code || '—'}
                         </code>
                         <span className="text-lg font-bold text-white">
-                          {discount.discount_type === 'percentage'
-                            ? `${parseFloat(discount.discount_value)}%`
-                            : formatCurrency(parseFloat(discount.discount_value))}
+                          {(discount.type || discount.discount_type) === 'percentage'
+                            ? `${parseFloat(discount.value ?? discount.discount_value)}%`
+                            : formatCurrency(parseFloat(discount.value ?? discount.discount_value))}
                         </span>
                       </div>
                       {discount.description && (

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Code and name are required' }, { status: 400 });
   }
 
-  if (!discount_type || !['percentage', 'fixed'].includes(discount_type)) {
+  if (!discount_type || !['percentage', 'fixed', 'fixed_amount'].includes(discount_type)) {
     return NextResponse.json({ error: 'Invalid discount_type' }, { status: 400 });
   }
 
@@ -78,8 +78,9 @@ export async function POST(request: NextRequest) {
       code: code.toUpperCase().trim(),
       name: name.trim(),
       description: description || null,
-      discount_type,
-      discount_value: parseFloat(discount_value),
+      type: discount_type === 'fixed' ? 'fixed_amount' : discount_type,
+      value: parseFloat(discount_value),
+      applies_to: 'ticket',
       min_order_amount: min_order_amount ? parseFloat(min_order_amount) : 0,
       max_discount_amount: max_discount_amount ? parseFloat(max_discount_amount) : null,
       usage_limit: usage_limit || null,
