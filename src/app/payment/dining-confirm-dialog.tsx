@@ -23,21 +23,25 @@ export function DiningConfirmDialog({
   initialCustomerCount,
   isTableAssignment,
 }: DiningConfirmDialogProps) {
-  const [diningOption, setDiningOption] = useState<'eat-in' | 'takeaway'>(initialDiningOption);
-  const [customerCount, setCustomerCount] = useState<number>(initialCustomerCount);
+  const [diningOption, setDiningOption] = useState<'eat-in' | 'takeaway' | null>(null);
+  const [customerCount, setCustomerCount] = useState<number | null>(null);
 
   useScrollLock(open);
 
   useEffect(() => {
     if (open) {
-      setDiningOption(initialDiningOption);
-      setCustomerCount(initialCustomerCount);
+      // Do not pre-fill — force the user to actively select both fields
+      setDiningOption(isTableAssignment ? 'eat-in' : null);
+      setCustomerCount(null);
     }
-  }, [open, initialDiningOption, initialCustomerCount]);
+  }, [open, isTableAssignment]);
+
+  const canConfirm = diningOption !== null && customerCount !== null;
 
   const handleConfirm = () => {
+    if (!canConfirm) return;
     hapticButtonPress();
-    onConfirm(diningOption, customerCount);
+    onConfirm(diningOption!, customerCount!);
   };
 
   return (
@@ -68,6 +72,7 @@ export function DiningConfirmDialog({
                       ? 'bg-penkey-orange text-white ring-2 ring-penkey-orange/50'
                       : 'bg-[#4d4d4d] hover:bg-[#5d5d5d] text-gray-300'
                   }`}
+                  data-selected={diningOption === 'eat-in'}
                 >
                   <Utensils className="h-8 w-8" />
                   <span className="text-lg font-bold">Eat In</span>
@@ -79,6 +84,7 @@ export function DiningConfirmDialog({
                       ? 'bg-penkey-orange text-white ring-2 ring-penkey-orange/50'
                       : 'bg-[#4d4d4d] hover:bg-[#5d5d5d] text-gray-300'
                   }`}
+                  data-selected={diningOption === 'takeaway'}
                 >
                   <ShoppingBag className="h-8 w-8" />
                   <span className="text-lg font-bold">Takeaway</span>
@@ -103,6 +109,7 @@ export function DiningConfirmDialog({
                       ? 'bg-penkey-orange text-white ring-2 ring-penkey-orange/50'
                       : 'bg-[#4d4d4d] hover:bg-[#5d5d5d] text-gray-300'
                   }`}
+                  data-selected={customerCount === n}
                 >
                   <span className="text-2xl font-bold">{n}</span>
                   <span className="text-xs">{n === 1 ? 'Person' : 'People'}</span>
@@ -115,14 +122,14 @@ export function DiningConfirmDialog({
           <div className="bg-[#2d2d2d] rounded-lg p-4 border border-gray-600">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Dining:</span>
-              <span className="font-semibold text-white">
-                {isTableAssignment ? 'Eat In (Table)' : diningOption === 'eat-in' ? 'Eat In' : 'Takeaway'}
+              <span className={`font-semibold ${diningOption || isTableAssignment ? 'text-white' : 'text-gray-500 italic'}`}>
+                {isTableAssignment ? 'Eat In (Table)' : diningOption === 'eat-in' ? 'Eat In' : diningOption === 'takeaway' ? 'Takeaway' : 'Not selected'}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm mt-2">
               <span className="text-gray-400">People:</span>
-              <span className="font-semibold text-white">
-                {customerCount} {customerCount === 1 ? 'person' : 'people'}
+              <span className={`font-semibold ${customerCount ? 'text-white' : 'text-gray-500 italic'}`}>
+                {customerCount ? `${customerCount} ${customerCount === 1 ? 'person' : 'people'}` : 'Not selected'}
               </span>
             </div>
           </div>
@@ -138,8 +145,9 @@ export function DiningConfirmDialog({
             </Button>
             <Button
               size="lg"
-              className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90 text-white h-12"
+              className={`flex-1 h-12 ${canConfirm ? 'bg-penkey-orange hover:bg-penkey-orange/90 text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
               onClick={handleConfirm}
+              disabled={!canConfirm}
             >
               <Check className="h-5 w-5 mr-2" />
               Confirm
