@@ -153,7 +153,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { customer_id, customer_name, customer_email, customer_phone } = body;
+    const { customer_id, customer_name, customer_email, customer_phone, dining_option, customer_count, table_number } = body;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -167,15 +167,19 @@ export async function PATCH(
 
     const supabase = createSupabaseServerClient(supabaseUrl, supabaseServiceKey);
 
-    // Update receipt with customer data
+    // Build update object — only include fields that are provided
+    const updateData: Record<string, any> = {};
+    if (customer_id !== undefined) updateData.customer_id = customer_id || null;
+    if (customer_name !== undefined) updateData.customer_name = customer_name || null;
+    if (customer_email !== undefined) updateData.customer_email = customer_email || null;
+    if (customer_phone !== undefined) updateData.customer_phone = customer_phone || null;
+    if (dining_option !== undefined) updateData.dining_option = dining_option;
+    if (customer_count !== undefined) updateData.customer_count = customer_count;
+    if (table_number !== undefined) updateData.table_number = table_number;
+
     const { data: receipt, error } = await supabase
       .from("receipts")
-      .update({
-        customer_id: customer_id || null,
-        customer_name: customer_name || null,
-        customer_email: customer_email || null,
-        customer_phone: customer_phone || null,
-      })
+      .update(updateData)
       .eq("id", id)
       .eq("org_id", session.org_id)
       .select()

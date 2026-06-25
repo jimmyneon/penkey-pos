@@ -25,10 +25,12 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  QrCode
+  QrCode,
+  Edit3
 } from "lucide-react";
 import { RefundDialog } from "./refund-dialog";
 import { EmailDialog } from "./email-dialog";
+import { EditReceiptDialog } from "./edit-receipt-dialog";
 import { QRScanner } from "@/components/QRScanner";
 import { PerksCustomerPanel } from "@/components/PerksCustomerPanel";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -114,6 +116,8 @@ export default function TransactionDetailsPage() {
   // Guards against double-fire of the refund handler while a request is in flight
   const refundingRef = useRef(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
   const [perksCustomer, setPerksCustomer] = useState<any>(null);
   const [perksBeanRules, setPerksBeanRules] = useState<any>(null);
   const [scanningQR, setScanningQR] = useState(false);
@@ -495,6 +499,28 @@ export default function TransactionDetailsPage() {
     }
   };
 
+  const handleEditSave = async (data: { dining_option: string; customer_count: number; table_number: string | null }) => {
+    if (!receipt) return;
+    setEditSaving(true);
+    try {
+      const sessionData = sessionStorage.getItem("pos_session");
+      const response = await fetch(`/api/receipts/${receipt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(sessionData ? { 'x-pos-session': sessionData } : {}) },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update receipt');
+      const result = await response.json();
+      setReceipt(prev => prev ? { ...prev, ...result.receipt } : prev);
+      showToast('Order details updated', 'success');
+      setEditDialogOpen(false);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update receipt', 'error');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleViewReceipt = () => {
     router.push(`/receipts/${params.id}/template`);
   };
@@ -717,16 +743,25 @@ export default function TransactionDetailsPage() {
           </button>
 
           {/* Transaction Info - Tappable card opens slide-up sheet */}
-          <button
-            onClick={() => setShowTransactionSheet(true)}
-            className="w-full bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 flex items-center justify-between hover:bg-white/5 transition-colors active:scale-[0.99]"
-          >
-            <div className="flex items-center gap-2">
-              <Info className="h-5 w-5 text-gray-400" />
-              <h3 className="text-base font-bold text-white">Transaction Info</h3>
-            </div>
-            <ChevronDown className="h-5 w-5 text-gray-400" />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTransactionSheet(true)}
+              className="flex-1 bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 flex items-center justify-between hover:bg-white/5 transition-colors active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-gray-400" />
+                <h3 className="text-base font-bold text-white">Transaction Info</h3>
+              </div>
+              <ChevronDown className="h-5 w-5 text-gray-400" />
+            </button>
+            <button
+              onClick={() => setEditDialogOpen(true)}
+              className="bg-[#3d3d3d] rounded-lg border border-gray-700 p-4 flex items-center justify-center hover:bg-white/5 transition-colors active:scale-[0.99]"
+              title="Edit order details"
+            >
+              <Edit3 className="h-5 w-5 text-penkey-orange" />
+            </button>
+          </div>
 
           {/* Payments - Tappable card opens slide-up sheet */}
           <button
@@ -963,6 +998,17 @@ export default function TransactionDetailsPage() {
       )}
 
       
+
+      {/* Edit Receipt Dialog */}
+      <EditReceiptDialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={handleEditSave}
+        initialDiningOption={receipt.dining_option}
+        initialCustomerCount={receipt.customer_count || 1}
+        initialTableNumber={receipt.table_number}
+        saving={editSaving}
+      />
 
       {/* Void Confirmation */}
       <ConfirmDialog
