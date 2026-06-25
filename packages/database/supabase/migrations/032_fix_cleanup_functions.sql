@@ -6,17 +6,17 @@
 --    so 'pending' rows accumulated forever. Fix: delete ALL rows older than 3 days
 --    regardless of status (if they haven't been delivered in 3 days, they're stale).
 -- 2. printer_logs: 124,197 rows in 7 days = ~17,000/day = 60MB.
---    Reduce retention from 7 days to 3 days to keep size manageable.
+--    Reduce retention to 1 day — printer issues show up immediately, not days later.
 -- 3. print_jobs: Working correctly (133 rows, 248KB). No change needed.
 
 -- ============================================================
--- Fix 1: printer_logs retention 7 → 3 days
+-- Fix 1: printer_logs retention → 1 day
 -- ============================================================
 CREATE OR REPLACE FUNCTION cleanup_old_printer_logs()
 RETURNS void AS $$
 BEGIN
   DELETE FROM printer_logs
-  WHERE timestamp < NOW() - INTERVAL '3 days';
+  WHERE timestamp < NOW() - INTERVAL '1 day';
 END;
 $$ LANGUAGE plpgsql;
 
