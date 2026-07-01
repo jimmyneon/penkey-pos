@@ -70,15 +70,15 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue, cartTot
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-[#3d3d3d] text-white border-gray-700 p-4 sm:p-6">
-        <DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden bg-[#3d3d3d] text-white border-gray-700 p-4 sm:p-6">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-lg sm:text-xl font-bold text-white">Cash Payment</DialogTitle>
           <DialogDescription className="text-gray-400">Enter the amount of cash tendered by the customer</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto space-y-2 py-2">
           {/* Total Due + Discount */}
-          <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3">
+          <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-2.5">
             <div className="flex items-center justify-between mb-1">
               <div className="text-xs text-gray-400">TOTAL DUE</div>
               {basketDiscount && (
@@ -90,7 +90,7 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue, cartTot
                 </button>
               )}
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-white">{formatCurrency(totalDue)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-white">{formatCurrency(totalDue)}</div>
             {basketDiscount && (
               <div className="text-xs text-gray-500 mt-1">
                 Subtotal: {formatCurrency(cartTotal)} | Discount: −{formatCurrency(getBasketDiscountAmount())}
@@ -102,30 +102,30 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue, cartTot
           {!basketDiscount && (
             <button
               onClick={() => { hapticButtonPress(); setDiscountDialogOpen(true); }}
-              className="w-full bg-[#4d4d4d] hover:bg-[#5d5d5d] text-gray-300 rounded-lg py-2.5 px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#4d4d4d] hover:bg-[#5d5d5d] text-gray-300 rounded-lg py-2 px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
             >
               <Percent className="h-4 w-4" />
               Add Discount Code
             </button>
           )}
 
-          {/* Cash Tendered Display */}
-          <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">CASH TENDERED</div>
-            <div className="text-3xl sm:text-4xl font-bold text-penkey-orange">
-              {formatCurrency(tenderedAmount)}
+          {/* Cash Tendered + Change - side by side */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-2.5">
+              <div className="text-xs text-gray-400 mb-1">CASH TENDERED</div>
+              <div className="text-2xl sm:text-3xl font-bold text-penkey-orange">
+                {formatCurrency(tenderedAmount)}
+              </div>
             </div>
-          </div>
-
-          {/* Change Display */}
-          <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">CHANGE</div>
-            <div className={`text-2xl sm:text-3xl font-bold ${
-              tenderedAmount === 0 ? 'text-gray-500' : 
-              change >= 0 ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {tenderedAmount === 0 ? '£0.00' : 
-               change >= 0 ? formatCurrency(change) : 'Insufficient'}
+            <div className="bg-[#2d2d2d] border border-gray-600 rounded-lg p-2.5">
+              <div className="text-xs text-gray-400 mb-1">CHANGE</div>
+              <div className={`text-2xl sm:text-3xl font-bold ${
+                tenderedAmount === 0 ? 'text-gray-500' : 
+                change >= 0 ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {tenderedAmount === 0 ? '£0.00' : 
+                 change >= 0 ? formatCurrency(change) : 'Insufficient'}
+              </div>
             </div>
           </div>
 
@@ -135,7 +135,7 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue, cartTot
               <button
                 key={amount}
                 onClick={() => handleQuickCash(amount)}
-                className="h-10 sm:h-12 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-sm font-semibold transition-colors"
+                className="h-10 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-sm font-semibold transition-colors"
               >
                 £{amount}
               </button>
@@ -148,50 +148,50 @@ export function CashTenderedDialog({ open, onClose, onConfirm, totalDue, cartTot
               <button
                 key={num}
                 onClick={() => handleNumberClick(num)}
-                className="h-12 sm:h-14 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-xl sm:text-2xl font-semibold transition-colors"
+                className="h-11 sm:h-12 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-lg sm:text-xl font-semibold transition-colors"
               >
                 {num}
               </button>
             ))}
             <button
               onClick={handleClear}
-              className="h-12 sm:h-14 bg-red-900/30 hover:bg-red-900/50 active:bg-red-900/60 text-red-400 rounded-lg text-sm font-semibold transition-colors"
+              className="h-11 sm:h-12 bg-red-900/30 hover:bg-red-900/50 active:bg-red-900/60 text-red-400 rounded-lg text-sm font-semibold transition-colors"
             >
               Clear
             </button>
             <button
               onClick={() => handleNumberClick("0")}
-              className="h-12 sm:h-14 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-xl sm:text-2xl font-semibold transition-colors"
+              className="h-11 sm:h-12 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-lg sm:text-xl font-semibold transition-colors"
             >
               0
             </button>
             <button
               onClick={() => handleNumberClick("00")}
-              className="h-12 sm:h-14 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-xl sm:text-2xl font-semibold transition-colors"
+              className="h-11 sm:h-12 bg-[#4d4d4d] hover:bg-[#5d5d5d] active:bg-[#6d6d6d] text-white rounded-lg text-lg sm:text-xl font-semibold transition-colors"
             >
               00
             </button>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
-            <Button
-              size="lg"
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white h-12"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="lg"
-              className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90 disabled:bg-gray-600 h-12"
-              onClick={handleConfirm}
-              disabled={!canComplete}
-            >
-              <Banknote className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-              <span className="text-sm sm:text-base">Complete</span>
-            </Button>
-          </div>
+        {/* Action Buttons - pinned at bottom, always visible */}
+        <div className="flex-shrink-0 flex gap-2 pt-2 border-t border-gray-700">
+          <Button
+            size="lg"
+            className="flex-1 bg-gray-600 hover:bg-gray-700 text-white h-12"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            className="flex-1 bg-penkey-orange hover:bg-penkey-orange/90 disabled:bg-gray-600 h-12"
+            onClick={handleConfirm}
+            disabled={!canComplete}
+          >
+            <Banknote className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+            <span className="text-sm sm:text-base">Complete</span>
+          </Button>
         </div>
       </DialogContent>
 
