@@ -263,6 +263,12 @@ export default function ReportsPage() {
                 csvRows.push(['Gross Sales', `£${periodMetrics.grossSales.toFixed(2)}`]);
                 csvRows.push(['Total Receipts', periodMetrics.receiptCount]);
                 csvRows.push(['Average Order', `£${periodMetrics.avgOrder.toFixed(2)}`]);
+                if (data?.customerStats) {
+                  csvRows.push(['Total Customers', data.customerStats.totalCustomers]);
+                  csvRows.push(['Avg Party Size', data.customerStats.avgPartySize.toFixed(1)]);
+                  csvRows.push(['Eat-in', data.customerStats.eatInCount]);
+                  csvRows.push(['Takeaway', data.customerStats.takeawayCount]);
+                }
                 if (data?.salesData?.refunds > 0) csvRows.push(['Refunds', `£${data.salesData.refunds.toFixed(2)}`]);
                 if (data?.salesData?.discounts > 0) csvRows.push(['Discounts', `£${data.salesData.discounts.toFixed(2)}`]);
                 if (data?.salesData?.netSales) csvRows.push(['Net Sales', `£${data.salesData.netSales.toFixed(2)}`]);
@@ -689,6 +695,44 @@ export default function ReportsPage() {
                 </p>
               </div>
             </button>
+
+            {/* Customer Stats */}
+            <div className="bg-[#3d3d3d] rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-penkey-orange" />
+                Customer Stats
+              </h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-[#2d2d2d] rounded-lg p-3">
+                  <p className="text-xs text-gray-400">Total Customers</p>
+                  <p className="text-2xl font-bold text-white">{data?.customerStats?.totalCustomers || 0}</p>
+                </div>
+                <div className="bg-[#2d2d2d] rounded-lg p-3">
+                  <p className="text-xs text-gray-400">Avg Party Size</p>
+                  <p className="text-2xl font-bold text-white">{(data?.customerStats?.avgPartySize || 0).toFixed(1)}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UtensilsCrossed className="h-4 w-4 text-orange-400" />
+                    <span className="text-sm text-gray-300">Eat-in</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {data?.customerStats?.eatInCount || 0} ({data?.customerStats && data.customerStats.totalTransactions > 0 ? ((data.customerStats.eatInCount / data.customerStats.totalTransactions) * 100).toFixed(0) : 0}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coffee className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm text-gray-300">Takeaway</span>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {data?.customerStats?.takeawayCount || 0} ({data?.customerStats && data.customerStats.totalTransactions > 0 ? ((data.customerStats.takeawayCount / data.customerStats.totalTransactions) * 100).toFixed(0) : 0}%)
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {/* Period Story - Clickable */}
             <button

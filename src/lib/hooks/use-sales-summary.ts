@@ -22,11 +22,20 @@ interface Employee {
   display_name: string;
 }
 
+interface CustomerStats {
+  totalCustomers: number;
+  totalTransactions: number;
+  avgPartySize: number;
+  eatInCount: number;
+  takeawayCount: number;
+}
+
 interface SalesSummaryData {
   userName: string;
   salesData: SalesData;
   previousPeriod?: PreviousPeriod;
   employees: Employee[];
+  customerStats?: CustomerStats;
 }
 
 interface DateRangeParams {

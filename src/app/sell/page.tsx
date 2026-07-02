@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Badge } from "@penkey/ui";
 import { ShoppingCart, User, LogOut, Menu, Plus, Minus, X, Package, Percent, Archive, Trash2, MoreHorizontal, Grid3x3, List, Settings, FileText, Save, Search, Tag, Star, Printer } from "lucide-react";
@@ -122,6 +122,9 @@ export default function SellPage() {
   const [upsellDebounceTimer, setUpsellDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   const [upsellResetTimer, setUpsellResetTimer] = useState<NodeJS.Timeout | null>(null);
   const [isSelectingFromUpsell, setIsSelectingFromUpsell] = useState(false);
+  // Ref to prevent the debounce effect from clearing the DB cart while
+  // initCartSync is handling the post-payment reinitialisation.
+  const justPaidRef = useRef(false);
 
   // Sync layout from settings
   useEffect(() => {
@@ -732,6 +735,7 @@ export default function SellPage() {
         const justPaid = sessionStorage.getItem("pos_just_paid");
         if (justPaid) {
           sessionStorage.removeItem("pos_just_paid");
+          justPaidRef.current = true;
           console.log('[CartSync] Just paid — clearing any stale DB cart, creating fresh cart');
           // Clear any stale cart row that might survive if clearCart() failed during payment (e.g. offline)
           await CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
@@ -740,6 +744,8 @@ export default function SellPage() {
             session.register.id,
             session.employee.id
           );
+          // Allow the debounce effect to operate normally after a short delay
+          setTimeout(() => { justPaidRef.current = false; }, 3000);
           return;
         }
 
@@ -795,6 +801,11 @@ export default function SellPage() {
     // Debounce to avoid too many writes
     const timer = setTimeout(() => {
       if (lines.length === 0) {
+        // Skip clearing if we just paid — initCartSync already handled it
+        if (justPaidRef.current) {
+          console.log('[CartSync] Skipping clear — justPaidRef is set');
+          return;
+        }
         // Cart is empty — clear stale DB cart so old items don't reappear on reload/device switch
         CartSyncService.clearCart(session.org_id, session.register.id, session.employee.id);
       } else {

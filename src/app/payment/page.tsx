@@ -76,6 +76,12 @@ export default function PaymentPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [defaultDiningOption, setDefaultDiningOption] = useState<'eat-in' | 'takeaway'>('takeaway');
   const [customerCount, setCustomerCount] = useState<number>(1);
+  // Refs to avoid stale closures in async payment handlers (especially card payments
+  // where handleCardPayment is called immediately after setCustomerCount)
+  const customerCountRef = useRef(customerCount);
+  const defaultDiningOptionRef = useRef(defaultDiningOption);
+  useEffect(() => { customerCountRef.current = customerCount; }, [customerCount]);
+  useEffect(() => { defaultDiningOptionRef.current = defaultDiningOption; }, [defaultDiningOption]);
   const [storeInfo, setStoreInfo] = useState({
     name: "Penkey Delicaf & Gifts",
     address: "5 New Street, Lymington",
@@ -573,6 +579,9 @@ export default function PaymentPage() {
   const handleDiningConfirm = (diningOption: 'eat-in' | 'takeaway', count: number) => {
     setDefaultDiningOption(diningOption);
     setCustomerCount(count);
+    // Update refs immediately so async handlers see the new values
+    defaultDiningOptionRef.current = diningOption;
+    customerCountRef.current = count;
     setDiningConfirmOpen(false);
     const method = pendingPaymentMethod;
     setPendingPaymentMethod(null);
@@ -692,8 +701,8 @@ export default function PaymentPage() {
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
       // Use global default dining option setting (can be overridden by table assignment)
-      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
-      customer_count: customerCount,
+      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOptionRef.current,
+      customer_count: customerCountRef.current,
       tip_amount: tipAmount,
       discount_code: basketDiscount?.code || null,
       discount_amount: basketDiscount ? getBasketDiscountAmount() : 0,
@@ -724,6 +733,8 @@ export default function PaymentPage() {
       customer_name: receiptData.customer_name,
       customer_email: receiptData.customer_email,
       customer_phone: receiptData.customer_phone,
+      dining_option: receiptData.dining_option,
+      customer_count: receiptData.customer_count,
     });
 
     try {
@@ -856,8 +867,8 @@ export default function PaymentPage() {
       customer_email: ticketAssignment?.customer?.email || null,
       customer_phone: ticketAssignment?.customer?.phone || null,
       table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
-      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
-      customer_count: customerCount,
+      dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOptionRef.current,
+      customer_count: customerCountRef.current,
       tip_amount: tipAmount,
       discount_code: basketDiscount?.code || null,
       discount_amount: basketDiscount ? getBasketDiscountAmount() : 0,
@@ -1775,8 +1786,8 @@ export default function PaymentPage() {
         customer_phone: ticketAssignment?.customer?.phone || null,
         table_number: ticketAssignment?.type === 'table' ? ticketAssignment.name : null,
         // Use global default dining option setting (can be overridden by table assignment)
-        dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOption,
-        customer_count: customerCount,
+        dining_option: ticketAssignment?.type === 'table' ? 'eat-in' : defaultDiningOptionRef.current,
+        customer_count: customerCountRef.current,
         payment_provider: "sumup",
         transaction_id: paymentResult.transactionId || paymentResult.checkoutId,
         checkout_id: paymentResult.checkoutId,

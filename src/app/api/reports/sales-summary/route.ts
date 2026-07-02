@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     while (hasMore) {
       const { data: pageReceipts, error: receiptsError } = await supabase
         .from("receipts")
-        .select("id, total, subtotal, tax_total, discount_total, member_id, created_at")
+        .select("id, total, subtotal, tax_total, discount_total, member_id, created_at, customer_count, dining_option")
         .eq("org_id", orgId)
         .gte("created_at", startDate.toISOString())
         .lte("created_at", endDate.toISOString())
@@ -201,6 +201,11 @@ export async function GET(request: NextRequest) {
       previousReceiptCount = prevReceipts?.length || 0;
     }
 
+    // Calculate customer count and dining option breakdown
+    const totalCustomers = receipts?.reduce((sum: number, r: any) => sum + (r.customer_count || 0), 0) || 0;
+    const eatInCount = receipts?.filter((r: any) => r.dining_option === 'eat-in').length || 0;
+    const takeawayCount = receipts?.filter((r: any) => r.dining_option === 'takeaway').length || 0;
+
     return NextResponse.json({
       userName,
       salesData: {
@@ -216,6 +221,13 @@ export async function GET(request: NextRequest) {
         receiptCount: previousReceiptCount,
       },
       employees: employees || [],
+      customerStats: {
+        totalCustomers,
+        totalTransactions: receipts?.length || 0,
+        avgPartySize: receipts && receipts.length > 0 ? totalCustomers / receipts.length : 0,
+        eatInCount,
+        takeawayCount,
+      },
     });
   } catch (error: any) {
     console.error("Failed to fetch sales summary:", error);
