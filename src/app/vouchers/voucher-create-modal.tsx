@@ -984,8 +984,8 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
             </div>
           )}
 
-          {/* Custom voucher code - for pre-printed vouchers (item & percent only) */}
-          {voucherType !== "amount" && (
+          {/* Custom voucher code - for pre-printed vouchers (all types) */}
+          {(voucherType !== "amount" || isPromotional) && (
             <div className="space-y-2">
               <button
                 onClick={() => {
