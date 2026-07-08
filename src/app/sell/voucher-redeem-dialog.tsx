@@ -17,6 +17,7 @@ interface VoucherResult {
   item_ids?: string[];
   category_ids?: string[];
   category_id?: string;
+  min_spend?: number;
 }
 
 interface VoucherRedeemDialogProps {

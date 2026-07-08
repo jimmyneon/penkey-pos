@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     batch_label,
     voucher_title,
     custom_code,
+    min_spend,
   } = body;
 
   const validTypes = ['amount', 'item', 'percent'];
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
         expires_at: expires_at || null,
         message: message || null,
         voucher_title: voucher_title || null,
+        min_spend: (voucher_type === 'amount' || voucher_type === 'percent') ? (parseFloat(min_spend) || 0) : 0,
         issued_by: session.user_id,
         status: 'active',
         batch_id: batchId,

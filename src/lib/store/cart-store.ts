@@ -32,6 +32,7 @@ export interface VoucherDiscount {
   category_ids?: string[];
   category_id?: string;
   item_name?: string;
+  min_spend?: number;
 }
 
 export interface BasketDiscount {

@@ -410,7 +410,21 @@ export default function SellPage() {
             category_ids: v.category_ids,
             category_id: v.category_id,
             item_name: v.item_name,
+            min_spend: v.min_spend || 0,
           };
+
+          // Check minimum spend condition for amount/percent vouchers
+          if (v.min_spend && v.min_spend > 0 && v.discountType !== "free_item") {
+            const cartTotal = lines.reduce((sum: number, line: any) => {
+              const lt = (line.unit_price + line.modifiers.reduce((s: number, m: any) => s + m.price_adjustment, 0)) * line.quantity;
+              return sum + lt;
+            }, 0);
+            if (cartTotal < v.min_spend) {
+              showToast(`Cart total must be over ${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v.min_spend)} to use this voucher. Current total: ${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(cartTotal)}`, "error");
+              setQrScannerOpen(false);
+              return;
+            }
+          }
 
           if (v.discountType === "free_item") {
             // Try to find a matching line in the cart
@@ -2055,6 +2069,18 @@ export default function SellPage() {
             showToast('Add items to ticket first', 'error');
             return;
           }
+          // Check min_spend condition on basket voucher
+          if (basketVoucher?.min_spend && basketVoucher.min_spend > 0) {
+            const cartTotal = lines.reduce((sum: number, line: any) => {
+              const lt = (line.unit_price + line.modifiers.reduce((s: number, m: any) => s + m.price_adjustment, 0)) * line.quantity;
+              return sum + lt;
+            }, 0);
+            if (cartTotal < basketVoucher.min_spend) {
+              const fmt = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
+              showToast(`Cart must be over ${fmt(basketVoucher.min_spend)} for this voucher. Current: ${fmt(cartTotal)}`, 'error');
+              return;
+            }
+          }
           // Store ticket assignment for payment page
           if (ticketAssignment) {
             sessionStorage.setItem("pos_ticket_assignment", JSON.stringify(ticketAssignment));
@@ -2315,6 +2341,7 @@ export default function SellPage() {
             category_ids: voucher.category_ids,
             category_id: voucher.category_id,
             item_name: voucher.item_name,
+            min_spend: voucher.min_spend || 0,
           });
           showToast(`Voucher applied: ${voucher.name}`, 'success');
         }}

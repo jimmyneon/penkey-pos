@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
       category_id: v.category_id,
       category_ids: v.category_ids,
       item_selection_type: v.item_selection_type,
+      min_spend: v.min_spend || 0,
     },
   });
 }

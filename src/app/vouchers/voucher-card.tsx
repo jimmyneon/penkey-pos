@@ -69,6 +69,11 @@ export function VoucherCard({ voucher, onClick }: VoucherCardProps) {
           </div>
           <div className="text-base font-semibold text-white truncate">{voucherLabel(voucher)}</div>
           <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+            {voucher.min_spend && voucher.min_spend > 0 && (
+              <span className="flex-shrink-0 text-amber-400/80">
+                Min spend {formatCurrency(parseFloat(voucher.min_spend))}
+              </span>
+            )}
             {voucher.batch_label && (
               <span className="flex items-center gap-1 flex-shrink-0 text-blue-400/70">
                 <Layers className="h-3 w-3" />

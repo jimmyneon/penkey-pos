@@ -70,6 +70,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
   const [voucherTitle, setVoucherTitle] = useState("");
   const [useCustomCode, setUseCustomCode] = useState(false);
   const [customCode, setCustomCode] = useState("");
+  const [minSpend, setMinSpend] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLayoutEditor, setShowLayoutEditor] = useState(false);
@@ -245,6 +246,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     setVoucherTitle("");
     setUseCustomCode(false);
     setCustomCode("");
+    setMinSpend("");
     setError(null);
   };
 
@@ -324,6 +326,10 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
 
       if (useCustomCode && customCode.trim()) {
         body.custom_code = customCode.trim();
+      }
+
+      if ((voucherType === "amount" || voucherType === "percent") && minSpend) {
+        body.min_spend = parseFloat(minSpend);
       }
 
       const sessionData =
@@ -503,6 +509,34 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Minimum spend condition - for amount & percent vouchers */}
+          {(voucherType === "amount" || voucherType === "percent") && (
+            <div>
+              <label className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-penkey-orange" />
+                Minimum Spend
+                <span className="text-gray-500 font-normal">(optional condition)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-penkey-orange">£</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={minSpend}
+                  onChange={(e) => setMinSpend(e.target.value)}
+                  className="w-full bg-[#2d2d2d] text-white pl-10 pr-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-penkey-orange text-lg font-semibold"
+                  placeholder="0.00 (no minimum)"
+                />
+              </div>
+              {minSpend && parseFloat(minSpend) > 0 && (
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Voucher only valid when cart total is over {formatCurrency(parseFloat(minSpend))}.
+                </p>
+              )}
             </div>
           )}
 

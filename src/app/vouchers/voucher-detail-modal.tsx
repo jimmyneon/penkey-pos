@@ -184,7 +184,21 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
           category_ids: v.category_ids,
           category_id: v.category_id,
           item_name: v.item_name,
+          min_spend: v.min_spend || 0,
         };
+
+        // Check minimum spend condition for amount/percent vouchers
+        if (v.min_spend && v.min_spend > 0 && v.discountType !== "free_item") {
+          const cartTotal = lines.reduce((sum: number, line: any) => {
+            const lt = (line.unit_price + line.modifiers.reduce((s: number, m: any) => s + m.price_adjustment, 0)) * line.quantity;
+            return sum + lt;
+          }, 0);
+          if (cartTotal < v.min_spend) {
+            const fmt = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
+            alert(`Cart total must be over ${fmt(v.min_spend)} to use this voucher.\n\nCurrent total: ${fmt(cartTotal)}`);
+            return;
+          }
+        }
 
         if (v.discountType === "free_item") {
           // Try to find a matching line in the cart
