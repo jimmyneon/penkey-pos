@@ -222,7 +222,9 @@ export const useCartStore = create<CartStore>()(
         } else if (line.voucher.discountType === 'fixed') {
           return sum + Math.max(0, fullLineTotal - line.voucher.discountValue);
         } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
-          return sum; // Free item - no cost
+          // Free item — only one unit is free, rest are charged normally
+          const oneUnitPrice = line.unit_price + line.modifiers.reduce((modSum, mod) => modSum + mod.price_adjustment, 0);
+          return sum + (fullLineTotal - oneUnitPrice);
         }
       }
 
@@ -247,7 +249,9 @@ export const useCartStore = create<CartStore>()(
         } else if (line.voucher.discountType === 'fixed') {
           discountedTotal = Math.max(0, fullLineTotal - line.voucher.discountValue);
         } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
-          discountedTotal = 0; // Free item - no cost
+          // Free item — only one unit is free, rest are charged normally
+          const oneUnitPrice = line.unit_price + line.modifiers.reduce((modSum, mod) => modSum + mod.price_adjustment, 0);
+          discountedTotal = fullLineTotal - oneUnitPrice;
         }
       }
 
@@ -303,7 +307,9 @@ export const useCartStore = create<CartStore>()(
       } else if (line.voucher.discountType === 'fixed') {
         return sum + line.voucher.discountValue;
       } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
-        return sum + fullLineTotal;
+        // Free item — discount is only for one unit
+        const oneUnitPrice = line.unit_price + line.modifiers.reduce((modSum, mod) => modSum + mod.price_adjustment, 0);
+        return sum + oneUnitPrice;
       }
       return sum;
     }, 0);

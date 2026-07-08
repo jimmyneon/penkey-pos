@@ -234,7 +234,8 @@ export function TicketModal({
                               } else if (line.voucher.discountType === 'fixed') {
                                 return Math.max(0, fullPrice - line.voucher.discountValue);
                               } else if (line.voucher.discountType === 'free_item' || line.voucher.discountType === 'free_modifier') {
-                                return 0;
+                                const oneUnit = line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0);
+                                return fullPrice - oneUnit;
                               }
                               return fullPrice;
                             })()
