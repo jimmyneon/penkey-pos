@@ -331,127 +331,136 @@ export default function SellPage() {
 
     setScanningQR(true);
 
+    // Quick detection: is this a gift voucher code?
+    const trimmed = qrData.trim();
+    const isGiftVoucherCode = trimmed.startsWith("PNK-") || (
+      trimmed.startsWith("{") && trimmed.includes('"type"') && trimmed.includes('"voucher"')
+    );
+
     try {
-      // Try Perks API first
-      let perksSuccess = false;
-      try {
-        const apiResponse = await scanQRCode(session.org_id, qrData);
+      // If it's clearly a gift voucher code, skip Perks entirely
+      if (!isGiftVoucherCode) {
+        // Try Perks API first
+        let perksSuccess = false;
+        try {
+          const apiResponse = await scanQRCode(session.org_id, qrData);
 
-        if (apiResponse && apiResponse.customer) {
-          perksSuccess = true;
-          const customer = {
-            id: apiResponse.customer?.id || '',
-            name: apiResponse.customer?.name || '',
-            email: apiResponse.customer?.email || '',
-            phone: apiResponse.customer?.phone || '',
-            beanBalance: apiResponse.bean_balance?.current_beans || 0,
-            activeVouchers: apiResponse.vouchers || [],
-            canAwardBeanToday: apiResponse.can_award_bean || false,
-          };
+          if (apiResponse && apiResponse.customer) {
+            perksSuccess = true;
+            const customer = {
+              id: apiResponse.customer?.id || '',
+              name: apiResponse.customer?.name || '',
+              email: apiResponse.customer?.email || '',
+              phone: apiResponse.customer?.phone || '',
+              beanBalance: apiResponse.bean_balance?.current_beans || 0,
+              activeVouchers: apiResponse.vouchers || [],
+              canAwardBeanToday: apiResponse.can_award_bean || false,
+            };
 
-          setPerksCustomer(customer);
-          setTicketAssignment({
-            type: 'customer',
-            name: customer.name,
-            customer: customer,
-          });
+            setPerksCustomer(customer);
+            setTicketAssignment({
+              type: 'customer',
+              name: customer.name,
+              customer: customer,
+            });
 
-          sessionStorage.setItem("pos_ticket_assignment", JSON.stringify({
-            type: 'customer',
-            name: customer.name,
-            customer: customer,
-          }));
+            sessionStorage.setItem("pos_ticket_assignment", JSON.stringify({
+              type: 'customer',
+              name: customer.name,
+              customer: customer,
+            }));
 
-          setQrScannerOpen(false);
-          showToast(`Customer ${customer.name} assigned to current ticket`, 'success');
-          return;
+            setQrScannerOpen(false);
+            showToast(`Customer ${customer.name} assigned to current ticket`, 'success');
+            return;
+          }
+        } catch (perksErr: any) {
+          // Perks scan failed — could be a gift voucher code instead
+          console.log("[handleQRScan] Perks scan failed, trying gift voucher lookup:", perksErr.message);
         }
-      } catch (perksErr: any) {
-        // Perks scan failed — could be a gift voucher code instead
-        console.log("[handleQRScan] Perks scan failed, trying gift voucher lookup:", perksErr.message);
+
+        if (perksSuccess) return;
       }
 
-      // If Perks didn't work, try gift voucher lookup
-      if (!perksSuccess) {
-        const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
-        const voucherRes = await fetch("/api/vouchers/redeem", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(sessionData ? { "x-pos-session": sessionData } : {}),
-          },
-          body: JSON.stringify({ code: qrData.trim(), confirm: false }),
-        });
+      // Gift voucher lookup
+      const sessionData = sessionStorage.getItem("pos_session") || localStorage.getItem("pos_session");
+      const voucherRes = await fetch("/api/vouchers/redeem", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionData ? { "x-pos-session": sessionData } : {}),
+        },
+        body: JSON.stringify({ code: trimmed, confirm: false }),
+      });
 
-        if (voucherRes.ok) {
-          const data = await voucherRes.json();
-          const v = data.voucher;
-          const voucherForCart = {
-            id: v.id,
-            name: v.name,
-            discountType: v.discountType as any,
-            discountValue: v.discountValue,
-            beanCost: 0,
-            itemType: v.voucher_type === "item" ? "item" : undefined,
-            category: undefined,
-            item_selection_type: v.item_selection_type,
-            item_ids: v.item_ids,
-            category_ids: v.category_ids,
-            category_id: v.category_id,
-            item_name: v.item_name,
-            min_spend: v.min_spend || 0,
-          };
+      if (voucherRes.ok) {
+        const data = await voucherRes.json();
+        const v = data.voucher;
+        const voucherForCart = {
+          id: v.id,
+          name: v.name,
+          discountType: v.discountType as any,
+          discountValue: v.discountValue,
+          beanCost: 0,
+          itemType: v.voucher_type === "item" ? "item" : undefined,
+          category: undefined,
+          item_selection_type: v.item_selection_type,
+          item_ids: v.item_ids,
+          category_ids: v.category_ids,
+          category_id: v.category_id,
+          item_name: v.item_name,
+          min_spend: v.min_spend || 0,
+        };
 
-          // Check minimum spend condition for amount/percent vouchers
-          if (v.min_spend && v.min_spend > 0 && v.discountType !== "free_item") {
-            const cartTotal = lines.reduce((sum: number, line: any) => {
-              const lt = (line.unit_price + line.modifiers.reduce((s: number, m: any) => s + m.price_adjustment, 0)) * line.quantity;
-              return sum + lt;
-            }, 0);
-            if (cartTotal < v.min_spend) {
-              showToast(`Cart total must be over ${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v.min_spend)} to use this voucher. Current total: ${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(cartTotal)}`, "error");
-              setQrScannerOpen(false);
-              return;
-            }
+        // Check minimum spend condition for amount/percent vouchers
+        if (v.min_spend && v.min_spend > 0 && v.discountType !== "free_item") {
+          const cartTotal = lines.reduce((sum: number, line: any) => {
+            const lt = (line.unit_price + line.modifiers.reduce((s: number, m: any) => s + m.price_adjustment, 0)) * line.quantity;
+            return sum + lt;
+          }, 0);
+          if (cartTotal < v.min_spend) {
+            showToast(`Cart total must be over ${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v.min_spend)} to use this voucher. Current total: ${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(cartTotal)}`, "error");
+            setQrScannerOpen(false);
+            return;
           }
+        }
 
-          if (v.discountType === "free_item") {
-            // Find the cheapest eligible line in the cart
-            const matchingLine = findCheapestEligibleLine(lines, v);
+        if (v.discountType === "free_item") {
+          // Find the cheapest eligible line in the cart
+          const matchingLine = findCheapestEligibleLine(lines, v);
 
-            if (matchingLine) {
-              applyVoucher(matchingLine.id, voucherForCart);
-            } else {
-              // Store as pending basket voucher — will auto-apply when matching item is added
-              setBasketVoucher(voucherForCart);
-            }
+          if (matchingLine) {
+            applyVoucher(matchingLine.id, voucherForCart);
           } else {
+            // Store as pending basket voucher — will auto-apply when matching item is added
             setBasketVoucher(voucherForCart);
           }
-
-          setQrScannerOpen(false);
-          showToast(`Gift voucher applied: ${v.name}`, "success");
-          return;
         } else {
-          // Gift voucher lookup also failed
-          const errData = await voucherRes.json().catch(() => ({}));
-          const errMsg = errData.error || "Voucher not found";
-
-          if (errMsg.includes("already been redeemed")) {
-            showToast("This gift voucher has already been redeemed.", "error");
-          } else if (errMsg.includes("expired")) {
-            showToast("This gift voucher has expired.", "error");
-          } else if (errMsg.includes("not found")) {
-            showToast("Code not recognised — not a Perks member or gift voucher.", "error");
-          } else {
-            showToast(errMsg, "error");
-          }
-
-          // Reopen scanner for retry
-          setQrScannerOpen(false);
-          setTimeout(() => setQrScannerOpen(true), 600);
-          return;
+          setBasketVoucher(voucherForCart);
         }
+
+        setQrScannerOpen(false);
+        showToast(`Gift voucher applied: ${v.name}`, "success");
+        return;
+      } else {
+        // Gift voucher lookup also failed
+        const errData = await voucherRes.json().catch(() => ({}));
+        const errMsg = errData.error || "Voucher not found";
+
+        if (errMsg.includes("already been redeemed")) {
+          showToast("This gift voucher has already been redeemed.", "error");
+        } else if (errMsg.includes("expired")) {
+          showToast("This gift voucher has expired.", "error");
+        } else if (errMsg.includes("not found")) {
+          showToast("Code not recognised — not a Perks member or gift voucher.", "error");
+        } else {
+          showToast(errMsg, "error");
+        }
+
+        // Reopen scanner for retry
+        setQrScannerOpen(false);
+        setTimeout(() => setQrScannerOpen(true), 600);
+        return;
       }
     } catch (error: any) {
       console.error("[handleQRScan] Error:", error);

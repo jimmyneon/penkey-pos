@@ -81,29 +81,46 @@ export interface RedeemVoucherRequest {
   staff_id: string;
 }
 
+// In-memory cache for Perks settings to avoid redundant fetches
+let perksSettingsCache: PerksSettings | null | undefined = undefined;
+let perksSettingsCacheTime = 0;
+const PERKS_SETTINGS_CACHE_TTL = 60000; // 1 minute
+
 /**
- * Get Perks settings from org_settings via API
+ * Get Perks settings from org_settings via API (cached for 60s)
  */
 export async function getPerksSettings(orgId: string): Promise<PerksSettings | null> {
+  // Return cached value if fresh
+  if (perksSettingsCache !== undefined && Date.now() - perksSettingsCacheTime < PERKS_SETTINGS_CACHE_TTL) {
+    return perksSettingsCache;
+  }
+
   try {
     const response = await fetch("/api/settings/perks");
-    
+
     if (!response.ok) {
       console.error("[Perks] Failed to fetch settings:", response.status);
+      perksSettingsCache = null;
+      perksSettingsCacheTime = Date.now();
       return null;
     }
 
     const data = await response.json();
-    
+
     if (!data.domain || !data.apiKey) {
       console.warn("[Perks] Perks settings not configured");
+      perksSettingsCache = null;
+      perksSettingsCacheTime = Date.now();
       return null;
     }
 
-    return {
+    const settings = {
       domain: data.domain,
       apiKey: data.apiKey,
     };
+    perksSettingsCache = settings;
+    perksSettingsCacheTime = Date.now();
+    return settings;
   } catch (error) {
     console.error("[Perks] Error fetching settings:", error);
     return null;
