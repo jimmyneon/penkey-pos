@@ -46,6 +46,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
 
   const [voucherType, setVoucherType] = useState<VoucherType>("amount");
   const [amount, setAmount] = useState("");
+  const [isPromotional, setIsPromotional] = useState(false);
   const [percentDiscount, setPercentDiscount] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedItemName, setSelectedItemName] = useState("");
@@ -247,6 +248,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     setUseCustomCode(false);
     setCustomCode("");
     setMinSpend("");
+    setIsPromotional(false);
     setError(null);
   };
 
@@ -261,7 +263,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     setCreating(true);
     setError(null);
     try {
-      if (voucherType === "amount") {
+      if (voucherType === "amount" && !isPromotional) {
         const voucherAmount = parseFloat(amount);
         const config = {
           voucherType,
@@ -284,6 +286,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
           modifiers: [],
           notes: message || "",
           tax_rate: 0,
+          category_id: null,
         });
 
         handleClose();
@@ -299,6 +302,8 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
         message: message || null,
         send_email: sendEmail && !!recipientEmail,
       };
+
+      if (voucherType === "amount") body.amount = parseFloat(amount);
 
       if (voucherType === "percent") body.percent_discount = parseFloat(percentDiscount);
       if (voucherType === "item") {
@@ -472,6 +477,34 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
                   </button>
                 ))}
               </div>
+
+              {/* Promotional voucher toggle */}
+              <button
+                onClick={() => {
+                  hapticButtonPress();
+                  setIsPromotional(!isPromotional);
+                }}
+                className={`w-full mt-3 flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${
+                  isPromotional
+                    ? "border-purple-500 bg-purple-500/10"
+                    : "border-gray-600/50 bg-[#2d2d2d] hover:border-gray-500"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className={`h-4 w-4 ${isPromotional ? "text-purple-400" : "text-gray-500"}`} />
+                  <span className={`text-sm font-medium ${isPromotional ? "text-purple-300" : "text-gray-400"}`}>
+                    Promotional Voucher
+                  </span>
+                </div>
+                <div className={`w-10 h-6 rounded-full transition-colors flex items-center ${isPromotional ? "bg-purple-500" : "bg-gray-600"}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isPromotional ? "translate-x-4" : "translate-x-0.5"}`} />
+                </div>
+              </button>
+              {isPromotional && (
+                <p className="text-xs text-purple-400/70 mt-1.5 px-1">
+                  No payment required — voucher is created for free as a promotion.
+                </p>
+              )}
             </div>
           )}
 
@@ -1044,8 +1077,10 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
             ) : (
               <>
                 <Gift className="h-5 w-5" />
-                {voucherType === "amount"
+                {voucherType === "amount" && !isPromotional
                   ? "Continue to Payment"
+                  : voucherType === "amount" && isPromotional
+                  ? "Create Promotional Voucher"
                   : quantity > 1
                   ? `Create ${quantity} Vouchers`
                   : "Create Voucher"}
