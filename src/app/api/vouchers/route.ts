@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     item_name,
     item_ids,
     category_id,
+    category_ids,
     item_selection_type = 'single',
     recipient_name,
     recipient_email,
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
     quantity = 1,
     batch_label,
     voucher_title,
+    custom_code,
   } = body;
 
   const validTypes = ['amount', 'item', 'percent'];
@@ -89,8 +91,22 @@ export async function POST(request: NextRequest) {
 
   const createdVouchers: any[] = [];
 
+  // If custom_code is provided, validate uniqueness upfront
+  if (custom_code) {
+    const { data: existing } = await supabase
+      .from('gift_vouchers')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('code', custom_code)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({ error: 'A voucher with this code already exists' }, { status: 409 });
+    }
+  }
+
   for (let i = 0; i < qty; i++) {
-    const code = await makeUniqueCode();
+    // Use custom_code if provided (only for single voucher, not batch)
+    const code = (custom_code && !isBatch) ? custom_code : await makeUniqueCode();
     const qrData = JSON.stringify({ type: 'voucher', code, org_id: session.org_id });
 
     const { data: voucher, error: insertError } = await supabase
@@ -105,7 +121,8 @@ export async function POST(request: NextRequest) {
         item_id: voucher_type === 'item' && item_selection_type === 'single' ? item_id : null,
         item_name: voucher_type === 'item' ? item_name : null,
         item_ids: voucher_type === 'item' && item_selection_type === 'multiple' ? item_ids : null,
-        category_id: voucher_type === 'item' && item_selection_type === 'category' ? category_id : null,
+        category_id: voucher_type === 'item' && item_selection_type === 'category' && category_ids && category_ids.length === 1 ? category_ids[0] : (voucher_type === 'item' && item_selection_type === 'category' ? category_id : null),
+        category_ids: voucher_type === 'item' && item_selection_type === 'category' && category_ids && category_ids.length > 0 ? category_ids : null,
         item_selection_type: voucher_type === 'item' ? item_selection_type : null,
         recipient_name: recipient_name || null,
         recipient_email: recipient_email || null,

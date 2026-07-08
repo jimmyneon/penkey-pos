@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       item_id: v.item_id,
       item_ids: v.item_ids,
       category_id: v.category_id,
+      category_ids: v.category_ids,
       item_selection_type: v.item_selection_type,
     },
   });

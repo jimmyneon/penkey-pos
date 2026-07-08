@@ -192,9 +192,10 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
               alert(`Add one of these items to the cart first: ${v.item_name}`);
               return;
             }
-          } else if (v.item_selection_type === "category" && v.category_id) {
+          } else if (v.item_selection_type === "category" && (v.category_ids?.length || v.category_id)) {
+            const catIds = v.category_ids?.length ? v.category_ids : [v.category_id];
             matchingLine = lines.find((line: any) =>
-              line.category_id === v.category_id || line.item_category_id === v.category_id
+              catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
             );
             if (!matchingLine) {
               alert(`Add an item from "${v.item_name}" to the cart first, then redeem this voucher.`);

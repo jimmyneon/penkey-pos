@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Sparkles,
   SlidersHorizontal,
+  QrCode,
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { hapticButtonPress } from "@/lib/utils/haptics";
@@ -67,6 +68,8 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
   const [quantity, setQuantity] = useState(1);
   const [batchLabel, setBatchLabel] = useState("");
   const [voucherTitle, setVoucherTitle] = useState("");
+  const [useCustomCode, setUseCustomCode] = useState(false);
+  const [customCode, setCustomCode] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLayoutEditor, setShowLayoutEditor] = useState(false);
@@ -240,6 +243,8 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
     setQuantity(1);
     setBatchLabel("");
     setVoucherTitle("");
+    setUseCustomCode(false);
+    setCustomCode("");
     setError(null);
   };
 
@@ -307,13 +312,18 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
             .map((it: any) => it.name);
           body.item_name = selectedNames.join(", ");
         } else if (itemSelectionType === "category") {
-          body.category_id = selectedCategoryIds[0];
+          body.category_ids = selectedCategoryIds;
+          body.category_id = selectedCategoryIds.length === 1 ? selectedCategoryIds[0] : undefined;
           body.item_name = selectedCategoryName;
         }
       }
       if (quantity > 1) {
         body.quantity = quantity;
         body.batch_label = batchLabel || undefined;
+      }
+
+      if (useCustomCode && customCode.trim()) {
+        body.custom_code = customCode.trim();
       }
 
       const sessionData =
@@ -637,41 +647,56 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
                 </div>
               )}
 
-              {/* Category picker */}
+              {/* Category picker (multi-select) */}
               {itemSelectionType === "category" && (
                 <div className="space-y-2">
                   {categories.length === 0 && (
                     <p className="text-xs text-gray-500">No categories found.</p>
                   )}
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        hapticButtonPress();
-                        setSelectedCategoryIds([cat.id]);
-                        setSelectedCategoryName(cat.name);
-                      }}
-                      className={`w-full text-left px-4 py-3 rounded-xl border-2 flex items-center justify-between transition-colors ${
-                        selectedCategoryIds.includes(cat.id)
-                          ? "border-penkey-orange bg-penkey-orange/15"
-                          : "border-gray-600/50 bg-[#2d2d2d] hover:border-gray-500"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: cat.color || "#888" }}
-                        />
-                        <span className="text-sm font-medium text-white">{cat.name}</span>
-                      </div>
-                      {selectedCategoryIds.includes(cat.id) && (
-                        <Check className="h-4 w-4 text-penkey-orange" />
-                      )}
-                    </button>
-                  ))}
-                  {selectedCategoryName && (
+                  {categories.map((cat) => {
+                    const isSelected = selectedCategoryIds.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          hapticButtonPress();
+                          if (isSelected) {
+                            const newIds = selectedCategoryIds.filter((id) => id !== cat.id);
+                            setSelectedCategoryIds(newIds);
+                            setSelectedCategoryName(
+                              newIds.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean).join(", ")
+                            );
+                          } else {
+                            const newIds = [...selectedCategoryIds, cat.id];
+                            setSelectedCategoryIds(newIds);
+                            setSelectedCategoryName(
+                              newIds.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean).join(", ")
+                            );
+                          }
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-xl border-2 flex items-center justify-between transition-colors ${
+                          isSelected
+                            ? "border-penkey-orange bg-penkey-orange/15"
+                            : "border-gray-600/50 bg-[#2d2d2d] hover:border-gray-500"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: cat.color || "#888" }}
+                          />
+                          <span className="text-sm font-medium text-white">{cat.name}</span>
+                        </div>
+                        {isSelected && (
+                          <Check className="h-4 w-4 text-penkey-orange" />
+                        )}
+                      </button>
+                    );
+                  })}
+                  {selectedCategoryIds.length > 0 && (
                     <p className="text-xs text-gray-500">
-                      Recipient can choose any active item in <span className="text-white font-medium">{selectedCategoryName}</span>.
+                      Recipient can choose any active item from{" "}
+                      <span className="text-white font-medium">{selectedCategoryName}</span>.
                     </p>
                   )}
                 </div>
@@ -886,6 +911,50 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
                   />
                   <p className="text-xs text-gray-500 mt-1.5">
                     Creates {quantity} vouchers, each with a unique QR code. Scan once to redeem.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Custom voucher code - for pre-printed vouchers (item & percent only) */}
+          {voucherType !== "amount" && (
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  hapticButtonPress();
+                  setUseCustomCode(!useCustomCode);
+                  if (useCustomCode) setCustomCode("");
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors ${
+                  useCustomCode
+                    ? "border-penkey-orange bg-penkey-orange/10"
+                    : "border-gray-600/50 bg-[#2d2d2d]"
+                }`}
+              >
+                <QrCode className="h-5 w-5 flex-shrink-0 text-penkey-orange" />
+                <span className="flex-1 text-left text-sm font-medium text-white">
+                  Use custom code (pre-printed voucher)
+                </span>
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                    useCustomCode ? "bg-penkey-orange border-penkey-orange" : "border-gray-500"
+                  }`}
+                >
+                  {useCustomCode && <Check className="h-3 w-3 text-white" />}
+                </div>
+              </button>
+              {useCustomCode && (
+                <div>
+                  <input
+                    type="text"
+                    value={customCode}
+                    onChange={(e) => setCustomCode(e.target.value)}
+                    placeholder="e.g. SUMMER-2024-001"
+                    className="w-full bg-[#2d2d2d] text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-penkey-orange font-mono transition-colors"
+                  />
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Enter the code printed on your pre-made voucher. The system will use this instead of generating a new one.
                   </p>
                 </div>
               )}
