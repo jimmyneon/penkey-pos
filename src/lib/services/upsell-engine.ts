@@ -22,7 +22,7 @@ interface Item {
 interface CartLine {
   item_id: string;
   item_name: string;
-  category_id?: string;
+  category_id?: string | null;
 }
 
 export class UpsellEngine {
@@ -100,7 +100,7 @@ export class UpsellEngine {
    */
   private getComplementaryItems(
     triggerItem: Item,
-    categoriesInCart: Set<string | undefined>,
+    categoriesInCart: Set<string | null | undefined>,
     itemsInCart: Set<string>
   ): Item[] {
     // Define complementary category pairs by category NAME (not ID)

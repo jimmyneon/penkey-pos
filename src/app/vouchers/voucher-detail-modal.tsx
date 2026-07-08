@@ -179,38 +179,36 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
           beanCost: 0,
           itemType: v.voucher_type === "item" ? "item" : undefined,
           category: undefined,
+          item_selection_type: v.item_selection_type,
+          item_ids: v.item_ids,
+          category_ids: v.category_ids,
+          category_id: v.category_id,
+          item_name: v.item_name,
         };
 
         if (v.discountType === "free_item") {
+          // Try to find a matching line in the cart
           let matchingLine: any = null;
 
           if (v.item_selection_type === "multiple" && v.item_ids) {
-            matchingLine = lines.find((line: any) =>
-              v.item_ids.includes(line.item_id)
-            );
-            if (!matchingLine) {
-              alert(`Add one of these items to the cart first: ${v.item_name}`);
-              return;
-            }
+            matchingLine = lines.find((line: any) => v.item_ids.includes(line.item_id));
           } else if (v.item_selection_type === "category" && (v.category_ids?.length || v.category_id)) {
             const catIds = v.category_ids?.length ? v.category_ids : [v.category_id];
             matchingLine = lines.find((line: any) =>
               catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
             );
-            if (!matchingLine) {
-              alert(`Add an item from "${v.item_name}" to the cart first, then redeem this voucher.`);
-              return;
-            }
           } else {
             matchingLine = lines.find((line: any) =>
               line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
             );
-            if (!matchingLine) {
-              alert(`Add "${v.item_name}" to the cart first, then redeem this voucher.`);
-              return;
-            }
           }
-          applyVoucher(matchingLine.id, voucherForCart);
+
+          if (matchingLine) {
+            applyVoucher(matchingLine.id, voucherForCart);
+          } else {
+            // Store as pending basket voucher — will auto-apply when matching item is added on sell page
+            setBasketVoucher(voucherForCart);
+          }
         } else {
           setBasketVoucher(voucherForCart);
         }

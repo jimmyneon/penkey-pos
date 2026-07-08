@@ -13,6 +13,10 @@ interface VoucherResult {
   recipient_name?: string;
   voucher_type: string;
   item_name?: string;
+  item_selection_type?: string;
+  item_ids?: string[];
+  category_ids?: string[];
+  category_id?: string;
 }
 
 interface VoucherRedeemDialogProps {

@@ -133,7 +133,7 @@ interface Item {
 interface CartLine {
   item_id: string;
   item_name: string;
-  category_id?: string;
+  category_id?: string | null;
 }
 
 /**

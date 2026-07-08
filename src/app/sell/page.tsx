@@ -228,7 +228,7 @@ export default function SellPage() {
     }
   };
 
-  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines, applyVoucher, removeVoucher, setBasketVoucher, basketVoucher } = useCartStore();
+  const { lines, addLine, updateQuantity, removeLine, getSubtotal, getTaxTotal, getTotal, clearCart, loadLines, applyVoucher, removeVoucher, setBasketVoucher, basketVoucher, clearBasketVoucher } = useCartStore();
 
   // Only call data hooks when session is loaded to prevent "skip" issues
   const shouldLoadData = session && session.org_id && session.user_id;
@@ -250,6 +250,7 @@ export default function SellPage() {
         addLine({
           item_id: "gift-voucher",
           item_name: recipientName ? `Gift Voucher – ${recipientName}` : "Gift Voucher",
+          category_id: null,
           variant_id: null,
           variant_name: null,
           quantity: 1,
@@ -265,6 +266,32 @@ export default function SellPage() {
       }
     }
   }, [addLine]);
+
+  // Auto-apply pending free_item basket voucher when matching item is added to cart
+  useEffect(() => {
+    if (!basketVoucher || basketVoucher.discountType !== "free_item") return;
+    if (basketVoucher.item_selection_type === undefined) return; // not a free_item voucher with metadata
+
+    let matchingLine: any = null;
+    if (basketVoucher.item_selection_type === "multiple" && basketVoucher.item_ids) {
+      matchingLine = lines.find((line: any) => basketVoucher.item_ids!.includes(line.item_id));
+    } else if (basketVoucher.item_selection_type === "category" && (basketVoucher.category_ids?.length || basketVoucher.category_id)) {
+      const catIds = basketVoucher.category_ids?.length ? basketVoucher.category_ids : [basketVoucher.category_id!];
+      matchingLine = lines.find((line: any) =>
+        catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
+      );
+    } else if (basketVoucher.item_name) {
+      matchingLine = lines.find((line: any) =>
+        line.item_name.toLowerCase().includes(basketVoucher.item_name!.toLowerCase())
+      );
+    }
+
+    if (matchingLine) {
+      applyVoucher(matchingLine.id, basketVoucher);
+      clearBasketVoucher();
+      showToast(`Voucher applied to ${matchingLine.item_name}`, "success");
+    }
+  }, [lines, basketVoucher, applyVoucher, clearBasketVoucher]);
 
   // Local sync state
   const [syncing, setSyncing] = useState(false);
@@ -378,18 +405,35 @@ export default function SellPage() {
             beanCost: 0,
             itemType: v.voucher_type === "item" ? "item" : undefined,
             category: undefined,
+            item_selection_type: v.item_selection_type,
+            item_ids: v.item_ids,
+            category_ids: v.category_ids,
+            category_id: v.category_id,
+            item_name: v.item_name,
           };
 
           if (v.discountType === "free_item") {
-            const matchingLine = lines.find((line: any) =>
-              line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
-            );
-            if (!matchingLine) {
-              showToast(`Add "${v.item_name}" to the cart first, then scan the voucher.`, "error");
-              setQrScannerOpen(false);
-              return;
+            // Try to find a matching line in the cart
+            let matchingLine: any = null;
+            if (v.item_selection_type === "multiple" && v.item_ids) {
+              matchingLine = lines.find((line: any) => v.item_ids.includes(line.item_id));
+            } else if (v.item_selection_type === "category" && (v.category_ids?.length || v.category_id)) {
+              const catIds = v.category_ids?.length ? v.category_ids : [v.category_id];
+              matchingLine = lines.find((line: any) =>
+                catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
+              );
+            } else {
+              matchingLine = lines.find((line: any) =>
+                line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
+              );
             }
-            applyVoucher(matchingLine.id, voucherForCart);
+
+            if (matchingLine) {
+              applyVoucher(matchingLine.id, voucherForCart);
+            } else {
+              // Store as pending basket voucher — will auto-apply when matching item is added
+              setBasketVoucher(voucherForCart);
+            }
           } else {
             setBasketVoucher(voucherForCart);
           }
@@ -958,7 +1002,7 @@ export default function SellPage() {
           // Confirmed no modifiers — add directly (same path as the fallback below)
           console.log('[checkAndShowModifiers] RAM cache empty, adding directly with event:', !!event);
           const price = variant ? variant.price : item.base_price;
-          addLine({ item_id: item.id, item_name: item.name, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
+          addLine({ item_id: item.id, item_name: item.name, category_id: item.category_id || null, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
           if (event) {
             console.log('[checkAndShowModifiers] Triggering animation from RAM cache path');
             triggerFlyingAnimation(item.name, event);
@@ -984,7 +1028,7 @@ export default function SellPage() {
             console.log('[checkAndShowModifiers] IDB has empty groups, adding directly with event:', !!event);
             modifierRAMCache.set(item.id, []);
             const price = variant ? variant.price : item.base_price;
-            addLine({ item_id: item.id, item_name: item.name, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
+            addLine({ item_id: item.id, item_name: item.name, category_id: item.category_id || null, variant_id: variant?.id || null, variant_name: variant?.name || null, quantity: 1, unit_price: price, modifiers: [], notes: "", tax_rate: 0 });
             if (event) {
               console.log('[checkAndShowModifiers] Triggering animation from IDB path');
               triggerFlyingAnimation(item.name, event);
@@ -1020,6 +1064,7 @@ export default function SellPage() {
     addLine({
       item_id: item.id,
       item_name: item.name,
+      category_id: item.category_id || null,
       variant_id: variant?.id || null,
       variant_name: variant?.name || null,
       quantity: 1,
@@ -1168,6 +1213,7 @@ export default function SellPage() {
     addLine({
       item_id: item.id,
       item_name: item.name,
+      category_id: item.category_id || null,
       variant_id: item.has_variants ? item.item_variants?.[0]?.id : null,
       variant_name: item.has_variants ? item.item_variants?.[0]?.name : null,
       quantity: 1,
@@ -1255,6 +1301,7 @@ export default function SellPage() {
     addLine({
       item_id: selectedItem.id,
       item_name: selectedItem.name,
+      category_id: selectedItem.category_id || null,
       variant_id: null,
       variant_name: null,
       quantity: 1,
@@ -1300,6 +1347,7 @@ export default function SellPage() {
       addLine({
         item_id: selectedItem.id,
         item_name: selectedItem.name,
+        category_id: selectedItem.category_id || null,
         variant_id: selectedVariant?.id || null,
         variant_name: selectedVariant?.name || null,
         quantity: line.quantity,
@@ -2261,6 +2309,12 @@ export default function SellPage() {
             discountType: voucher.discountType as any,
             discountValue: voucher.discountValue,
             beanCost: 0,
+            itemType: voucher.voucher_type === "item" ? "item" : undefined,
+            item_selection_type: voucher.item_selection_type,
+            item_ids: voucher.item_ids,
+            category_ids: voucher.category_ids,
+            category_id: voucher.category_id,
+            item_name: voucher.item_name,
           });
           showToast(`Voucher applied: ${voucher.name}`, 'success');
         }}

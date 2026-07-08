@@ -27,6 +27,11 @@ export interface VoucherDiscount {
   beanCost: number;
   itemType?: string;
   category?: string;
+  item_selection_type?: string;
+  item_ids?: string[];
+  category_ids?: string[];
+  category_id?: string;
+  item_name?: string;
 }
 
 export interface BasketDiscount {
@@ -42,6 +47,7 @@ export interface CartLine {
   id: string; // Unique ID for this cart line
   item_id: string;
   item_name: string;
+  category_id: string | null;
   variant_id: string | null;
   variant_name: string | null;
   quantity: number;
