@@ -391,7 +391,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-[#3d3d3d] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col max-h-[95vh]">
+      <div className="bg-[#3d3d3d] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -1063,7 +1063,7 @@ export function VoucherCreateModal({ items, categories, onClose, onCreated }: Vo
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-700 flex-shrink-0">
+        <div className="sticky bottom-0 p-3 border-t border-gray-700 flex-shrink-0 bg-[#3d3d3d]">
           <Button
             onClick={handleCreate}
             disabled={creating || !isFormValid()}
