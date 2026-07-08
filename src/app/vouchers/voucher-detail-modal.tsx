@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { hapticButtonPress } from "@/lib/utils/haptics";
+import { findCheapestEligibleLine } from "@/lib/utils/voucher-matching";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 const STATUS_COLOURS: Record<string, string> = {
@@ -201,21 +202,8 @@ export function VoucherDetailModal({ voucher, lines, onClose, onDeleted, onEmail
         }
 
         if (v.discountType === "free_item") {
-          // Try to find a matching line in the cart
-          let matchingLine: any = null;
-
-          if (v.item_selection_type === "multiple" && v.item_ids) {
-            matchingLine = lines.find((line: any) => v.item_ids.includes(line.item_id));
-          } else if (v.item_selection_type === "category" && (v.category_ids?.length || v.category_id)) {
-            const catIds = v.category_ids?.length ? v.category_ids : [v.category_id];
-            matchingLine = lines.find((line: any) =>
-              catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
-            );
-          } else {
-            matchingLine = lines.find((line: any) =>
-              line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
-            );
-          }
+          // Find the cheapest eligible line in the cart
+          const matchingLine = findCheapestEligibleLine(lines, v);
 
           if (matchingLine) {
             applyVoucher(matchingLine.id, voucherForCart);

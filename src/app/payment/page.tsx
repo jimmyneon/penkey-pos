@@ -1923,11 +1923,6 @@ export default function PaymentPage() {
           >
             <div className="text-xs uppercase tracking-wide opacity-90">Total Amount</div>
             <div className="text-3xl font-bold">{formatCurrency(total)}</div>
-            {basketVoucher && (
-              <div className="text-xs text-white/90 mt-0.5">
-                Voucher: {basketVoucher.name} &minus;{formatCurrency(getBasketVoucherDiscount())}
-              </div>
-            )}
             {basketDiscount && (
               <div className="text-xs text-white/90 mt-0.5">
                 Discount: {basketDiscount.code} &minus;{formatCurrency(getBasketDiscountAmount())}
@@ -2176,6 +2171,7 @@ export default function PaymentPage() {
         onSave={() => {}}
         onClearAll={() => {}}
         onPrint={() => {}}
+        hideVoucherDisplay={true}
         ticketAssignment={ticketAssignment}
         onCustomerClick={(customer) => {
           setPerksCustomer(customer);

@@ -146,9 +146,16 @@ export const useCartStore = create<CartStore>()(
   },
 
   removeLine: (lineId) => {
-    set((state) => ({
-      lines: state.lines.filter((line) => line.id !== lineId),
-    }));
+    const state = get();
+    const removedLine = state.lines.find((l) => l.id === lineId);
+    const remainingLines = state.lines.filter((line) => line.id !== lineId);
+
+    // If the removed line had a free_item voucher, preserve it as a pending basket voucher
+    if (removedLine?.voucher && removedLine.voucher.discountType === "free_item") {
+      set({ lines: remainingLines, basketVoucher: removedLine.voucher });
+    } else {
+      set({ lines: remainingLines });
+    }
   },
 
   updateNotes: (lineId, notes) => {

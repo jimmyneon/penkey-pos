@@ -36,6 +36,7 @@ import { SellHeader } from "./sell-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { VoucherRedeemDialog } from "./voucher-redeem-dialog";
 import { hapticButtonPress, hapticItemAdded, hapticDelete, hapticSuccess, setHapticEnabledCheck } from "@/lib/utils/haptics";
+import { findCheapestEligibleLine } from "@/lib/utils/voucher-matching";
 import { playButtonSound, playItemAddedSound, playDeleteSound, playSuccessSound, playErrorSound, playPaymentInitSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ToastContainer } from "@/components/toast-container";
@@ -272,19 +273,7 @@ export default function SellPage() {
     if (!basketVoucher || basketVoucher.discountType !== "free_item") return;
     if (basketVoucher.item_selection_type === undefined) return; // not a free_item voucher with metadata
 
-    let matchingLine: any = null;
-    if (basketVoucher.item_selection_type === "multiple" && basketVoucher.item_ids) {
-      matchingLine = lines.find((line: any) => basketVoucher.item_ids!.includes(line.item_id));
-    } else if (basketVoucher.item_selection_type === "category" && (basketVoucher.category_ids?.length || basketVoucher.category_id)) {
-      const catIds = basketVoucher.category_ids?.length ? basketVoucher.category_ids : [basketVoucher.category_id!];
-      matchingLine = lines.find((line: any) =>
-        catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
-      );
-    } else if (basketVoucher.item_name) {
-      matchingLine = lines.find((line: any) =>
-        line.item_name.toLowerCase().includes(basketVoucher.item_name!.toLowerCase())
-      );
-    }
+    const matchingLine = findCheapestEligibleLine(lines, basketVoucher);
 
     if (matchingLine) {
       applyVoucher(matchingLine.id, basketVoucher);
@@ -427,20 +416,8 @@ export default function SellPage() {
           }
 
           if (v.discountType === "free_item") {
-            // Try to find a matching line in the cart
-            let matchingLine: any = null;
-            if (v.item_selection_type === "multiple" && v.item_ids) {
-              matchingLine = lines.find((line: any) => v.item_ids.includes(line.item_id));
-            } else if (v.item_selection_type === "category" && (v.category_ids?.length || v.category_id)) {
-              const catIds = v.category_ids?.length ? v.category_ids : [v.category_id];
-              matchingLine = lines.find((line: any) =>
-                catIds.includes(line.category_id) || catIds.includes(line.item_category_id)
-              );
-            } else {
-              matchingLine = lines.find((line: any) =>
-                line.item_name.toLowerCase().includes(v.item_name?.toLowerCase() || "")
-              );
-            }
+            // Find the cheapest eligible line in the cart
+            const matchingLine = findCheapestEligibleLine(lines, v);
 
             if (matchingLine) {
               applyVoucher(matchingLine.id, voucherForCart);

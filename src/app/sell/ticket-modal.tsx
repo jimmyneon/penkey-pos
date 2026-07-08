@@ -48,6 +48,7 @@ interface TicketModalProps {
   ticketAssignment?: { type: 'customer' | 'table'; name: string; customer?: any } | null;
   onCustomerClick?: (customer: any) => void;
   basketVoucher?: { id: string; name: string; discountType: string; discountValue: number } | null;
+  hideVoucherDisplay?: boolean;
 }
 
 export function TicketModal({
@@ -67,6 +68,7 @@ export function TicketModal({
   ticketAssignment,
   onCustomerClick,
   basketVoucher,
+  hideVoucherDisplay = false,
 }: TicketModalProps) {
   // Use scroll lock hook to manage scroll state
   useScrollLock(open);
@@ -172,7 +174,7 @@ export function TicketModal({
                       <h4 className="font-semibold text-white text-sm sm:text-base">
                         {line.item_name}
                       </h4>
-                      {line.voucher && (
+                      {line.voucher && !hideVoucherDisplay && (
                         <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded font-medium">
                           Voucher Applied
                         </span>
@@ -188,7 +190,7 @@ export function TicketModal({
                         {line.modifiers.map((m) => m.name).join(", ")}
                       </p>
                     )}
-                    {line.voucher && (
+                    {line.voucher && !hideVoucherDisplay && (
                       <p className="text-xs text-green-400">
                         {line.voucher.name} ({line.voucher.discountType === 'percentage' ? `${line.voucher.discountValue}% off` : line.voucher.discountType === 'fixed' ? `£${line.voucher.discountValue} off` : 'Free'})
                       </p>
@@ -219,7 +221,7 @@ export function TicketModal({
                       </button>
                     </div>
                     <span className="font-bold text-lg sm:text-xl text-penkey-orange">
-                      {line.voucher ? (
+                      {line.voucher && !hideVoucherDisplay ? (
                         <>
                           <span className="line-through text-gray-500 text-sm mr-2">
                             {formatCurrency((line.unit_price + line.modifiers.reduce((sum, m) => sum + m.price_adjustment, 0)) * line.quantity)}
