@@ -273,6 +273,13 @@ export default function SellPage() {
     if (!basketVoucher || basketVoucher.discountType !== "free_item") return;
     if (basketVoucher.item_selection_type === undefined) return; // not a free_item voucher with metadata
 
+    // Guard: check if this voucher is already applied to a line (prevents double-application)
+    const alreadyApplied = lines.some((l) => l.voucher?.id === basketVoucher.id);
+    if (alreadyApplied) {
+      clearBasketVoucher();
+      return;
+    }
+
     const matchingLine = findCheapestEligibleLine(lines, basketVoucher);
 
     if (matchingLine) {
@@ -549,33 +556,26 @@ export default function SellPage() {
     let targetLineId: string | null = null;
 
     if (discountType === 'free_modifier') {
-      // Find items with modifiers (any modifier for enhancer category)
-      targetLineId = lines.find(line => line.modifiers.length > 0)?.id || null;
+      // Find items with modifiers that don't already have a voucher
+      targetLineId = lines.find(line => line.modifiers.length > 0 && !line.voucher)?.id || null;
 
       if (!targetLineId) {
         showToast("No items with modifiers in cart", "error");
         return;
       }
     } else if (discountType === 'free_item') {
-      // For coffee category, find coffee/tea items
-      if (category === 'coffee') {
-        targetLineId = lines.find(line => {
-          const itemName = line.item_name.toLowerCase();
-          return itemName.includes('coffee') || itemName.includes('tea') || itemName.includes('latte') || itemName.includes('cappuccino') || itemName.includes('americano') || itemName.includes('flat white');
-        })?.id || null;
+      // Use findCheapestEligibleLine for all free_item vouchers
+      const matchingLine = findCheapestEligibleLine(lines, {
+        item_selection_type: category ? "category" : undefined,
+        item_name: category === 'coffee' ? "coffee" : undefined,
+      });
 
-        if (!targetLineId) {
-          showToast("No coffee or tea items in cart", "error");
-          return;
-        }
-      } else {
-        // For major items, apply to first item
-        targetLineId = lines[0]?.id || null;
+      // Fallback: if no category-specific match, find cheapest line without a voucher
+      targetLineId = matchingLine?.id || lines.find(line => !line.voucher)?.id || null;
 
-        if (!targetLineId) {
-          showToast("No items in cart to apply discount", "error");
-          return;
-        }
+      if (!targetLineId) {
+        showToast("No eligible items in cart", "error");
+        return;
       }
     }
 
