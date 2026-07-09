@@ -1955,7 +1955,7 @@ export default function PaymentPage() {
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto flex flex-col">
+      <div className="flex-1 p-4 pb-8 overflow-y-auto flex flex-col">
         {showTipSelection ? (
           <TipSelection
             subtotal={cartTotal}
@@ -2023,7 +2023,7 @@ export default function PaymentPage() {
           <button
             onClick={() => router.push('/sell')}
             disabled={processing}
-            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg py-4 px-8 text-xl font-bold transition-colors mt-3"
+            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg py-4 px-4 text-xl font-bold transition-colors mt-3 mb-2"
           >
             Cancel
           </button>
@@ -2167,11 +2167,12 @@ export default function PaymentPage() {
         getSubtotal={getSubtotal}
         getTaxTotal={getTaxTotal}
         getTotal={getTotal}
+        getBasketVoucherDiscount={getBasketVoucherDiscount}
+        basketVoucher={basketVoucher}
         onCheckout={() => {}}
         onSave={() => {}}
         onClearAll={() => {}}
         onPrint={() => {}}
-        hideVoucherDisplay={true}
         ticketAssignment={ticketAssignment}
         onCustomerClick={(customer) => {
           setPerksCustomer(customer);
