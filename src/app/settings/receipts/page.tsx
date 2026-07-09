@@ -84,6 +84,36 @@ export default function ReceiptsSettingsPage() {
               </SettingRow>
             </SettingsSection>
 
+            <SettingsSection title="Food Order Printing" icon={Printer}>
+              <SettingRow label="Food Order Print Behaviour" description="Auto-print kitchen ticket when order contains food (skips drinks-only orders)">
+                <div className="flex gap-2 flex-wrap">
+                  {(["always", "ask", "never"] as const).map((val) => (
+                    <Button
+                      key={val}
+                      size="sm"
+                      variant={settings?.food_print_behaviour === val ? "default" : "outline"}
+                      onClick={() => updateSetting("food_print_behaviour", val)}
+                      className={`min-h-[44px] min-w-[140px] capitalize ${settings?.food_print_behaviour === val ? "bg-penkey-orange" : ""}`}
+                    >
+                      {val === "always" ? "Always Print" : val === "ask" ? "Always Ask" : "Never Print"}
+                    </Button>
+                  ))}
+                </div>
+              </SettingRow>
+
+              <SettingRow label="Food Order Copies" description="How many food order ticket copies to print">
+                <select
+                  value={settings?.food_copies}
+                  onChange={(e) => updateSetting("food_copies", parseInt(e.target.value))}
+                  className="bg-[#3d3d3d] text-white px-3 py-2 rounded border border-gray-600 focus:border-penkey-orange focus:outline-none min-h-[44px] text-sm sm:text-base"
+                >
+                  <option value="1">1 copy</option>
+                  <option value="2">2 copies</option>
+                  <option value="3">3 copies</option>
+                </select>
+              </SettingRow>
+            </SettingsSection>
+
             <SettingsSection title="Tip Presets" icon={CreditCard}>
               <SettingRow
                 label="Tip Preset Amounts"

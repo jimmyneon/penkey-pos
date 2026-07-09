@@ -12,6 +12,7 @@ import { useCartStore } from "@/lib/store/cart-store";
 import { dataCache } from "@/lib/services/data-cache";
 import { registerSettings } from "@/lib/services/register-settings";
 import { playPaymentSuccessSound, setSoundEnabledCheck } from "@/lib/utils/sounds";
+import { containsFoodItems } from "@/lib/utils/food-detection";
 
 function PaymentSuccessContent() {
   console.log("[PaymentSuccessContent] Function body execution start");
@@ -89,11 +90,14 @@ function PaymentSuccessContent() {
       const session = JSON.parse(sessionData);
       const regId = session.register?.id;
       if (!regId) return;
-      registerSettings.get(regId).then((s) => {
+      registerSettings.get(regId).then(async (s) => {
         if (s.print_behaviour === "always") {
           handlePrintReceipt(true);
         }
-        // "ask" = do nothing (button shown), "never" = do nothing
+        // Food order printing — check if receipt contains food items
+        if (s.food_print_behaviour === "always" || s.food_print_behaviour === "ask") {
+          await handlePrintFoodTicket(s.food_print_behaviour === "always", s.food_copies || 1);
+        }
       }).catch(() => {});
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,6 +267,73 @@ function PaymentSuccessContent() {
       setPrinting(false);
     }
   }, [receiptId, printing, showToast]);
+
+  const handlePrintFoodTicket = useCallback(async (autoPrint: boolean, copies: number) => {
+    if (!receiptId) return;
+    try {
+      // Fetch receipt data from IndexedDB
+      let receiptData = null;
+      if (receiptId.startsWith('temp_')) {
+        try {
+          const { getDB } = await import('@/lib/idb/db');
+          const db = await getDB();
+          receiptData = await db.get('receipts', receiptId);
+        } catch (err) {
+          console.error('[FoodTicket] Failed to fetch receipt from IndexedDB:', err);
+        }
+      }
+      if (!receiptData || !receiptData.lines) return;
+
+      // Check if any lines are food items
+      const hasFood = containsFoodItems(
+        receiptData.lines.map((l: any) => ({ item_name: l.item_name || l.name }))
+      );
+      if (!hasFood) return;
+
+      // Build ticket data for kitchen ticket
+      const now = new Date();
+      const ticketData = {
+        store_name: receiptData.store_name || '',
+        store_address: receiptData.store_address,
+        store_phone: receiptData.store_phone,
+        ticket_name: receiptData.receipt_number || receiptId.slice(0, 8),
+        ticket_comment: '',
+        date: now.toLocaleDateString('en-GB'),
+        time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        employee_name: receiptData.employee_name || 'Staff',
+        register_name: receiptData.register_name || 'Main Till',
+        lines: receiptData.lines.map((l: any) => ({
+          quantity: l.quantity || 1,
+          item_name: l.item_name || l.name,
+          variant_name: l.variant_name || null,
+          modifiers: l.modifiers || [],
+          line_total: l.line_total || 0,
+        })),
+        subtotal: receiptData.subtotal || 0,
+        tax: receiptData.tax || 0,
+        total: receiptData.total || 0,
+        is_paid: true,
+        payment_method: receiptData.payment_method,
+        dining_option: receiptData.dining_option,
+        table_number: receiptData.table_number,
+        customer_name: receiptData.customer_name,
+        assignment: null,
+      };
+
+      const response = await fetch('/api/tickets/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket_data: ticketData, copies }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.queued && autoPrint) {
+        console.log('[FoodTicket] Kitchen ticket sent to printer');
+      }
+    } catch (err) {
+      console.error('[FoodTicket] Failed to print food ticket:', err);
+    }
+  }, [receiptId]);
 
   const handleNewSale = () => {
     console.log("[PaymentSuccess] 'New Sale' button clicked. Redirecting to /sell.");
