@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
 
   const v = voucher as any;
 
-  if (v.status !== 'active') {
+  // Reusable vouchers (custom code) skip the one-time redemption check
+  if (!v.is_reusable && v.status !== 'active') {
     return NextResponse.json({
       error: v.status === 'redeemed' ? 'This voucher has already been redeemed'
            : v.status === 'expired' ? 'This voucher has expired'
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'This voucher has expired' }, { status: 400 });
   }
 
-  // If confirm=true, mark as redeemed
-  if (confirm) {
+  // If confirm=true, mark as redeemed (skip for reusable vouchers)
+  if (confirm && !v.is_reusable) {
     await supabase
       .from('gift_vouchers')
       .update({ status: 'redeemed', redeemed_at: new Date().toISOString() })
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
       category_ids: v.category_ids,
       item_selection_type: v.item_selection_type,
       min_spend: v.min_spend || 0,
+      is_reusable: v.is_reusable || false,
     },
   });
 }

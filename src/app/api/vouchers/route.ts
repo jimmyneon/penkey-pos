@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
         status: 'active',
         batch_id: batchId,
         batch_label: batch_label || null,
+        is_reusable: !!custom_code,
       })
       .select()
       .single();
